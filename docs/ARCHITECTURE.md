@@ -17,6 +17,7 @@ These models live in `bookvoice/models/datatypes.py` and are imported across mod
 ## Orchestration Notes
 
 Pipeline stages are designed as explicit steps:
+
 1. Extract
 2. Clean
 3. Split chapters
@@ -29,11 +30,13 @@ Pipeline stages are designed as explicit steps:
 10. Write manifest
 
 Caching strategy (planned):
+
 - Hash key format: `sha256(stage_name + normalized_input + provider_id + config_slice)`.
 - Cache granularity: chunk-level for translation/rewrite/TTS artifacts.
 - Cache storage: deterministic path layout under the artifact store root.
 
 Run reproducibility (planned):
+
 - Persist complete `RunManifest` per run.
 - Include a canonical config hash in the manifest.
 - Ensure stage outputs are content-addressed and resumable.

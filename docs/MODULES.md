@@ -5,7 +5,7 @@
 | Module | Responsibility | Public APIs |
 |---|---|---|
 | `bookvoice.__init__` | Package exports and versioning | `__version__`, `BookvoicePipeline` |
-| `bookvoice.cli` | CLI entrypoint and subcommands | `main`, `build_parser` |
+| `bookvoice.cli` | CLI entrypoint and subcommands | `app`, `main`, `build_command`, `translate_only_command`, `tts_only_command`, `resume_command` |
 | `bookvoice.config` | Runtime configuration model/loading | `BookvoiceConfig`, `ConfigLoader.from_yaml`, `ConfigLoader.from_env` |
 | `bookvoice.pipeline` | Stage orchestration | `BookvoicePipeline.run` |
 | `bookvoice.io.pdf_text_extractor` | PDF text extraction interfaces | `PdfTextExtractor.extract`, `PdfTextExtractor.extract_pages` |
