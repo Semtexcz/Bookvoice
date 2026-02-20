@@ -1,130 +1,102 @@
-# Roadmap
+# Roadmap (Fast MVP First)
 
-This roadmap defines a pragmatic path from scaffold to production-ready, deterministic audiobook generation for Czech outputs.
+This roadmap prioritizes one outcome above all else:
 
-## Planning Horizon
+**Convert a text-based PDF into a playable audiobook as quickly as possible.**
 
-- Reference date: 2026-02-20.
-- Timeline style: target windows, not hard deadlines.
-- Delivery principle: each phase should leave the project in a usable state.
+Reference date: 2026-02-20.
 
-## Phase 0: Foundation Hardening (Target: 1-2 weeks)
+## Product Priority
 
-Goals:
-- Keep current scaffold coherent after CLI migration to Typer.
-- Establish basic quality gates before adding provider logic.
+- Primary goal: `PDF (text) -> translated/rewritten text -> synthesized audio file`.
+- Edge cases are explicitly deferred until after MVP.
+- Initial implementation can be pragmatic and narrow if it works reliably for happy-path inputs.
 
-Scope:
-- Add unit tests for datatypes, CLI command wiring, and pipeline stage ordering.
-- Add placeholder CI workflow (lint/test/type-check commands can remain TODO).
-- Standardize error classes for deterministic vs external failures.
+## MVP Scope (What must work)
 
-Definition of done:
-- CI runs on pull requests and executes at least a smoke test suite.
-- Core modules (`config`, `pipeline`, `models`, `cli`) have baseline tests.
-- No circular imports introduced by new changes.
+- CLI command: `bookvoice build input.pdf --out out/`.
+- Text-native PDF extraction (single backend).
+- Basic cleanup and chunking (simple deterministic rules).
+- One translation/rewriter path (or bypass rewrite if needed for first playable output).
+- One TTS path.
+- Merge chunk audio into one final audiobook file.
+- Write a minimal `RunManifest` with key outputs and config hash.
 
-## Phase 1: Deterministic Local Pipeline MVP (No External APIs) (Target: 2-4 weeks)
+## Explicit Non-Goals for MVP
 
-Goals:
-- Make the pipeline produce real intermediate artifacts locally without third-party services.
-- Validate resumability and manifest reproducibility end-to-end.
+- OCR/scanned PDFs.
+- Advanced chapter detection heuristics.
+- Sophisticated retries/rate-limiting/caching strategies.
+- Rich metadata tagging and advanced audio mastering.
+- Full observability stack and broad test matrix.
 
-Scope:
-- Implement local filesystem `ArtifactStore` read/write behavior.
-- Implement deterministic chapter splitting and chunk generation with tests.
-- Implement manifest persistence with config hash + stage metadata.
-- Add `resume` logic based on existing artifacts and manifest state.
+## Execution Plan
 
-Definition of done:
-- `bookvoice build input.pdf --out out/` creates reproducible text/manifests for the same input.
-- `bookvoice resume ...` skips already completed deterministic stages.
-- Re-running the same config produces identical manifest hashes (except timestamp fields, if any).
+## Phase A: Thin Vertical Slice (Target: 3-5 days)
 
-## Phase 2: PDF Extraction Backends (Target: 2-3 weeks)
-
-Goals:
-- Replace extraction stubs with pluggable text extraction implementations.
-- Preserve deterministic output normalization across backends.
+Goal:
+- Ship the fastest possible end-to-end happy path.
 
 Scope:
-- Add backend abstraction variants for text-native and OCR-capable workflows (future optional deps).
-- Implement page-level extraction and stable ordering guarantees.
-- Add extractor quality checks (empty-page rates, suspicious character ratios).
+- Wire pipeline stages so `build` produces a final merged audio artifact.
+- Implement minimal `ArtifactStore` filesystem reads/writes.
+- Keep one default provider path for translation and TTS.
+- Keep logs simple (stdout is enough).
 
 Definition of done:
-- At least one production-capable extractor backend integrated.
-- Extraction output is persisted and can be reused without re-extraction.
-- Extraction failures are classified as recoverable/non-recoverable.
+- Running `bookvoice build sample.pdf --out out/` produces:
+  - extracted/intermediate text artifacts,
+  - chunk-level audio parts,
+  - one merged playable output file,
+  - a `RunManifest` file.
 
-## Phase 3: LLM Translation + Rewrite Integration (Target: 2-4 weeks)
+## Phase B: MVP Stabilization (Target: 4-7 days)
 
-Goals:
-- Integrate real translation and rewrite providers with cost control.
-- Ensure chunk-level caching for pay-as-you-go behavior.
+Goal:
+- Make happy-path execution predictable for repeated runs.
 
 Scope:
-- Implement `Translator` and `AudioRewriter` provider adapters.
-- Implement `ResponseCache` with deterministic keying.
-- Implement retry policy and rate limiter behavior.
-- Track usage costs via `CostTracker` and include in `RunManifest`.
+- Basic resume support from manifest/artifacts.
+- Minimal failure handling with clear user-facing errors.
+- Basic cost tracking in manifest (`LLM`, `TTS`, total).
+- Add smoke tests for CLI + pipeline integration path.
 
 Definition of done:
-- Chunk cache hits prevent repeated provider calls for unchanged inputs.
-- Failed chunk calls are retried with bounded backoff and logged.
-- Manifest includes provider/model usage metadata and cost summary.
+- Re-running the same command with same input/config does not break output generation.
+- `resume` can continue a partially completed run in common scenarios.
+- Smoke tests cover the main build flow.
 
-## Phase 4: TTS + Audio Assembly (Target: 2-4 weeks)
+## Phase C: Post-MVP Hardening (After first usable release)
 
-Goals:
-- Produce listenable audiobook outputs with pluggable voices.
-- Provide deterministic part ordering and merge behavior.
+Goal:
+- Improve reliability, scale, and quality without blocking MVP delivery.
 
 Scope:
-- Implement real `TTSSynthesizer` provider adapter(s).
-- Integrate audio postprocessing and merge pipeline (future ffmpeg integration).
-- Implement metadata writing (`MetadataWriter`) for final output.
+- Better caching strategy and deterministic cache keys.
+- Retry/backoff and rate limiting.
+- Better chapter splitting and extraction diagnostics.
+- Audio postprocessing improvements and metadata writing.
+- Expanded tests, CI quality gates, and contributor workflow.
 
 Definition of done:
-- `build` produces merged audiobook output file(s) and metadata.
-- `tts-only` can regenerate audio from cached rewrite artifacts.
-- Output ordering is stable across repeated runs.
+- Failures are easier to recover from and diagnose.
+- Runtime cost and latency are reduced on repeated runs.
+- Project is ready for broader open-source usage.
 
-## Phase 5: Reliability, Observability, and Release Readiness (Target: 2-3 weeks)
+## Milestones
 
-Goals:
-- Prepare for open-source adoption and real-world runs.
-- Make failures diagnosable and recovery predictable.
+1. `v0.2.0-mvp`: first working PDF-to-audiobook happy path.
+2. `v0.3.0`: stabilization (resume, smoke tests, clearer errors).
+3. `v0.4.0`: hardening and quality improvements.
 
-Scope:
-- Structured run logs with stage-level durations and statuses.
-- Better error taxonomy and user-facing CLI diagnostics.
-- Expand tests to include integration scenarios and resume behavior.
-- Document contribution flow, coding standards, and release process.
+## Implementation Order (Immediate)
 
-Definition of done:
-- Deterministic regression test coverage for key pipeline paths.
-- Clear troubleshooting docs for common failure classes.
-- Versioned release checklist and first stable pre-release tag.
+1. Implement real filesystem `ArtifactStore`.
+2. Implement one concrete text PDF extractor.
+3. Implement simple chapter split + chunk path.
+4. Implement one translator/rewriter execution path (minimal).
+5. Implement one TTS provider path.
+6. Implement merge step and manifest write.
+7. Add smoke test for full `build` command.
 
-## Cross-Cutting Workstreams
-
-- Security and compliance:
-  - Keep explicit non-goals: no DRM bypass, respect copyright.
-- Performance:
-  - Optimize chunk sizing and concurrency without breaking determinism.
-- Developer experience:
-  - Improve local dev commands and fixture-based testing flows.
-
-## Deferred / Out of Scope for Initial Releases
-
-- Full OCR research and advanced layout reconstruction.
-- Voice cloning or speaker diarization features.
-- GUI application.
-
-## Suggested Milestones
-
-1. `v0.2.0`: deterministic local MVP with persisted manifests and resume.
-2. `v0.3.0`: first provider-backed translation/rewrite with cache + costs.
-3. `v0.4.0`: first provider-backed TTS output and audio assembly.
-4. `v0.5.0`: reliability pass, documentation hardening, pre-release quality bar.
+This order is intentionally optimized for fastest delivery of an audible result, not for completeness.
