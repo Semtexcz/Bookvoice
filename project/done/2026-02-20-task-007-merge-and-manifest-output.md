@@ -1,6 +1,6 @@
 ---
 task: TASK-007
-status: "backlog"
+status: "done"
 priority: P0
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Implement audio merge and minimal manifest writing
 
 Task: TASK-007
-Status: backlog
+Status: done
 Priority: P0
 Type: feature
 Author:
@@ -21,10 +21,10 @@ Pipeline does not yet produce a final merged audiobook artifact and manifest per
 
 ## Definition of Done
 
-- [ ] `AudioMerger.merge` creates one final playable output from ordered audio parts.
-- [ ] Manifest is written to disk and includes config hash, run id, and output paths.
-- [ ] CLI prints final output path and manifest path on successful build.
-- [ ] Ordering is deterministic for identical chunk inputs.
+- [x] `AudioMerger.merge` creates one final playable output from ordered audio parts.
+- [x] Manifest is written to disk and includes config hash, run id, and output paths.
+- [x] CLI prints final output path and manifest path on successful build.
+- [x] Ordering is deterministic for identical chunk inputs.
 
 ## Notes
 

@@ -1,6 +1,6 @@
 ---
 task: TASK-005
-status: "backlog"
+status: "done"
 priority: P0
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Implement minimal translation and rewrite execution path
 
 Task: TASK-005
-Status: backlog
+Status: done
 Priority: P0
 Type: feature
 Author:
@@ -21,10 +21,10 @@ LLM stage modules are placeholders. MVP needs one practical way to obtain Czech 
 
 ## Definition of Done
 
-- [ ] Pipeline executes one translation path for each chunk.
-- [ ] Rewrite-for-audio stage is executed or intentionally bypassed with explicit behavior.
-- [ ] Output text artifacts are persisted for inspection.
-- [ ] Stage metadata records provider/model identifiers in results.
+- [x] Pipeline executes one translation path for each chunk.
+- [x] Rewrite-for-audio stage is executed or intentionally bypassed with explicit behavior.
+- [x] Output text artifacts are persisted for inspection.
+- [x] Stage metadata records provider/model identifiers in results.
 
 ## Notes
 

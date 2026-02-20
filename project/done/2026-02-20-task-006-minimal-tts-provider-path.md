@@ -1,6 +1,6 @@
 ---
 task: TASK-006
-status: "backlog"
+status: "done"
 priority: P0
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Implement one TTS provider path for chunk synthesis
 
 Task: TASK-006
-Status: backlog
+Status: done
 Priority: P0
 Type: feature
 Author:
@@ -21,10 +21,10 @@ TTS interfaces are currently stubbed, so no real audio parts are generated from 
 
 ## Definition of Done
 
-- [ ] One concrete `TTSSynthesizer` path is implemented and wired into pipeline.
-- [ ] Chunk-level audio files are generated in deterministic filenames.
-- [ ] `AudioPart` metadata is populated with path and duration fields.
-- [ ] Failures in synthesis surface clear errors to CLI output.
+- [x] One concrete `TTSSynthesizer` path is implemented and wired into pipeline.
+- [x] Chunk-level audio files are generated in deterministic filenames.
+- [x] `AudioPart` metadata is populated with path and duration fields.
+- [x] Failures in synthesis surface clear errors to CLI output.
 
 ## Notes
 

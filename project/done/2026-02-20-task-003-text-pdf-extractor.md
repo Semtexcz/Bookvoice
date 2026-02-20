@@ -1,6 +1,6 @@
 ---
 task: TASK-003
-status: "backlog"
+status: "done"
 priority: P0
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Implement first concrete text PDF extractor
 
 Task: TASK-003
-Status: backlog
+Status: done
 Priority: P0
 Type: feature
 Author:
@@ -21,10 +21,10 @@ Related: TASK-001, TASK-004
 
 ## Definition of Done
 
-- [ ] A concrete extractor implementation is added and wired into pipeline extraction stage.
-- [ ] `extract` returns full-document text for text-based PDFs.
-- [ ] `extract_pages` returns page-ordered text segments.
-- [ ] Failure mode for unreadable or unsupported PDF is explicit and user-visible.
+- [x] A concrete extractor implementation is added and wired into pipeline extraction stage.
+- [x] `extract` returns full-document text for text-based PDFs.
+- [x] `extract_pages` returns page-ordered text segments.
+- [x] Failure mode for unreadable or unsupported PDF is explicit and user-visible.
 
 ## Notes
 

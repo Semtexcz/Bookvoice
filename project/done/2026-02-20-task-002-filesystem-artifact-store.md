@@ -1,6 +1,6 @@
 ---
 task: TASK-002
-status: "backlog"
+status: "done"
 priority: P0
 type: infra
 ---
@@ -8,7 +8,7 @@ type: infra
 # Implement filesystem ArtifactStore for MVP outputs
 
 Task: TASK-002
-Status: backlog
+Status: done
 Priority: P0
 Type: infra
 Author:
@@ -21,10 +21,10 @@ Related: TASK-001, TASK-007, TASK-008
 
 ## Definition of Done
 
-- [ ] `save_text`, `save_json`, `save_audio`, `load_text`, and `exists` perform real filesystem operations.
-- [ ] Writes create parent directories as needed under the configured root.
-- [ ] Paths are deterministic and stable across repeated runs.
-- [ ] Basic unit tests cover read/write and existence behavior.
+- [x] `save_text`, `save_json`, `save_audio`, `load_text`, and `exists` perform real filesystem operations.
+- [x] Writes create parent directories as needed under the configured root.
+- [x] Paths are deterministic and stable across repeated runs.
+- [x] Basic unit tests cover read/write and existence behavior.
 
 ## Notes
 

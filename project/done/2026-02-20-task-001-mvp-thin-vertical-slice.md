@@ -1,6 +1,6 @@
 ---
 task: TASK-001
-status: "backlog"
+status: "done"
 priority: P0
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # MVP thin vertical slice: text PDF to playable audiobook
 
 Task: TASK-001
-Status: backlog
+Status: done
 Priority: P0
 Type: feature
 Author:
@@ -21,10 +21,10 @@ The repository currently provides a scaffold only. There is no end-to-end happy 
 
 ## Definition of Done
 
-- [ ] `bookvoice build input.pdf --out out/` executes a real thin pipeline for text PDFs.
-- [ ] The command creates a merged playable audio output file in `out/`.
-- [ ] Intermediate artifacts are stored so output can be inspected manually.
-- [ ] A minimal `RunManifest` is written and references key artifacts.
+- [x] `bookvoice build input.pdf --out out/` executes a real thin pipeline for text PDFs.
+- [x] The command creates a merged playable audio output file in `out/`.
+- [x] Intermediate artifacts are stored so output can be inspected manually.
+- [x] A minimal `RunManifest` is written and references key artifacts.
 
 ## Notes
 
