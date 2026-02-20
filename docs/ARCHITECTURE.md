@@ -48,3 +48,7 @@ Run reproducibility (planned):
 - Record retry attempts and terminal failures in telemetry.
 - Keep partial artifacts to allow resume from the last successful stage.
 - Distinguish recoverable vs non-recoverable errors via explicit exception categories.
+
+## Delivery Roadmap
+
+- See `docs/ROADMAP.md` for phased milestones, scope boundaries, and release targets.

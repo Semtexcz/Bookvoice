@@ -92,6 +92,12 @@ pip install -e .
 - `bookvoice/io|text|llm|tts|audio|telemetry/`: pipeline stage modules.
 - `docs/`: architecture and module overviews.
 
+### Project docs
+
+- `docs/ARCHITECTURE.md`: data model and orchestration strategy.
+- `docs/MODULES.md`: module responsibilities and dependencies.
+- `docs/ROADMAP.md`: phased implementation plan and milestones.
+
 ## License
 
 MIT. See `LICENSE`.
