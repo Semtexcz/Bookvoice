@@ -1,19 +1,31 @@
+[build-system]
+requires = ["hatchling>=1.24.2"]
+build-backend = "hatchling.build"
+
 [project]
 name = "bookvoice"
 version = "0.1.0"
-description = ""
-authors = [
-    {name = "Daniel Kopecký",email = "kopecky.d@gmail.com"}
-]
+description = "Deterministic pipeline scaffold for converting PDF books into Czech audiobook outputs."
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = [
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+  { name = "Bookvoice Contributors" }
 ]
+keywords = ["audiobook", "pdf", "tts", "pipeline", "czech"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13"
+]
+dependencies = []
 
-[tool.poetry]
-packages = [{include = "bookvoice", from = "src"}]
+[project.scripts]
+bookvoice = "bookvoice.cli:main"
 
-
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+[tool.hatch.build.targets.wheel]
+packages = ["bookvoice"]
