@@ -31,12 +31,17 @@ def build_command(
     out: Annotated[Path, typer.Option("--out", help="Output directory.")] = Path("out"),
 ) -> None:
     """Run the full pipeline."""
-    pipeline = BookvoicePipeline()
-    config = BookvoiceConfig(input_pdf=input_pdf, output_dir=out)
-    manifest = pipeline.run(config)
-    typer.echo(f"[build] Would process: {config.input_pdf}")
-    typer.echo(f"[build] Output dir: {config.output_dir}")
-    typer.echo(f"[build] Stub run id: {manifest.run_id}")
+    try:
+        pipeline = BookvoicePipeline()
+        config = BookvoiceConfig(input_pdf=input_pdf, output_dir=out)
+        manifest = pipeline.run(config)
+    except Exception as exc:
+        typer.secho(f"Build failed: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(f"Run id: {manifest.run_id}")
+    typer.echo(f"Merged audio: {manifest.merged_audio_path}")
+    typer.echo(f"Manifest: {manifest.extra.get('manifest_path', '(not written)')}")
 
 
 @app.command("translate-only")
