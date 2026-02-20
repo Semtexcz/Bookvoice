@@ -22,7 +22,9 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13"
 ]
-dependencies = []
+dependencies = [
+  "typer>=0.12,<1.0"
+]
 
 [project.scripts]
 bookvoice = "bookvoice.cli:main"
