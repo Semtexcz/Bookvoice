@@ -60,6 +60,8 @@ These are planned and intentionally not implemented in this scaffold.
 ```bash
 bookvoice build input.pdf --out out/
 bookvoice chapters-only input.pdf --out out/
+bookvoice list-chapters input.pdf
+bookvoice list-chapters --chapters-artifact out/run-*/text/chapters.json
 bookvoice translate-only input.pdf
 bookvoice tts-only out/run_manifest.json
 bookvoice resume out/run_manifest.json
@@ -69,6 +71,8 @@ CLI currently supports full `build` and basic manifest-driven `resume` flows.
 Use `chapters-only` to run only extract/clean/split and inspect chapter boundaries quickly.
 The command writes `text/raw.txt`, `text/clean.txt`, `text/chapters.json`, and `run_manifest.json`,
 including chapter source metadata (`pdf_outline` or `text_heuristic`) and fallback reason.
+Use `list-chapters` to print compact `index. title` output either directly from a PDF
+via extract/clean/split flow or from an existing `text/chapters.json` artifact.
 `translate-only` and `tts-only` remain placeholders.
 
 ## Troubleshooting
@@ -76,6 +80,7 @@ including chapter source metadata (`pdf_outline` or `text_heuristic`) and fallba
 - `build failed at stage extract`: ensure the input PDF path exists and the `pdftotext` tool is installed.
 - `resume failed at stage resume-manifest`: check that the manifest file exists and contains valid JSON.
 - `resume failed at stage resume-artifacts`: one or more artifact JSON files are corrupted; delete the broken artifact and rerun `bookvoice resume`.
+- `list-chapters failed at stage chapters-artifact`: verify `--chapters-artifact` points to a valid `text/chapters.json` file.
 - `build failed at stage tts` or `merge`: verify output directories are writable and intermediate audio files are present.
 
 ## Development

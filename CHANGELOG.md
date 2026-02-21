@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.12] - 2026-02-21
+
+- Completed `TASK-017` by adding a dedicated `bookvoice list-chapters` CLI command.
+- Added chapter listing support for both direct PDF extract/clean/split flow and existing `text/chapters.json` artifacts.
+- Added deterministic CLI output with chapter index/title rows plus chapter source and optional fallback reason metadata.
+- Added integration test coverage for successful artifact-based listing and stage-aware failure diagnostics for missing artifacts.
+
 ## [0.1.11] - 2026-02-21
 
 - Added `TASK-017` to backlog for a CLI command that lists extracted book chapters with source metadata.

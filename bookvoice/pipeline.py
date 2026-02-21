@@ -57,6 +57,53 @@ class BookvoicePipeline:
         store = ArtifactStore(config.output_dir / run_id)
         return run_id, config_hash, store
 
+    def list_chapters_from_pdf(
+        self, config: BookvoiceConfig
+    ) -> tuple[list[Chapter], str, str]:
+        """List chapters by running extract/clean/split without writing artifacts."""
+
+        raw_text = self._extract(config)
+        clean_text = self._clean(raw_text)
+        return self._split_chapters(clean_text, config.input_pdf)
+
+    def list_chapters_from_artifact(
+        self, chapters_artifact: Path
+    ) -> tuple[list[Chapter], str, str]:
+        """List chapters and metadata from an existing chapter artifact JSON file."""
+
+        if not chapters_artifact.exists():
+            raise PipelineStageError(
+                stage="chapters-artifact",
+                detail=f"Chapters artifact not found: {chapters_artifact}",
+                hint=(
+                    "Run `bookvoice chapters-only <input.pdf>` first or provide "
+                    "a valid `text/chapters.json` path."
+                ),
+            )
+        try:
+            chapters = self._load_chapters(chapters_artifact)
+            metadata = self._load_chapter_metadata(chapters_artifact)
+        except PipelineStageError as exc:
+            raise PipelineStageError(
+                stage="chapters-artifact",
+                detail=exc.detail,
+                hint=(
+                    "Ensure the file is a valid `text/chapters.json` artifact "
+                    "and rerun the command."
+                ),
+            ) from exc
+        except Exception as exc:
+            raise PipelineStageError(
+                stage="chapters-artifact",
+                detail=f"Failed to parse chapters artifact `{chapters_artifact}`: {exc}",
+                hint=(
+                    "Ensure the file is a valid `text/chapters.json` artifact "
+                    "and rerun the command."
+                ),
+            ) from exc
+
+        return chapters, metadata["source"], metadata["fallback_reason"]
+
     def run(self, config: BookvoiceConfig) -> RunManifest:
         """Run the full pipeline and return a manifest.
 

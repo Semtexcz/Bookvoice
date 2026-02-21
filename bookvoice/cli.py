@@ -18,7 +18,7 @@ import typer
 
 from .config import BookvoiceConfig
 from .errors import PipelineStageError
-from .models.datatypes import RunManifest
+from .models.datatypes import Chapter, RunManifest
 from .pipeline import BookvoicePipeline
 
 app = typer.Typer(
@@ -62,6 +62,17 @@ def _echo_chapter_summary(manifest: RunManifest) -> None:
         typer.echo(f"Chapter fallback reason: {fallback_reason}")
 
 
+def _echo_chapter_list(chapters: list[Chapter]) -> None:
+    """Print compact deterministic chapter index/title rows."""
+
+    sorted_rows = sorted(
+        ((chapter.index, chapter.title) for chapter in chapters),
+        key=lambda item: item[0],
+    )
+    for index, title in sorted_rows:
+        typer.echo(f"{index}. {title}")
+
+
 @app.command("build")
 def build_command(
     input_pdf: Annotated[Path, typer.Argument(help="Path to source PDF.")],
@@ -101,6 +112,61 @@ def chapters_only_command(
     typer.echo(f"Chapters artifact: {manifest.extra.get('chapters', '(not written)')}")
     typer.echo(f"Manifest: {manifest.extra.get('manifest_path', '(not written)')}")
     _echo_chapter_summary(manifest)
+
+
+@app.command("list-chapters")
+def list_chapters_command(
+    input_pdf: Annotated[Path | None, typer.Argument(help="Path to source PDF.")] = None,
+    chapters_artifact: Annotated[
+        Path | None,
+        typer.Option(
+            "--chapters-artifact",
+            help="Path to `text/chapters.json` chapter artifact.",
+        ),
+    ] = None,
+    out: Annotated[
+        Path,
+        typer.Option("--out", help="Output directory used for extract/clean/split flow."),
+    ] = Path("out"),
+) -> None:
+    """List extracted chapter indices and titles for a PDF or chapters artifact."""
+
+    if (input_pdf is None and chapters_artifact is None) or (
+        input_pdf is not None and chapters_artifact is not None
+    ):
+        _exit_with_command_error(
+            "list-chapters",
+            PipelineStageError(
+                stage="list-chapters-input",
+                detail=(
+                    "Provide exactly one input source: `<input.pdf>` or "
+                    "`--chapters-artifact <path>`."
+                ),
+                hint="Use `bookvoice list-chapters --help` for usage examples.",
+            ),
+        )
+    try:
+        pipeline = BookvoicePipeline()
+        if chapters_artifact is not None:
+            chapters, source, fallback_reason = pipeline.list_chapters_from_artifact(
+                chapters_artifact
+            )
+        else:
+            if input_pdf is None:
+                raise PipelineStageError(
+                    stage="list-chapters-input",
+                    detail="Input PDF path is required when artifact path is not provided.",
+                    hint="Provide `<input.pdf>` or use `--chapters-artifact <path>`.",
+                )
+            config = BookvoiceConfig(input_pdf=input_pdf, output_dir=out)
+            chapters, source, fallback_reason = pipeline.list_chapters_from_pdf(config)
+    except Exception as exc:
+        _exit_with_command_error("list-chapters", exc)
+
+    typer.echo(f"Chapter source: {source or 'unknown'}")
+    if fallback_reason:
+        typer.echo(f"Chapter fallback reason: {fallback_reason}")
+    _echo_chapter_list(chapters)
 
 
 @app.command("translate-only")
