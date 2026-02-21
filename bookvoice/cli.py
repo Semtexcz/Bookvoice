@@ -71,7 +71,19 @@ def resume_command(
     manifest: Annotated[Path, typer.Argument(help="Path to run manifest JSON.")],
 ) -> None:
     """Resume pipeline from an existing manifest."""
-    typer.echo(f"[resume] Would resume pipeline using manifest: {manifest}")
+    try:
+        pipeline = BookvoicePipeline()
+        resumed_manifest = pipeline.resume(manifest)
+    except Exception as exc:
+        typer.secho(f"Resume failed: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(f"Run id: {resumed_manifest.run_id}")
+    typer.echo(
+        f"Resumed from stage: {resumed_manifest.extra.get('resume_next_stage', 'unknown')}"
+    )
+    typer.echo(f"Merged audio: {resumed_manifest.merged_audio_path}")
+    typer.echo(f"Manifest: {resumed_manifest.extra.get('manifest_path', '(not written)')}")
 
 
 def main() -> None:

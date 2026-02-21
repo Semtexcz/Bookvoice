@@ -64,7 +64,8 @@ bookvoice tts-only out/run_manifest.json
 bookvoice resume out/run_manifest.json
 ```
 
-The current CLI is a stub and prints planned actions.
+CLI currently supports full `build` and basic manifest-driven `resume` flows.
+`translate-only` and `tts-only` remain placeholders.
 
 ## Development
 
