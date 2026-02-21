@@ -14,6 +14,7 @@ Implemented today:
 - Real OpenAI translation (`chat/completions`).
 - Real OpenAI rewrite-for-audio (`chat/completions`), plus `--rewrite-bypass`.
 - Real OpenAI TTS per segmented part (`audio/speech`) with deterministic `<chapter>_<part>_<title-slug>.wav` naming.
+- Structure-aware segment planning with chapter-local merging and paragraph-preferred boundaries (`6500` default budget, hard ceiling `9300` chars for approximately 10-minute parts).
 - Resumable artifact-driven pipeline with run manifest and cost summary.
 - Chapter listing and chapter-scope processing (`--chapters`).
 - Secure API-key storage via `keyring` (`bookvoice credentials`).
@@ -22,6 +23,7 @@ Still intentionally limited:
 
 - `translate-only` and `tts-only` are placeholders.
 - Audio postprocessing/tagging are minimal scaffolds.
+- Sentence-complete chunk boundary enforcement is tracked separately and not guaranteed yet.
 
 ## Pipeline Overview
 
