@@ -31,10 +31,11 @@ def test_chapters_only_command_writes_split_artifacts_only(tmp_path: Path) -> No
     chapters_payload = json.loads((run_root / "text/chapters.json").read_text(encoding="utf-8"))
     assert chapters_payload["metadata"]["source"] in {"pdf_outline", "text_heuristic"}
     assert isinstance(chapters_payload["metadata"]["fallback_reason"], str)
+    assert isinstance(chapters_payload["metadata"]["normalized_structure"], list)
+    assert chapters_payload["metadata"]["normalized_structure"]
 
     assert not (run_root / "text/chunks.json").exists()
     assert not (run_root / "text/translations.json").exists()
     assert not (run_root / "text/rewrites.json").exists()
     assert not (run_root / "audio/parts.json").exists()
     assert not (run_root / "audio/bookvoice_merged.wav").exists()
-

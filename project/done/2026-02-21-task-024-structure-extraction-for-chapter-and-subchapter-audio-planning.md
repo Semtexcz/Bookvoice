@@ -1,6 +1,6 @@
 ---
 task: TASK-024
-status: "backlog"
+status: "done"
 priority: P1
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Extract and normalize chapter/subchapter structure for audio planning
 
 Task: TASK-024
-Status: backlog
+Status: done
 Priority: P1
 Type: feature
 Author:
@@ -21,11 +21,11 @@ Books with finer chapter/subchapter hierarchy need structure-aware audio plannin
 
 ## Definition of Done
 
-- [ ] Define a normalized structure model for `chapter` and optional `subchapter` units used by downstream planning.
-- [ ] Prefer PDF outline hierarchy when available; fall back to heading detection from extracted text.
-- [ ] Persist normalized structure metadata in artifacts with deterministic ordering.
-- [ ] Keep chapter boundaries explicit and stable across repeated runs.
-- [ ] Add tests for outline-first behavior, fallback behavior, and ordering stability.
+- [x] Define a normalized structure model for `chapter` and optional `subchapter` units used by downstream planning.
+- [x] Prefer PDF outline hierarchy when available; fall back to heading detection from extracted text.
+- [x] Persist normalized structure metadata in artifacts with deterministic ordering.
+- [x] Keep chapter boundaries explicit and stable across repeated runs.
+- [x] Add tests for outline-first behavior, fallback behavior, and ordering stability.
 
 ## Notes
 

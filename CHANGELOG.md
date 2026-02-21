@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.32] - 2026-02-21
+
+- Completed `TASK-024` by adding a normalized `ChapterStructureUnit` model for chapter/subchapter-aware planning.
+- Extended PDF outline extraction to include hierarchy-aware structure units with deterministic ordering and explicit chapter boundaries.
+- Added deterministic text-heading fallback structure normalization when outline hierarchy is unavailable or incomplete.
+- Persisted normalized structure metadata in `text/chapters.json` for build, chapters-only, and resume-rebuild chapter artifact paths.
+- Added tests for outline-first structure extraction, fallback behavior, ordering stability, and chapters-only artifact metadata presence.
+
 ## [0.1.25] - 2026-02-21
 
 - Added `TASK-019` to backlog for visible `bookvoice build` runtime feedback.

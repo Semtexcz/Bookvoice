@@ -6,7 +6,7 @@ Responsibilities:
 
 Key types:
 - `BookMeta`, `Chapter`, `Chunk`, `TranslationResult`, `RewriteResult`,
-  `AudioPart`, and `RunManifest`.
+  `AudioPart`, `ChapterStructureUnit`, and `RunManifest`.
 """
 
 from __future__ import annotations
@@ -98,6 +98,33 @@ class AudioPart:
     provider: str | None = None
     model: str | None = None
     voice: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ChapterStructureUnit:
+    """Normalized chapter/subchapter structure unit for downstream audio planning.
+
+    Attributes:
+        order_index: 1-based deterministic unit ordering across the full book.
+        chapter_index: 1-based chapter index this unit belongs to.
+        chapter_title: Normalized chapter title.
+        subchapter_index: 1-based subchapter index within chapter, or `None`.
+        subchapter_title: Normalized subchapter title, or `None`.
+        text: Text payload represented by this planning unit.
+        char_start: Inclusive character offset in chapter text.
+        char_end: Exclusive character offset in chapter text.
+        source: Source for this unit (`pdf_outline` or `text_heuristic`).
+    """
+
+    order_index: int
+    chapter_index: int
+    chapter_title: str
+    subchapter_index: int | None
+    subchapter_title: str | None
+    text: str
+    char_start: int
+    char_end: int
+    source: str
 
 
 @dataclass(frozen=True, slots=True)

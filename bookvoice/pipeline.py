@@ -31,6 +31,7 @@ from .models.datatypes import (
     AudioPart,
     BookMeta,
     Chapter,
+    ChapterStructureUnit,
     Chunk,
     RewriteResult,
     RunManifest,
@@ -44,6 +45,7 @@ from .text.chapter_selection import (
 )
 from .text.chunking import Chunker
 from .text.cleaners import TextCleaner
+from .text.structure import ChapterStructureNormalizer
 from .telemetry.cost_tracker import CostTracker
 from .tts.voices import VoiceProfile
 
@@ -136,7 +138,11 @@ class BookvoicePipeline:
         chapters_path = store.save_json(
             Path("text/chapters.json"),
             self._chapter_artifact_payload(
-                chapters, chapter_source, chapter_fallback_reason, chapter_scope
+                chapters,
+                chapter_source,
+                chapter_fallback_reason,
+                chapter_scope,
+                self._extract_normalized_structure(chapters, chapter_source, config.input_pdf),
             ),
         )
 
@@ -254,7 +260,11 @@ class BookvoicePipeline:
         chapters_path = store.save_json(
             Path("text/chapters.json"),
             self._chapter_artifact_payload(
-                chapters, chapter_source, chapter_fallback_reason, chapter_scope
+                chapters,
+                chapter_source,
+                chapter_fallback_reason,
+                chapter_scope,
+                self._extract_normalized_structure(chapters, chapter_source, config.input_pdf),
             ),
         )
 
@@ -395,7 +405,13 @@ class BookvoicePipeline:
             chapters_path = store.save_json(
                 Path("text/chapters.json"),
                 self._chapter_artifact_payload(
-                    chapters, chapter_source, chapter_fallback_reason, chapter_scope
+                    chapters,
+                    chapter_source,
+                    chapter_fallback_reason,
+                    chapter_scope,
+                    self._extract_normalized_structure(
+                        chapters, chapter_source, config.input_pdf
+                    ),
                 ),
             )
         selected_chapters, chapter_scope = self._resolve_resume_chapter_scope(chapters, extra)
@@ -586,6 +602,7 @@ class BookvoicePipeline:
         source: str,
         fallback_reason: str,
         chapter_scope: dict[str, str],
+        normalized_structure: list[ChapterStructureUnit],
     ) -> dict[str, object]:
         """Serialize chapter artifacts with extraction metadata for resume and diagnostics."""
 
@@ -595,8 +612,30 @@ class BookvoicePipeline:
                 "source": source,
                 "fallback_reason": fallback_reason,
                 "chapter_scope": chapter_scope,
+                "normalized_structure": [asdict(unit) for unit in normalized_structure],
             },
         }
+
+    def _extract_normalized_structure(
+        self,
+        chapters: list[Chapter],
+        chapter_source: str,
+        source_pdf: Path,
+    ) -> list[ChapterStructureUnit]:
+        """Extract deterministic chapter/subchapter structure for downstream planning."""
+
+        if chapter_source == "pdf_outline":
+            try:
+                outline_structure = PdfOutlineChapterExtractor().extract_structure(source_pdf)
+                if outline_structure.units:
+                    return outline_structure.units
+            except Exception:
+                pass
+
+        return ChapterStructureNormalizer().from_chapters(
+            chapters=chapters,
+            source="text_heuristic",
+        )
 
     def _resolve_chapter_scope(
         self, chapters: list[Chapter], chapter_selection: str | None

@@ -14,6 +14,7 @@
 | `bookvoice.text.cleaners` | Deterministic cleanup rules | `TextCleaner.clean`, `RemovePageNumbers.apply`, `RemoveHeadersFooters.apply`, `FixHyphenation.apply`, `NormalizeQuotes.apply`, `CollapseWhitespace.apply`, `RemoveFigureRefs.apply` |
 | `bookvoice.text.normalizer` | Language/form normalization | `TextNormalizer.normalize` |
 | `bookvoice.text.chunking` | Chunk generation from chapters | `Chunker.to_chunks` |
+| `bookvoice.text.structure` | Chapter/subchapter structure normalization | `ChapterStructureNormalizer.from_chapters` |
 | `bookvoice.llm.prompts` | Prompt template library | `PromptLibrary.translate_prompt`, `PromptLibrary.rewrite_for_audio_prompt` |
 | `bookvoice.llm.translator` | Translation interface + provider stubs | `Translator.translate`, `OpenAITranslator.translate` |
 | `bookvoice.llm.audio_rewriter` | Spoken-style rewrite stage | `AudioRewriter.rewrite` |
@@ -26,7 +27,7 @@
 | `bookvoice.audio.tags` | Metadata tagging abstraction | `MetadataWriter.write_id3` |
 | `bookvoice.telemetry.cost_tracker` | Cost accounting | `CostTracker.add_llm_usage`, `add_tts_usage`, `summary` |
 | `bookvoice.telemetry.logger` | Structured run logging | `RunLogger.log_event`, `log_error` |
-| `bookvoice.models.datatypes` | Shared dataclasses | `BookMeta`, `Chapter`, `Chunk`, `TranslationResult`, `RewriteResult`, `AudioPart`, `RunManifest` |
+| `bookvoice.models.datatypes` | Shared dataclasses | `BookMeta`, `Chapter`, `Chunk`, `TranslationResult`, `RewriteResult`, `AudioPart`, `ChapterStructureUnit`, `RunManifest` |
 
 ## Cross-Module Dependencies
 

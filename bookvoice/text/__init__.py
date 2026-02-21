@@ -15,11 +15,13 @@ from .cleaners import (
     TextCleaner,
 )
 from .normalizer import TextNormalizer
+from .structure import ChapterStructureNormalizer
 
 __all__ = [
     "TextCleaner",
     "TextNormalizer",
     "Chunker",
+    "ChapterStructureNormalizer",
     "RemovePageNumbers",
     "RemoveHeadersFooters",
     "FixHyphenation",
