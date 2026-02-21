@@ -1,6 +1,6 @@
 ---
 task: TASK-011
-status: "backlog"
+status: "done"
 priority: P1
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Add basic LLM and TTS cost summary to run manifest
 
 Task: TASK-011
-Status: backlog
+Status: done
 Priority: P1
 Type: feature
 Author:
@@ -21,10 +21,10 @@ Related: TASK-005, TASK-006, TASK-007
 
 ## Definition of Done
 
-- [ ] Pipeline tracks LLM and TTS costs through execution.
-- [ ] Manifest contains llm, tts, and total cost values.
-- [ ] CLI summary prints cost totals after successful run.
-- [ ] Costs are deterministic for a fixed mocked execution in tests.
+- [x] Pipeline tracks LLM and TTS costs through execution.
+- [x] Manifest contains llm, tts, and total cost values.
+- [x] CLI summary prints cost totals after successful run.
+- [x] Costs are deterministic for a fixed mocked execution in tests.
 
 ## Notes
 

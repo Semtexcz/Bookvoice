@@ -1,12 +1,17 @@
+"""Resume command integration tests for artifact recovery and run metadata."""
+
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from bookvoice.cli import app
 
 
 def test_resume_command_recovers_from_interrupted_run(tmp_path: Path) -> None:
+    """Resume command should rebuild missing artifacts and preserve deterministic costs."""
+
     runner = CliRunner()
     out_dir = tmp_path / "out"
     fixture_pdf = Path("tests/files/zero_to_one.pdf")
@@ -35,3 +40,9 @@ def test_resume_command_recovers_from_interrupted_run(tmp_path: Path) -> None:
     assert Path(resumed_payload["extra"]["audio_parts"]).exists()
     assert Path(resumed_payload["merged_audio_path"]).exists()
     assert raw_text_path.read_text(encoding="utf-8") == raw_before
+    assert resumed_payload["total_llm_cost_usd"] > 0.0
+    assert resumed_payload["total_tts_cost_usd"] > 0.0
+    assert resumed_payload["total_cost_usd"] == pytest.approx(
+        resumed_payload["total_llm_cost_usd"] + resumed_payload["total_tts_cost_usd"]
+    )
+    assert "Cost Total (USD):" in resume_result.output

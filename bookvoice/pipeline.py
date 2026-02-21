@@ -36,12 +36,17 @@ from .models.datatypes import (
 )
 from .text.chunking import Chunker
 from .text.cleaners import TextCleaner
+from .telemetry.cost_tracker import CostTracker
 from .tts.synthesizer import OpenAITTSSynthesizer
 from .tts.voices import VoiceProfile
 
 
 class BookvoicePipeline:
     """Coordinate all stages for a single Bookvoice run."""
+
+    _TRANSLATE_COST_PER_1K_CHARS_USD = 0.0015
+    _REWRITE_COST_PER_1K_CHARS_USD = 0.0008
+    _TTS_COST_PER_1K_CHARS_USD = 0.0150
 
     def run(self, config: BookvoiceConfig) -> RunManifest:
         """Run the full pipeline and return a manifest.
@@ -52,6 +57,7 @@ class BookvoicePipeline:
         config_hash = self._config_hash(config)
         run_id = f"run-{config_hash[:12]}"
         store = ArtifactStore(config.output_dir / run_id)
+        cost_tracker = CostTracker()
 
         raw_text = self._extract(config)
         raw_text_path = store.save_text(Path("text/raw.txt"), raw_text)
@@ -72,6 +78,7 @@ class BookvoicePipeline:
         )
 
         translations = self._translate(chunks, config)
+        self._add_translation_costs(translations, cost_tracker)
         translations_path = store.save_json(
             Path("text/translations.json"),
             {
@@ -88,6 +95,7 @@ class BookvoicePipeline:
         )
 
         rewrites = self._rewrite_for_audio(translations, config)
+        self._add_rewrite_costs(rewrites, cost_tracker)
         rewrites_path = store.save_json(
             Path("text/rewrites.json"),
             {
@@ -109,6 +117,7 @@ class BookvoicePipeline:
         )
 
         audio_parts = self._tts(rewrites, config, store)
+        self._add_tts_costs(rewrites, cost_tracker)
         audio_parts_path = store.save_json(
             Path("audio/parts.json"),
             {
@@ -141,6 +150,7 @@ class BookvoicePipeline:
                 "rewrites": str(rewrites_path),
                 "audio_parts": str(audio_parts_path),
             },
+            cost_summary=self._rounded_cost_summary(cost_tracker),
             store=store,
         )
         return manifest
@@ -167,6 +177,7 @@ class BookvoicePipeline:
         extra = payload.get("extra")
         if not isinstance(extra, dict):
             extra = {}
+        cost_tracker = CostTracker()
 
         run_root = self._resolve_run_root(manifest_path, extra)
         store = ArtifactStore(run_root)
@@ -264,6 +275,7 @@ class BookvoicePipeline:
                     ]
                 },
             )
+        self._add_translation_costs(translations, cost_tracker)
 
         if rewrites_path.exists():
             rewrites = self._load_rewrites(rewrites_path)
@@ -288,6 +300,7 @@ class BookvoicePipeline:
                     ]
                 },
             )
+        self._add_rewrite_costs(rewrites, cost_tracker)
 
         reuse_audio_parts = False
         if audio_parts_path.exists():
@@ -327,6 +340,7 @@ class BookvoicePipeline:
                     ]
                 },
             )
+        self._add_tts_costs(rewrites, cost_tracker)
 
         if merged_path.exists() and reuse_audio_parts:
             final_merged_path = merged_path
@@ -350,6 +364,7 @@ class BookvoicePipeline:
                 "audio_parts": str(audio_parts_path),
                 "resume_next_stage": next_stage,
             },
+            cost_summary=self._rounded_cost_summary(cost_tracker),
             store=store,
         )
 
@@ -529,6 +544,7 @@ class BookvoicePipeline:
         config_hash: str,
         merged_audio_path: Path,
         artifact_paths: dict[str, str],
+        cost_summary: dict[str, float],
         store: ArtifactStore,
     ) -> RunManifest:
         """Build a run manifest with deterministic identifiers."""
@@ -545,8 +561,9 @@ class BookvoicePipeline:
                 config_hash=config_hash,
                 book=meta,
                 merged_audio_path=merged_audio_path,
-                total_llm_cost_usd=0.0,
-                total_tts_cost_usd=0.0,
+                total_llm_cost_usd=cost_summary["llm_cost_usd"],
+                total_tts_cost_usd=cost_summary["tts_cost_usd"],
+                total_cost_usd=cost_summary["total_cost_usd"],
                 extra=artifact_paths,
             )
             manifest_path = store.save_json(
@@ -560,6 +577,7 @@ class BookvoicePipeline:
                 merged_audio_path=manifest.merged_audio_path,
                 total_llm_cost_usd=manifest.total_llm_cost_usd,
                 total_tts_cost_usd=manifest.total_tts_cost_usd,
+                total_cost_usd=manifest.total_cost_usd,
                 extra={**manifest.extra, "manifest_path": str(manifest_path)},
             )
         except PipelineStageError:
@@ -586,7 +604,55 @@ class BookvoicePipeline:
             "merged_audio_path": str(manifest.merged_audio_path),
             "total_llm_cost_usd": manifest.total_llm_cost_usd,
             "total_tts_cost_usd": manifest.total_tts_cost_usd,
+            "total_cost_usd": manifest.total_cost_usd,
             "extra": json.loads(json.dumps(dict(manifest.extra))),
+        }
+
+    def _add_translation_costs(
+        self, translations: list[TranslationResult], cost_tracker: CostTracker
+    ) -> None:
+        """Accumulate deterministic LLM cost estimate for translation stage."""
+
+        for item in translations:
+            source_chars = len(item.chunk.text)
+            translated_chars = len(item.translated_text)
+            billable_chars = max(1, source_chars + translated_chars)
+            cost_tracker.add_llm_usage(
+                (billable_chars / 1000.0) * self._TRANSLATE_COST_PER_1K_CHARS_USD
+            )
+
+    def _add_rewrite_costs(
+        self, rewrites: list[RewriteResult], cost_tracker: CostTracker
+    ) -> None:
+        """Accumulate deterministic LLM cost estimate for rewrite stage."""
+
+        for item in rewrites:
+            input_chars = len(item.translation.translated_text)
+            output_chars = len(item.rewritten_text)
+            billable_chars = max(1, input_chars + output_chars)
+            cost_tracker.add_llm_usage(
+                (billable_chars / 1000.0) * self._REWRITE_COST_PER_1K_CHARS_USD
+            )
+
+    def _add_tts_costs(self, rewrites: list[RewriteResult], cost_tracker: CostTracker) -> None:
+        """Accumulate deterministic TTS cost estimate for synthesis stage."""
+
+        for item in rewrites:
+            billable_chars = max(1, len(item.rewritten_text))
+            cost_tracker.add_tts_usage(
+                (billable_chars / 1000.0) * self._TTS_COST_PER_1K_CHARS_USD
+            )
+
+    def _rounded_cost_summary(self, cost_tracker: CostTracker) -> dict[str, float]:
+        """Return cost summary rounded for stable JSON and CLI display."""
+
+        summary = cost_tracker.summary()
+        llm_cost_usd = round(summary["llm_cost_usd"], 6)
+        tts_cost_usd = round(summary["tts_cost_usd"], 6)
+        return {
+            "llm_cost_usd": llm_cost_usd,
+            "tts_cost_usd": tts_cost_usd,
+            "total_cost_usd": round(llm_cost_usd + tts_cost_usd, 6),
         }
 
     def _load_manifest_payload(self, manifest_path: Path) -> dict[str, object]:

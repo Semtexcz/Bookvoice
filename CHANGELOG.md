@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.4] - 2026-02-21
+
+- Completed `TASK-011` by integrating deterministic LLM/TTS cost tracking into build and resume pipeline paths.
+- Added `total_cost_usd` into run manifest payload and CLI run summaries (`build`, `resume`).
+- Added integration test coverage for cost fields and deterministic CLI cost summary output.
+
 ## [0.1.3] - 2026-02-21
 
 - Completed `TASK-010` by adding smoke coverage for `bookvoice build` on the canonical PDF fixture.

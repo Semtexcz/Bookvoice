@@ -18,6 +18,7 @@ import typer
 
 from .config import BookvoiceConfig
 from .errors import PipelineStageError
+from .models.datatypes import RunManifest
 from .pipeline import BookvoicePipeline
 
 app = typer.Typer(
@@ -43,6 +44,14 @@ def _exit_with_command_error(command_name: str, exc: Exception) -> NoReturn:
     raise typer.Exit(code=1) from exc
 
 
+def _echo_cost_summary(manifest: RunManifest) -> None:
+    """Print run-level cost summary in USD."""
+
+    typer.echo(f"Cost LLM (USD): {manifest.total_llm_cost_usd:.6f}")
+    typer.echo(f"Cost TTS (USD): {manifest.total_tts_cost_usd:.6f}")
+    typer.echo(f"Cost Total (USD): {manifest.total_cost_usd:.6f}")
+
+
 @app.command("build")
 def build_command(
     input_pdf: Annotated[Path, typer.Argument(help="Path to source PDF.")],
@@ -60,6 +69,7 @@ def build_command(
     typer.echo(f"Run id: {manifest.run_id}")
     typer.echo(f"Merged audio: {manifest.merged_audio_path}")
     typer.echo(f"Manifest: {manifest.extra.get('manifest_path', '(not written)')}")
+    _echo_cost_summary(manifest)
 
 
 @app.command("translate-only")
@@ -107,6 +117,7 @@ def resume_command(
     )
     typer.echo(f"Merged audio: {resumed_manifest.merged_audio_path}")
     typer.echo(f"Manifest: {resumed_manifest.extra.get('manifest_path', '(not written)')}")
+    _echo_cost_summary(resumed_manifest)
 
 
 def main() -> None:

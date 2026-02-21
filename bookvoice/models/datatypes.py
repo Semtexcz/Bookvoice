@@ -108,6 +108,7 @@ class RunManifest:
         merged_audio_path: Final merged output path.
         total_llm_cost_usd: Accumulated LLM usage cost.
         total_tts_cost_usd: Accumulated TTS usage cost.
+        total_cost_usd: Total run cost estimate.
         extra: Additional implementation-specific metadata.
     """
 
@@ -117,4 +118,5 @@ class RunManifest:
     merged_audio_path: Path
     total_llm_cost_usd: float
     total_tts_cost_usd: float
+    total_cost_usd: float
     extra: Mapping[str, str] = field(default_factory=dict)
