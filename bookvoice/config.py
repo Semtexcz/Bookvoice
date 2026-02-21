@@ -53,6 +53,7 @@ class ProviderRuntimeConfig:
         rewrite_model: Model identifier for rewrite stage.
         tts_model: Model identifier for TTS stage.
         tts_voice: Voice identifier for TTS stage.
+        rewrite_bypass: Whether rewrite stage should run deterministic pass-through mode.
         api_key: Optional provider API key (resolved but not persisted in artifacts).
     """
 
@@ -63,6 +64,7 @@ class ProviderRuntimeConfig:
     rewrite_model: str
     tts_model: str
     tts_voice: str
+    rewrite_bypass: bool = False
     api_key: str | None = None
 
     def as_manifest_metadata(self) -> dict[str, str]:
@@ -76,6 +78,7 @@ class ProviderRuntimeConfig:
             "model_rewrite": self.rewrite_model,
             "model_tts": self.tts_model,
             "tts_voice": self.tts_voice,
+            "rewrite_bypass": "true" if self.rewrite_bypass else "false",
         }
 
 
@@ -94,6 +97,7 @@ class BookvoiceConfig:
         model_rewrite: Rewrite model identifier.
         model_tts: TTS model identifier.
         tts_voice: TTS voice identifier.
+        rewrite_bypass: Explicit rewrite bypass mode using deterministic pass-through output.
         api_key: Optional API key for provider calls.
         chunk_size_chars: Target chunk size in characters.
         chapter_selection: Optional 1-based chapter selection expression.
@@ -112,6 +116,7 @@ class BookvoiceConfig:
     model_rewrite: str = _DEFAULT_REWRITE_MODEL
     model_tts: str = _DEFAULT_TTS_MODEL
     tts_voice: str = _DEFAULT_TTS_VOICE
+    rewrite_bypass: bool = False
     api_key: str | None = None
     chunk_size_chars: int = 1800
     chapter_selection: str | None = None
@@ -185,6 +190,12 @@ class BookvoiceConfig:
             default_value=self.tts_voice,
             sources=resolved_sources,
         )
+        rewrite_bypass = self._resolve_runtime_bool(
+            key="rewrite_bypass",
+            env_key="BOOKVOICE_REWRITE_BYPASS",
+            default_value=self.rewrite_bypass,
+            sources=resolved_sources,
+        )
         api_key = self._resolve_optional_runtime_value(
             key="api_key",
             env_key="OPENAI_API_KEY",
@@ -200,6 +211,7 @@ class BookvoiceConfig:
             rewrite_model=rewrite_model,
             tts_model=tts_model,
             tts_voice=tts_voice,
+            rewrite_bypass=rewrite_bypass,
             api_key=api_key,
         )
         self._validate_provider_id(resolved.translator_provider, "provider_translator")
@@ -262,6 +274,29 @@ class BookvoiceConfig:
 
         return self._normalize_optional_string(default_value)
 
+    def _resolve_runtime_bool(
+        self,
+        key: str,
+        env_key: str,
+        default_value: bool,
+        sources: RuntimeConfigSources,
+    ) -> bool:
+        """Resolve a boolean runtime value from sources in deterministic precedence order."""
+
+        cli_value = self._normalized_lookup(sources.cli, key)
+        if cli_value is not None:
+            return self._parse_boolean_value(cli_value, key)
+
+        secure_value = self._normalized_lookup(sources.secure, key)
+        if secure_value is not None:
+            return self._parse_boolean_value(secure_value, key)
+
+        env_value = self._normalized_lookup(sources.env, env_key)
+        if env_value is not None:
+            return self._parse_boolean_value(env_value, key)
+
+        return bool(default_value)
+
     @staticmethod
     def _normalized_lookup(mapping: Mapping[str, str], key: str) -> str | None:
         """Return a stripped mapping value for a key or `None` when missing/blank."""
@@ -297,6 +332,19 @@ class BookvoiceConfig:
 
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"`{field_name}` must be a non-empty string.")
+
+    @staticmethod
+    def _parse_boolean_value(value: str, field_name: str) -> bool:
+        """Parse a runtime boolean value from canonical textual forms."""
+
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+        raise ValueError(
+            f"`{field_name}` must be a boolean value (`true`/`false`, `1`/`0`, `yes`/`no`)."
+        )
 
 
 class ConfigLoader:

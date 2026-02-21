@@ -6,7 +6,6 @@ What it is not:
 
 - It is not a DRM bypass tool.
 - It is not intended for copyrighted material without proper rights.
-- It does not ship real provider integrations yet.
 
 ## Design Principles
 
@@ -51,7 +50,6 @@ Stage summary:
 ## Future Work (Planned Integrations)
 
 - PDF text extraction backends (for scanned and text-native PDFs).
-- LLM translation providers.
 - TTS providers for Czech voices.
 - `ffmpeg` integration for robust audio postprocessing/merging.
 
@@ -64,6 +62,7 @@ bookvoice build input.pdf --out out/
 bookvoice build input.pdf --out out/ --interactive-provider-setup
 bookvoice build input.pdf --out out/ --model-translate gpt-4.1-mini --model-rewrite gpt-4.1-mini --model-tts gpt-4o-mini-tts
 bookvoice build input.pdf --out out/ --prompt-api-key
+bookvoice build input.pdf --out out/ --rewrite-bypass
 bookvoice credentials
 bookvoice credentials --set-api-key
 bookvoice credentials --clear-api-key
@@ -98,6 +97,8 @@ The secure credential path is managed through `bookvoice credentials` and is use
 automatically by `build` when an API key is not explicitly provided.
 For hidden API-key entry during `build`, use `--prompt-api-key` or
 `--interactive-provider-setup`.
+Use `--rewrite-bypass` to skip rewrite provider calls and keep translated text unchanged
+with deterministic pass-through metadata in rewrite artifacts.
 
 For faster and cheaper integration testing, first inspect chapters with `list-chapters` and then run
 `build --chapters <small-scope>` (for example `--chapters 1` or `--chapters 1-2`).

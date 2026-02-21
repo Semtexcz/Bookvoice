@@ -25,6 +25,8 @@ from .io.pdf_outline_extractor import PdfOutlineChapterExtractor
 from .io.chapter_splitter import ChapterSplitter
 from .io.pdf_text_extractor import PdfTextExtractor
 from .io.storage import ArtifactStore
+from .llm.audio_rewriter import DeterministicBypassRewriter
+from .llm.openai_client import OpenAIProviderError
 from .models.datatypes import (
     AudioPart,
     BookMeta,
@@ -190,8 +192,7 @@ class BookvoicePipeline:
                 ],
                 "metadata": {
                     "chapter_scope": chapter_scope,
-                    "provider": runtime_config.rewriter_provider,
-                    "model": runtime_config.rewrite_model,
+                    **self._rewrite_artifact_metadata(rewrites, runtime_config),
                 },
             },
         )
@@ -340,6 +341,7 @@ class BookvoicePipeline:
             model_rewrite=self._manifest_string(extra, "model_rewrite", "gpt-4.1-mini"),
             model_tts=self._manifest_string(extra, "model_tts", "gpt-4o-mini-tts"),
             tts_voice=self._manifest_string(extra, "tts_voice", "alloy"),
+            rewrite_bypass=self._manifest_bool(extra, "rewrite_bypass", False),
             resume=True,
         )
         runtime_config = self._resolve_runtime_config(config)
@@ -472,13 +474,12 @@ class BookvoicePipeline:
                         }
                         for item in rewrites
                     ],
-                    "metadata": {
-                        "chapter_scope": chapter_scope,
-                        "provider": runtime_config.rewriter_provider,
-                        "model": runtime_config.rewrite_model,
+                        "metadata": {
+                            "chapter_scope": chapter_scope,
+                            **self._rewrite_artifact_metadata(rewrites, runtime_config),
+                        },
                     },
-                },
-            )
+                )
         self._add_rewrite_costs(rewrites, cost_tracker)
 
         reuse_audio_parts = False
@@ -784,6 +785,15 @@ class BookvoicePipeline:
                 translator.translate(chunk, target_language=config.language)
                 for chunk in chunks
             ]
+        except OpenAIProviderError as exc:
+            raise PipelineStageError(
+                stage="translate",
+                detail=str(exc),
+                hint=(
+                    "Verify `OPENAI_API_KEY` or `bookvoice credentials`, then confirm "
+                    "the translation model/provider configuration."
+                ),
+            ) from exc
         except PipelineStageError:
             raise
         except Exception as exc:
@@ -807,12 +817,24 @@ class BookvoicePipeline:
                 if runtime_config is not None
                 else self._resolve_runtime_config(config)
             )
+            if resolved_runtime.rewrite_bypass:
+                bypass_rewriter = DeterministicBypassRewriter()
+                return [bypass_rewriter.rewrite(translation) for translation in translations]
             rewriter = ProviderFactory.create_rewriter(
                 provider_id=resolved_runtime.rewriter_provider,
                 model=resolved_runtime.rewrite_model,
                 api_key=resolved_runtime.api_key,
             )
             return [rewriter.rewrite(translation) for translation in translations]
+        except OpenAIProviderError as exc:
+            raise PipelineStageError(
+                stage="rewrite",
+                detail=str(exc),
+                hint=(
+                    "Verify API key/model settings, or rerun with `--rewrite-bypass` for "
+                    "deterministic pass-through rewrite output."
+                ),
+            ) from exc
         except PipelineStageError:
             raise
         except Exception as exc:
@@ -821,6 +843,28 @@ class BookvoicePipeline:
                 detail=f"Failed to rewrite translated text for audio: {exc}",
                 hint="Check translator outputs and rewrite provider configuration.",
             ) from exc
+
+    def _rewrite_artifact_metadata(
+        self,
+        rewrites: list[RewriteResult],
+        runtime_config: ProviderRuntimeConfig,
+    ) -> dict[str, str]:
+        """Build rewrite artifact metadata that reflects actual rewrite mode/provider."""
+
+        if rewrites:
+            provider = rewrites[0].provider
+            model = rewrites[0].model
+        elif runtime_config.rewrite_bypass:
+            provider = "bypass"
+            model = "deterministic-pass-through-v1"
+        else:
+            provider = runtime_config.rewriter_provider
+            model = runtime_config.rewrite_model
+        return {
+            "provider": provider,
+            "model": model,
+            "rewrite_bypass": "true" if runtime_config.rewrite_bypass else "false",
+        }
 
     def _tts(
         self,
@@ -1093,6 +1137,22 @@ class BookvoicePipeline:
         value = payload.get(key)
         if isinstance(value, str) and value.strip():
             return value.strip()
+        return default_value
+
+    def _manifest_bool(
+        self, payload: dict[str, object], key: str, default_value: bool
+    ) -> bool:
+        """Read a boolean value from manifest extras with permissive string parsing."""
+
+        value = payload.get(key)
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "on"}:
+                return True
+            if normalized in {"0", "false", "no", "off"}:
+                return False
         return default_value
 
     def _load_manifest_payload(self, manifest_path: Path) -> dict[str, object]:
@@ -1452,6 +1512,7 @@ class BookvoicePipeline:
             "model_rewrite": config.model_rewrite,
             "model_tts": config.model_tts,
             "tts_voice": config.tts_voice,
+            "rewrite_bypass": config.rewrite_bypass,
             "chunk_size_chars": config.chunk_size_chars,
             "chapter_selection": config.chapter_selection,
             "resume": config.resume,

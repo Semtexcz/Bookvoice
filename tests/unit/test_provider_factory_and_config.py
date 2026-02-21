@@ -6,6 +6,7 @@ import pytest
 
 from bookvoice.config import BookvoiceConfig, RuntimeConfigSources
 from bookvoice.errors import PipelineStageError
+from bookvoice.llm.openai_client import OpenAIChatClient
 from bookvoice.models.datatypes import Chunk, TranslationResult
 from bookvoice.pipeline import BookvoicePipeline
 from bookvoice.provider_factory import ProviderFactory
@@ -53,8 +54,30 @@ def test_runtime_config_rejects_unsupported_provider_from_env() -> None:
         )
 
 
-def test_provider_factory_creates_openai_clients_with_selected_models(tmp_path: Path) -> None:
+def test_runtime_config_resolves_rewrite_bypass_from_env() -> None:
+    """Runtime config should parse rewrite bypass boolean values from environment."""
+
+    config = BookvoiceConfig(input_pdf=Path("in.pdf"), output_dir=Path("out"))
+    runtime = config.resolved_provider_runtime(
+        RuntimeConfigSources(env={"BOOKVOICE_REWRITE_BYPASS": "true"})
+    )
+
+    assert runtime.rewrite_bypass is True
+
+
+def test_provider_factory_creates_openai_clients_with_selected_models(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Factory should return openai clients that preserve provider/model metadata."""
+
+    def _mock_chat_completion(self, **kwargs: object) -> str:
+        """Return deterministic text for provider factory unit testing."""
+
+        _ = self
+        _ = kwargs
+        return "mocked output"
+
+    monkeypatch.setattr(OpenAIChatClient, "chat_completion_text", _mock_chat_completion)
 
     chunk = Chunk(chapter_index=1, chunk_index=0, text="Hello", char_start=0, char_end=5)
     translation = TranslationResult(
@@ -68,11 +91,13 @@ def test_provider_factory_creates_openai_clients_with_selected_models(tmp_path: 
     translated = translator.translate(chunk, "cs")
     assert translated.provider == "openai"
     assert translated.model == "translate-model"
+    assert translated.translated_text == "mocked output"
 
     rewriter = ProviderFactory.create_rewriter("openai", "rewrite-model", "test-key")
     rewritten = rewriter.rewrite(translation)
     assert rewritten.provider == "openai"
     assert rewritten.model == "rewrite-model"
+    assert rewritten.rewritten_text == "mocked output"
 
     synthesizer = ProviderFactory.create_tts_synthesizer(
         "openai",

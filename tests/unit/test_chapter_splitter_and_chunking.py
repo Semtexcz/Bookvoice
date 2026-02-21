@@ -1,7 +1,10 @@
 from pathlib import Path
 
+import pytest
+
 from bookvoice.config import BookvoiceConfig
 from bookvoice.io.chapter_splitter import ChapterSplitter
+from bookvoice.llm.openai_client import OpenAIChatClient
 from bookvoice.models.datatypes import Chapter, Chunk
 from bookvoice.pipeline import BookvoicePipeline
 from bookvoice.text.chunking import Chunker
@@ -65,7 +68,20 @@ def test_chunker_resets_chunk_index_per_chapter() -> None:
     ]
 
 
-def test_pipeline_translation_and_tts_keep_chunk_identity() -> None:
+def test_pipeline_translation_and_tts_keep_chunk_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pipeline translation/rewrite should preserve the original chunk identity."""
+
+    def _mock_chat_completion(self, **kwargs: object) -> str:
+        """Return deterministic provider text to avoid network calls in unit tests."""
+
+        _ = self
+        _ = kwargs
+        return "mocked text"
+
+    monkeypatch.setattr(OpenAIChatClient, "chat_completion_text", _mock_chat_completion)
+
     pipeline = BookvoicePipeline()
     config = BookvoiceConfig(input_pdf=Path("in.pdf"), output_dir=Path("out"))
     chunk = Chunk(chapter_index=1, chunk_index=0, text="Text", char_start=0, char_end=4)

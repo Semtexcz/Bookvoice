@@ -287,6 +287,16 @@ def build_command(
             help="Persist CLI-entered API key to secure credential storage.",
         ),
     ] = True,
+    rewrite_bypass: Annotated[
+        bool,
+        typer.Option(
+            "--rewrite-bypass/--no-rewrite-bypass",
+            help=(
+                "Bypass rewrite provider call and keep translated text unchanged "
+                "using deterministic pass-through mode."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Run the full pipeline."""
 
@@ -309,6 +319,7 @@ def build_command(
             input_pdf=input_pdf,
             output_dir=out,
             chapter_selection=chapters,
+            rewrite_bypass=rewrite_bypass,
             runtime_sources=RuntimeConfigSources(
                 cli=runtime_cli_values,
                 secure=runtime_secure_values,

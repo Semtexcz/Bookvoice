@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.22] - 2026-02-21
+
+- Completed `TASK-014C` by implementing real OpenAI chat-completions integration for translation and rewrite stages.
+- Added explicit rewrite bypass mode (`--rewrite-bypass`) with deterministic pass-through behavior and persisted rewrite bypass metadata.
+- Added stage-specific provider failure mapping for translation and rewrite with actionable CLI hints.
+- Added unit coverage for OpenAI translation/rewrite happy paths and provider-failure paths, plus stage-level error mapping assertions.
+- Added integration-test fixture to mock OpenAI LLM calls for deterministic offline test runs.
+
 ## [0.1.21] - 2026-02-21
 
 - Completed `TASK-014B` by adding `build` CLI provider/model runtime options and an interactive provider setup flow with hidden API-key prompt input.
