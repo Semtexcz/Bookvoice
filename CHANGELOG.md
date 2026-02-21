@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.34] - 2026-02-21
+
+- Completed `TASK-025` by implementing a deterministic `TextBudgetSegmentPlanner` for chapter/subchapter-aware segment planning.
+- Added a default segment budget of `6500` characters with a fixed upper ceiling of `9300` characters (10-minute target cap).
+- Implemented paragraph-preferred segment boundaries with deterministic fallback splitting for oversized single paragraphs.
+- Enforced strict chapter boundaries while allowing same-chapter short subchapter merges when combined text fits budget.
+- Introduced immutable planning datatypes (`PlannedSegment`, `SegmentPlan`) and a planner-to-`Chunk` adapter for downstream pipeline/TTS compatibility.
+- Added unit coverage for budget split behavior, merge behavior, deterministic repeated-run stability, and budget ceiling clamping.
+
 ## [0.1.33] - 2026-02-21
 
 - Completed `TASK-019` by adding visible `bookvoice build` runtime progress lines across all core pipeline phases.

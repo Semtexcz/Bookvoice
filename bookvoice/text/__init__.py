@@ -15,12 +15,14 @@ from .cleaners import (
     TextCleaner,
 )
 from .normalizer import TextNormalizer
+from .segment_planner import TextBudgetSegmentPlanner
 from .structure import ChapterStructureNormalizer
 
 __all__ = [
     "TextCleaner",
     "TextNormalizer",
     "Chunker",
+    "TextBudgetSegmentPlanner",
     "ChapterStructureNormalizer",
     "RemovePageNumbers",
     "RemoveHeadersFooters",

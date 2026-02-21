@@ -6,7 +6,8 @@ Responsibilities:
 
 Key types:
 - `BookMeta`, `Chapter`, `Chunk`, `TranslationResult`, `RewriteResult`,
-  `AudioPart`, `ChapterStructureUnit`, and `RunManifest`.
+  `AudioPart`, `ChapterStructureUnit`, `PlannedSegment`, `SegmentPlan`,
+  and `RunManifest`.
 """
 
 from __future__ import annotations
@@ -125,6 +126,46 @@ class ChapterStructureUnit:
     char_start: int
     char_end: int
     source: str
+
+
+@dataclass(frozen=True, slots=True)
+class PlannedSegment:
+    """Deterministic segment planned from chapter/subchapter structure units.
+
+    Attributes:
+        order_index: 1-based deterministic segment ordering across the full plan.
+        chapter_index: 1-based chapter index this segment belongs to.
+        segment_index: 0-based segment index within chapter.
+        chapter_title: Chapter title associated with this segment.
+        text: Planned segment text payload.
+        char_start: Inclusive character offset in chapter text.
+        char_end: Exclusive character offset in chapter text.
+        source_order_indices: Ordered structure-unit order indices merged into segment.
+    """
+
+    order_index: int
+    chapter_index: int
+    segment_index: int
+    chapter_title: str
+    text: str
+    char_start: int
+    char_end: int
+    source_order_indices: tuple[int, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SegmentPlan:
+    """Deterministic segment plan output for pipeline/TTS consumption.
+
+    Attributes:
+        budget_chars: Active per-segment character budget used by planner.
+        budget_ceiling_chars: Maximum allowed character budget after clamping.
+        segments: Ordered planned segments.
+    """
+
+    budget_chars: int
+    budget_ceiling_chars: int
+    segments: tuple[PlannedSegment, ...]
 
 
 @dataclass(frozen=True, slots=True)
