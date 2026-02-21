@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.25] - 2026-02-21
+
+- Added `TASK-019` to backlog for visible `bookvoice build` runtime feedback.
+- Captured requirements for a progress indicator (spinner/progress bar), pipeline phase-level logs, and `loguru` integration.
+- Included acceptance criteria for deterministic logging behavior, secret-safe output, tests, and README updates.
+
 ## [0.1.24] - 2026-02-21
 
 - Revised `README.md` to reflect currently implemented OpenAI translation/rewrite/TTS behavior instead of planned-only wording.
