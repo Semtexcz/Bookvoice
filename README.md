@@ -95,6 +95,7 @@ pip install -e .
 ### Project docs
 
 - `docs/ARCHITECTURE.md`: data model and orchestration strategy.
+- `docs/ARTIFACTS.md`: generated run artifacts and file formats.
 - `docs/MODULES.md`: module responsibilities and dependencies.
 - `docs/ROADMAP.md`: phased implementation plan and milestones.
 
