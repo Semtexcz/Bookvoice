@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.15] - 2026-02-21
+
+- Revised `TASK-014` to require OpenAI-first real provider integration with provider-ready abstractions for future providers.
+- Added `TASK-014` requirements for CLI-based API key/model input (including interactive prompts) with deterministic config precedence over env inputs.
+- Added recommended initial OpenAI model defaults in `TASK-014` (`gpt-4.1-mini` for translation/rewrite, `gpt-4o-mini-tts` with `alloy` voice for TTS).
+- Updated `TASK-012` to align cache/retry/rate-limit hardening with real provider boundaries and provider/model-aware cache keys.
+- Updated `TASK-015` to require provider+model-aware pricing resolution and compatibility with CLI-selected models from `TASK-014`.
+
 ## [0.1.14] - 2026-02-21
 
 - Fixed `test_parse_chapter_selection_rejects_out_of_bounds_indices` to assert invalid 1-based index diagnostics for `0` and out-of-bounds diagnostics for `6`.

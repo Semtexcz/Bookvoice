@@ -18,18 +18,29 @@ Related: TASK-005, TASK-006, TASK-009, TASK-011, TASK-012
 ## Problem
 
 Current translation and TTS stages use deterministic local stubs. MVP flow works, but no real provider API calls are executed, so outputs are not production-grade.
+Current configuration assumptions also rely too heavily on environment files, which is a poor fit for many CLI users.
 
 ## Definition of Done
 
-- [ ] Translator stage performs real provider API calls with configurable model and language options.
-- [ ] Rewriter stage performs real provider API calls or is explicitly configurable as bypass with documented behavior.
-- [ ] TTS stage performs real provider API calls and writes returned audio to chunk artifacts.
-- [ ] Provider API keys and required settings are loaded from configuration/environment with clear validation errors.
+- [ ] Add provider-ready interfaces/factories for translator, rewriter, and TTS stages so additional providers can be added later without pipeline rewrites.
+- [ ] Implement first real provider integration only for `openai`; keep explicit provider identifiers in artifacts/telemetry.
+- [ ] Translator stage performs real provider API calls with configurable model and target language options.
+- [ ] Rewriter stage supports both real provider API calls and explicit bypass mode with documented deterministic behavior.
+- [ ] TTS stage performs real provider API calls and writes returned audio bytes to chunk artifacts.
+- [ ] CLI supports explicit API key and model input (interactive prompt support included) for users who do not use env files.
+- [ ] Configuration loading supports both `.env`/environment variables and CLI-provided values with deterministic precedence.
+- [ ] Provider API key and model validation errors are actionable and stage-specific in CLI output.
 - [ ] Pipeline errors from provider calls surface stage-specific actionable messages in CLI.
 - [ ] Tests cover one mocked happy path and one mocked provider-failure path for both LLM and TTS.
+- [ ] Tests cover non-interactive config path and interactive prompt path for API key/model resolution.
 
 ## Notes
 
-- Keep one default provider (`openai`) for first real integration.
-- Do not implement multi-provider routing in this task.
+- Keep `openai` as the only implemented provider in this task, but design code for future providers.
+- Do not implement multi-provider runtime routing in this task.
 - Reuse existing resume and artifact structure.
+- Recommended initial defaults (subject to final validation during implementation):
+  - Translation model: `gpt-4.1-mini`
+  - Rewrite model: `gpt-4.1-mini`
+  - TTS model: `gpt-4o-mini-tts`
+  - TTS voice: `alloy`
