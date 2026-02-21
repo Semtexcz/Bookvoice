@@ -5,7 +5,7 @@ priority: P1
 type: feature
 ---
 
-# Split audio recording parts by paragraph and text length budget
+# Parent Task: Structure-aware audio part planning with text budgets
 
 Task: TASK-021
 Status: backlog
@@ -13,31 +13,22 @@ Priority: P1
 Type: feature
 Author:
 Created: 2026-02-21
-Related: TASK-014, TASK-019
+Related: TASK-014, TASK-019, TASK-022, TASK-023, TASK-024, TASK-025, TASK-026
 
 ## Problem
 
-Current audio generation can produce long chapter outputs that are less practical for listening, navigation, and playback recovery. Some PDFs also contain fine-grained chapter and subchapter structure that should be reflected in produced recordings. Runtime audio-duration measurement is not required for this workflow. Instead, text should be split deterministically at paragraph boundaries using a configured character budget that approximates narration duration.
+Current audio generation does not yet provide a clear, structure-aware strategy for producing practical recording parts. This affects listening usability, chapter navigation, and consistency across books with chapter/subchapter hierarchy.
 
 ## Definition of Done
 
-- [ ] Introduce deterministic chapter-part splitting based on a target text-length budget (characters).
-- [ ] Set default chapter-part text budget to `6500` characters (approximate 7-minute narration target).
-- [ ] Enforce a hard upper budget equivalent to 10 minutes of narration for a single recording part.
-- [ ] Split points must prefer paragraph boundaries and must not cut a paragraph in the middle unless unavoidable.
-- [ ] Preserve chapter and subchapter structure from PDF outline/text headings in emitted recordings where available.
-- [ ] When a chapter exceeds the text budget, split it into sequential chapter parts.
-- [ ] Allow short subchapters to be merged together when they fit in the active text budget.
-- [ ] Keep chapter boundary strict: each chapter must produce its own recording output, even when very short.
-- [ ] Preserve deterministic ordering and stable part numbering.
-- [ ] Persist part-level metadata in artifacts (`audio/parts.json`, manifest extra metadata).
-- [ ] Add tests verifying paragraph-aware splitting and stable part generation for repeated runs.
-- [ ] Update `README.md` with text-budget split behavior and examples.
+- [ ] Split this work into child tasks and keep scope separated by pipeline concern.
+- [ ] Complete child task `TASK-024` (chapter/subchapter structure extraction and normalization).
+- [ ] Complete child task `TASK-025` (text-budget segment planning and merge rules).
+- [ ] Complete child task `TASK-026` (pipeline integration, artifacts, and resume behavior).
+- [ ] Validate compatibility with existing tasks `TASK-022` (filename convention) and `TASK-023` (sentence-complete chunk boundaries).
+- [ ] Update `README.md` with the final end-to-end behavior once child tasks are completed.
 
 ## Notes
 
-- Keep merged output behavior explicit: either merged-per-part or merged-per-chapter with deterministic naming.
-- Ensure split logic stays compatible with resume/rebuild flow.
-- This task intentionally avoids post-generation trimming by measured audio duration.
-- Use `6500` characters as the explicit baseline budget for approximately 7 minutes of narration.
-- Treat the 10-minute limit as a character-budget ceiling, not a post-generated audio trimming operation.
+- This is a coordination task for a larger feature and should not carry implementation detail that belongs to child tasks.
+- Audio-length control is character-budget-based, not post-generation trimming.
