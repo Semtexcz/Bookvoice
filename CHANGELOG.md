@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.19] - 2026-02-21
+
+- Reorganized test suite into explicit `tests/unit/` and `tests/integration/` directories.
+- Updated pytest discovery paths to run both unit and integration suites by default.
+- Updated test documentation to reflect the new test layout and smoke-test path.
+
 ## [0.1.18] - 2026-02-21
 
 - Completed `TASK-014A` by introducing provider factory abstractions for translation, rewrite, and TTS client construction.
