@@ -59,6 +59,10 @@ class Chunk:
         text: Chunk text content.
         char_start: Inclusive character offset in chapter.
         char_end: Exclusive character offset in chapter.
+        part_index: Optional 1-based part index aligned with segmented planning.
+        part_title: Optional chapter/part title used for deterministic filenames.
+        part_id: Optional stable part identifier.
+        source_order_indices: Ordered structure-unit order indices that produced this chunk.
     """
 
     chapter_index: int
@@ -66,6 +70,10 @@ class Chunk:
     text: str
     char_start: int
     char_end: int
+    part_index: int | None = None
+    part_title: str | None = None
+    part_id: str | None = None
+    source_order_indices: tuple[int, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +104,10 @@ class AudioPart:
     chunk_index: int
     path: Path
     duration_seconds: float
+    part_index: int | None = None
+    part_title: str | None = None
+    part_id: str | None = None
+    source_order_indices: tuple[int, ...] = field(default_factory=tuple)
     provider: str | None = None
     model: str | None = None
     voice: str | None = None

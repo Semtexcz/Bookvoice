@@ -239,9 +239,11 @@ def test_openai_tts_happy_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
 
     assert part.chapter_index == 2
     assert part.chunk_index == 3
-    assert part.path == tmp_path / "chapter_002_chunk_003.wav"
+    assert part.path == tmp_path / "002_04_chapter-002.wav"
     assert part.path.exists()
     assert part.duration_seconds > 0.0
+    assert part.part_index == 4
+    assert part.part_id == "002_04_chapter-002"
     assert part.provider == "openai"
     assert part.model == "gpt-4o-mini-tts"
     assert part.voice == "alloy"

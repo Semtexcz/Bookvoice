@@ -8,6 +8,8 @@ Responsibilities:
 from __future__ import annotations
 
 import io
+import re
+import unicodedata
 import wave
 from pathlib import Path
 from typing import Protocol
@@ -45,9 +47,10 @@ class OpenAITTSSynthesizer:
         """Synthesize one OpenAI WAV file and return deterministic chunk metadata."""
 
         chunk = rewrite.translation.chunk
-        relative = Path(
-            f"chapter_{chunk.chapter_index:03d}_chunk_{chunk.chunk_index:03d}.wav"
-        )
+        part_index = chunk.part_index if chunk.part_index is not None else chunk.chunk_index + 1
+        part_title = chunk.part_title if chunk.part_title else f"chapter-{chunk.chapter_index:03d}"
+        slug = self._slugify(part_title)
+        relative = Path(f"{chunk.chapter_index:03d}_{part_index:02d}_{slug}.wav")
         output_path = relative if self.output_root is None else self.output_root / relative
         audio_bytes = self.client.synthesize_speech(
             model=self.model,
@@ -64,6 +67,14 @@ class OpenAITTSSynthesizer:
             chunk_index=chunk.chunk_index,
             path=output_path,
             duration_seconds=duration,
+            part_index=part_index,
+            part_title=part_title,
+            part_id=(
+                chunk.part_id
+                if chunk.part_id
+                else f"{chunk.chapter_index:03d}_{part_index:02d}_{slug}"
+            ),
+            source_order_indices=chunk.source_order_indices,
             provider=self.provider_id,
             model=self.model,
             voice=voice.provider_voice_id,
@@ -83,3 +94,13 @@ class OpenAITTSSynthesizer:
         if sample_rate <= 0:
             raise OpenAIProviderError("OpenAI speech response has invalid WAV sample rate.")
         return frame_count / float(sample_rate)
+
+    def _slugify(self, value: str) -> str:
+        """Create deterministic filesystem-safe ASCII slug from a title string."""
+
+        normalized = unicodedata.normalize("NFKD", value)
+        ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
+        lowered = ascii_only.lower().strip()
+        collapsed = re.sub(r"[^a-z0-9]+", "-", lowered)
+        slug = collapsed.strip("-")
+        return slug or "part"

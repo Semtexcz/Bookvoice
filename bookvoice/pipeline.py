@@ -47,6 +47,7 @@ from .text.chapter_selection import (
 )
 from .text.chunking import Chunker
 from .text.cleaners import TextCleaner
+from .text.segment_planner import TextBudgetSegmentPlanner
 from .text.structure import ChapterStructureNormalizer
 from .telemetry.cost_tracker import CostTracker
 from .telemetry.logger import RunLogger
@@ -159,6 +160,9 @@ class BookvoicePipeline:
             "split",
             lambda: self._split_chapters(clean_text, config.input_pdf),
         )
+        normalized_structure = self._extract_normalized_structure(
+            chapters, chapter_source, config.input_pdf
+        )
         selected_chapters, chapter_scope = self._resolve_chapter_scope(
             chapters, config.chapter_selection
         )
@@ -169,17 +173,21 @@ class BookvoicePipeline:
                 chapter_source,
                 chapter_fallback_reason,
                 chapter_scope,
-                self._extract_normalized_structure(chapters, chapter_source, config.input_pdf),
+                normalized_structure,
             ),
         )
 
-        chunks = self._run_stage("chunk", lambda: self._chunk(selected_chapters, config))
+        chunks, chunk_metadata = self._run_stage(
+            "chunk",
+            lambda: self._chunk(
+                selected_chapters,
+                normalized_structure,
+                config,
+            ),
+        )
         chunks_path = store.save_json(
             Path("text/chunks.json"),
-            {
-                "chunks": [asdict(chunk) for chunk in chunks],
-                "metadata": {"chapter_scope": chapter_scope},
-            },
+            self._chunk_artifact_payload(chunks, chapter_scope, chunk_metadata),
         )
 
         translations = self._run_stage("translate", lambda: self._translate(chunks, config))
@@ -242,6 +250,7 @@ class BookvoicePipeline:
             Path("audio/parts.json"),
             self._audio_parts_artifact_payload(audio_parts, chapter_scope, runtime_config),
         )
+        part_mapping_metadata = self._part_mapping_manifest_metadata(audio_parts)
 
         merged_path = self._run_stage(
             "merge",
@@ -270,6 +279,7 @@ class BookvoicePipeline:
                     "audio_parts": str(audio_parts_path),
                     "chapter_source": chapter_source,
                     "chapter_fallback_reason": chapter_fallback_reason,
+                    **part_mapping_metadata,
                     **runtime_config.as_manifest_metadata(),
                     **chapter_scope,
                 },
@@ -435,9 +445,13 @@ class BookvoicePipeline:
             if chapter_metadata["source"]:
                 chapter_source = chapter_metadata["source"]
             chapter_fallback_reason = chapter_metadata["fallback_reason"]
+            normalized_structure = self._load_normalized_structure(chapters_path)
         else:
             chapters, chapter_source, chapter_fallback_reason = self._split_chapters(
                 clean_text, config.input_pdf
+            )
+            normalized_structure = self._extract_normalized_structure(
+                chapters, chapter_source, config.input_pdf
             )
             _, chapter_scope = self._resolve_resume_chapter_scope(chapters, extra)
             chapters_path = store.save_json(
@@ -447,23 +461,23 @@ class BookvoicePipeline:
                     chapter_source,
                     chapter_fallback_reason,
                     chapter_scope,
-                    self._extract_normalized_structure(
-                        chapters, chapter_source, config.input_pdf
-                    ),
+                    normalized_structure,
                 ),
+            )
+        if not normalized_structure:
+            normalized_structure = ChapterStructureNormalizer().from_chapters(
+                chapters=chapters,
+                source="text_heuristic",
             )
         selected_chapters, chapter_scope = self._resolve_resume_chapter_scope(chapters, extra)
 
         if chunks_path.exists():
             chunks = self._load_chunks(chunks_path)
         else:
-            chunks = self._chunk(selected_chapters, config)
+            chunks, chunk_metadata = self._chunk(selected_chapters, normalized_structure, config)
             chunks_path = store.save_json(
                 Path("text/chunks.json"),
-                {
-                    "chunks": [asdict(chunk) for chunk in chunks],
-                    "metadata": {"chapter_scope": chapter_scope},
-                },
+                self._chunk_artifact_payload(chunks, chapter_scope, chunk_metadata),
             )
 
         if translations_path.exists():
@@ -541,6 +555,7 @@ class BookvoicePipeline:
                 self._audio_parts_artifact_payload(audio_parts, chapter_scope, runtime_config),
                 )
         self._add_tts_costs(rewrites, cost_tracker)
+        part_mapping_metadata = self._part_mapping_manifest_metadata(audio_parts)
 
         if merged_path.exists() and reuse_audio_parts:
             final_merged_path = merged_path
@@ -570,6 +585,7 @@ class BookvoicePipeline:
                 "resume_next_stage": next_stage,
                 "chapter_source": chapter_source,
                 "chapter_fallback_reason": chapter_fallback_reason,
+                **part_mapping_metadata,
                 **runtime_config.as_manifest_metadata(),
                 **chapter_scope,
             },
@@ -785,12 +801,50 @@ class BookvoicePipeline:
             "chapter_scope_available_count": str(len(available_unique)),
         }
 
-    def _chunk(self, chapters: list[Chapter], config: BookvoiceConfig) -> list[Chunk]:
-        """Convert chapters into chunk-sized text units."""
+    def _chunk(
+        self,
+        chapters: list[Chapter],
+        normalized_structure: list[ChapterStructureUnit],
+        config: BookvoiceConfig,
+    ) -> tuple[list[Chunk], dict[str, object]]:
+        """Plan deterministic chapter parts from structure units and return chunk metadata."""
 
         try:
-            chunker = Chunker()
-            return chunker.to_chunks(chapters, target_size=config.chunk_size_chars)
+            selected_units = self._selected_structure_units(chapters, normalized_structure)
+            planner = TextBudgetSegmentPlanner()
+
+            if selected_units:
+                plan = planner.plan(selected_units, budget_chars=config.chunk_size_chars)
+                chunks = planner.to_chunks(plan)
+                metadata = {
+                    "planner": {
+                        "strategy": "text_budget_segment_planner",
+                        "budget_chars": plan.budget_chars,
+                        "budget_ceiling_chars": plan.budget_ceiling_chars,
+                        "segment_count": len(plan.segments),
+                        "source_structure_unit_count": len(selected_units),
+                        "source_structure_order_indices": [
+                            unit.order_index for unit in selected_units
+                        ],
+                    }
+                }
+                return chunks, metadata
+
+            fallback_chunks = self._decorate_chunks_with_part_metadata(
+                chunks=Chunker().to_chunks(chapters, target_size=config.chunk_size_chars),
+                chapters=chapters,
+            )
+            fallback_metadata = {
+                "planner": {
+                    "strategy": "chunker_fallback",
+                    "budget_chars": config.chunk_size_chars,
+                    "budget_ceiling_chars": config.chunk_size_chars,
+                    "segment_count": len(fallback_chunks),
+                    "source_structure_unit_count": 0,
+                    "source_structure_order_indices": [],
+                }
+            }
+            return fallback_chunks, fallback_metadata
         except PipelineStageError:
             raise
         except Exception as exc:
@@ -799,6 +853,60 @@ class BookvoicePipeline:
                 detail=f"Failed to chunk chapters: {exc}",
                 hint="Verify chapter artifacts are well-formed and chunk size is positive.",
             ) from exc
+
+    def _selected_structure_units(
+        self,
+        chapters: list[Chapter],
+        normalized_structure: list[ChapterStructureUnit],
+    ) -> list[ChapterStructureUnit]:
+        """Filter normalized structure units to currently selected chapters."""
+
+        selected_indices = {chapter.index for chapter in chapters}
+        units = [unit for unit in normalized_structure if unit.chapter_index in selected_indices]
+        return sorted(units, key=lambda item: (item.chapter_index, item.order_index))
+
+    def _decorate_chunks_with_part_metadata(
+        self,
+        chunks: list[Chunk],
+        chapters: list[Chapter],
+    ) -> list[Chunk]:
+        """Attach deterministic part metadata when chunker fallback is used."""
+
+        chapter_titles = {chapter.index: chapter.title for chapter in chapters}
+        decorated: list[Chunk] = []
+        for chunk in chunks:
+            part_title = chapter_titles.get(chunk.chapter_index, f"Chapter {chunk.chapter_index}")
+            part_index = chunk.chunk_index + 1
+            decorated.append(
+                Chunk(
+                    chapter_index=chunk.chapter_index,
+                    chunk_index=chunk.chunk_index,
+                    text=chunk.text,
+                    char_start=chunk.char_start,
+                    char_end=chunk.char_end,
+                    part_index=part_index,
+                    part_title=part_title,
+                    part_id=f"{chunk.chapter_index:03d}_{part_index:02d}_part",
+                    source_order_indices=tuple(),
+                )
+            )
+        return decorated
+
+    def _chunk_artifact_payload(
+        self,
+        chunks: list[Chunk],
+        chapter_scope: dict[str, str],
+        planner_metadata: dict[str, object],
+    ) -> dict[str, object]:
+        """Build chunk artifact payload with chapter scope and planner metadata."""
+
+        return {
+            "chunks": [asdict(chunk) for chunk in chunks],
+            "metadata": {
+                "chapter_scope": chapter_scope,
+                **planner_metadata,
+            },
+        }
 
     def _translate(
         self, chunks: list[Chunk], config: BookvoiceConfig
@@ -910,6 +1018,10 @@ class BookvoicePipeline:
                 {
                     "chapter_index": item.chapter_index,
                     "chunk_index": item.chunk_index,
+                    "part_index": item.part_index,
+                    "part_title": item.part_title,
+                    "part_id": item.part_id,
+                    "source_order_indices": list(item.source_order_indices),
                     "path": str(item.path),
                     "duration_seconds": item.duration_seconds,
                     "provider": item.provider,
@@ -923,7 +1035,41 @@ class BookvoicePipeline:
                 "provider": runtime_config.tts_provider,
                 "model": runtime_config.tts_model,
                 "voice": runtime_config.tts_voice,
+                "chapter_part_map": [
+                    {
+                        "chapter_index": part.chapter_index,
+                        "part_index": part.part_index,
+                        "part_id": part.part_id,
+                        "source_order_indices": list(part.source_order_indices),
+                    }
+                    for part in audio_parts
+                ],
             },
+        }
+
+    def _part_mapping_manifest_metadata(
+        self,
+        audio_parts: list[AudioPart],
+    ) -> dict[str, str]:
+        """Build compact manifest metadata for chapter/part and source references."""
+
+        chapter_part_map_entries = [
+            f"{item.chapter_index}:{item.part_index if item.part_index is not None else item.chunk_index + 1}"
+            for item in sorted(audio_parts, key=lambda part: (part.chapter_index, part.chunk_index))
+        ]
+        referenced_unit_indices: list[int] = sorted(
+            {
+                index
+                for item in audio_parts
+                for index in item.source_order_indices
+            }
+        )
+        return {
+            "part_count": str(len(audio_parts)),
+            "chapter_part_map_csv": ",".join(chapter_part_map_entries),
+            "part_source_structure_indices_csv": ",".join(
+                str(index) for index in referenced_unit_indices
+            ),
         }
 
     def _tts(
@@ -990,6 +1136,10 @@ class BookvoicePipeline:
                         chunk_index=part.chunk_index,
                         path=trimmed,
                         duration_seconds=part.duration_seconds,
+                        part_index=part.part_index,
+                        part_title=part.part_title,
+                        part_id=part.part_id,
+                        source_order_indices=part.source_order_indices,
                         provider=part.provider,
                         model=part.model,
                         voice=part.voice,
@@ -1458,6 +1608,44 @@ class BookvoicePipeline:
             ),
         }
 
+    def _load_normalized_structure(self, path: Path) -> list[ChapterStructureUnit]:
+        """Load normalized structure units from chapter artifact metadata."""
+
+        payload = self._load_json_object(path)
+        metadata = payload.get("metadata")
+        if not isinstance(metadata, dict):
+            return []
+        raw_units = metadata.get("normalized_structure")
+        if not isinstance(raw_units, list):
+            return []
+
+        units: list[ChapterStructureUnit] = []
+        for item in raw_units:
+            if not isinstance(item, dict):
+                continue
+            units.append(
+                ChapterStructureUnit(
+                    order_index=int(item["order_index"]),
+                    chapter_index=int(item["chapter_index"]),
+                    chapter_title=str(item["chapter_title"]),
+                    subchapter_index=(
+                        int(item["subchapter_index"])
+                        if item.get("subchapter_index") is not None
+                        else None
+                    ),
+                    subchapter_title=(
+                        str(item["subchapter_title"])
+                        if item.get("subchapter_title") is not None
+                        else None
+                    ),
+                    text=str(item["text"]),
+                    char_start=int(item["char_start"]),
+                    char_end=int(item["char_end"]),
+                    source=str(item["source"]),
+                )
+            )
+        return units
+
     def _load_chunks(self, path: Path) -> list[Chunk]:
         """Load chunk artifacts from JSON."""
 
@@ -1484,6 +1672,22 @@ class BookvoicePipeline:
                     text=str(item["text"]),
                     char_start=int(item["char_start"]),
                     char_end=int(item["char_end"]),
+                    part_index=(
+                        int(item["part_index"])
+                        if item.get("part_index") is not None
+                        else None
+                    ),
+                    part_title=(
+                        str(item["part_title"])
+                        if item.get("part_title") is not None
+                        else None
+                    ),
+                    part_id=(
+                        str(item["part_id"]) if item.get("part_id") is not None else None
+                    ),
+                    source_order_indices=tuple(
+                        int(index) for index in item.get("source_order_indices", [])
+                    ),
                 )
             )
         return chunks
@@ -1520,6 +1724,24 @@ class BookvoicePipeline:
                 text=str(chunk_payload["text"]),
                 char_start=int(chunk_payload["char_start"]),
                 char_end=int(chunk_payload["char_end"]),
+                part_index=(
+                    int(chunk_payload["part_index"])
+                    if chunk_payload.get("part_index") is not None
+                    else None
+                ),
+                part_title=(
+                    str(chunk_payload["part_title"])
+                    if chunk_payload.get("part_title") is not None
+                    else None
+                ),
+                part_id=(
+                    str(chunk_payload["part_id"])
+                    if chunk_payload.get("part_id") is not None
+                    else None
+                ),
+                source_order_indices=tuple(
+                    int(index) for index in chunk_payload.get("source_order_indices", [])
+                ),
             )
             translations.append(
                 TranslationResult(
@@ -1570,6 +1792,24 @@ class BookvoicePipeline:
                 text=str(chunk_payload["text"]),
                 char_start=int(chunk_payload["char_start"]),
                 char_end=int(chunk_payload["char_end"]),
+                part_index=(
+                    int(chunk_payload["part_index"])
+                    if chunk_payload.get("part_index") is not None
+                    else None
+                ),
+                part_title=(
+                    str(chunk_payload["part_title"])
+                    if chunk_payload.get("part_title") is not None
+                    else None
+                ),
+                part_id=(
+                    str(chunk_payload["part_id"])
+                    if chunk_payload.get("part_id") is not None
+                    else None
+                ),
+                source_order_indices=tuple(
+                    int(index) for index in chunk_payload.get("source_order_indices", [])
+                ),
             )
             translation = TranslationResult(
                 chunk=chunk,
@@ -1612,6 +1852,22 @@ class BookvoicePipeline:
                     chunk_index=int(item["chunk_index"]),
                     path=Path(str(item["path"])),
                     duration_seconds=float(item["duration_seconds"]),
+                    part_index=(
+                        int(item["part_index"])
+                        if item.get("part_index") is not None
+                        else None
+                    ),
+                    part_title=(
+                        str(item["part_title"])
+                        if item.get("part_title") is not None
+                        else None
+                    ),
+                    part_id=(
+                        str(item["part_id"]) if item.get("part_id") is not None else None
+                    ),
+                    source_order_indices=tuple(
+                        int(index) for index in item.get("source_order_indices", [])
+                    ),
                     provider=(
                         str(item["provider"])
                         if isinstance(item.get("provider"), str)

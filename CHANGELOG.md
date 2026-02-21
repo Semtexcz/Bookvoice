@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.35] - 2026-02-21
+
+- Completed `TASK-026` by integrating structure-based segmented part planning into the pipeline `chunk` stage before TTS generation.
+- Persisted segmented-part metadata across artifacts (`text/chunks.json`, `audio/parts.json`) including deterministic `part_index`, `part_id`, and `source_order_indices`.
+- Added compact manifest metadata for chapter/part mapping and referenced structure-unit indices to keep rebuild/resume identity stable.
+- Updated TTS per-part artifact naming to the deterministic `chapter_part_title-slug` format (`001_01_chapter-title.wav`) for compatibility with `TASK-022` requirements.
+- Added integration coverage for segmented build artifacts and resume stability of part identifiers/mapping.
+- Updated `README.md` and `docs/ARTIFACTS.md` with segmented artifact behavior and naming expectations.
+- Marked `TASK-026` as done and moved it to `project/done/`.
+
 ## [0.1.34] - 2026-02-21
 
 - Completed `TASK-025` by implementing a deterministic `TextBudgetSegmentPlanner` for chapter/subchapter-aware segment planning.

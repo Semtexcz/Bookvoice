@@ -13,7 +13,7 @@ Implemented today:
 
 - Real OpenAI translation (`chat/completions`).
 - Real OpenAI rewrite-for-audio (`chat/completions`), plus `--rewrite-bypass`.
-- Real OpenAI TTS per chunk (`audio/speech`) with deterministic chunk file naming.
+- Real OpenAI TTS per segmented part (`audio/speech`) with deterministic `<chapter>_<part>_<title-slug>.wav` naming.
 - Resumable artifact-driven pipeline with run manifest and cost summary.
 - Chapter listing and chapter-scope processing (`--chapters`).
 - Secure API-key storage via `keyring` (`bookvoice credentials`).
@@ -29,7 +29,7 @@ Still intentionally limited:
 PDF Input
   |
   v
-[Extract Text] --> [Clean/Normalize] --> [Split Chapters] --> [Chunk]
+[Extract Text] --> [Clean/Normalize] --> [Split Chapters] --> [Plan Segments + Chunk]
   |                                                     |
   |                                                     v
   |                                               [Translate]
@@ -171,12 +171,15 @@ Each build creates a deterministic run directory:
 - `out/run-<hash>/text/chunks.json`
 - `out/run-<hash>/text/translations.json`
 - `out/run-<hash>/text/rewrites.json`
-- `out/run-<hash>/audio/chunks/chapter_XXX_chunk_YYY.wav`
+- `out/run-<hash>/audio/chunks/001_01_<title-slug>.wav`
 - `out/run-<hash>/audio/parts.json`
 - `out/run-<hash>/audio/bookvoice_merged.wav` (or chapter-scope variant)
 - `out/run-<hash>/run_manifest.json`
 
-`audio/parts.json` includes per-chunk `provider`, `model`, and `voice` metadata.
+`audio/parts.json` includes deterministic `chapter_index`, `part_index`, `part_id`,
+source `source_order_indices`, and per-part `provider`/`model`/`voice` metadata.
+`run_manifest.json` `extra` includes compact chapter/part mapping and referenced
+structure indices for resume/rebuild stability.
 
 ## Troubleshooting
 

@@ -27,8 +27,8 @@ out/
       parts.json
       bookvoice_merged.wav
       chunks/
-        chapter_001_chunk_000.wav
-        chapter_001_chunk_001.wav
+        001_01_chapter-1.wav
+        001_02_chapter-1.wav
         ...
 ```
 
@@ -138,9 +138,9 @@ Minimal shape:
 
 ## Audio Artifacts
 
-### `audio/chunks/chapter_<chapter>_chunk_<chunk>.wav`
+### `audio/chunks/<chapter>_<part>_<title-slug>.wav`
 
-- Per-chunk synthesized WAV files.
+- Per-part synthesized WAV files (`001_01_chapter-title.wav`).
 
 ### `audio/parts.json`
 
@@ -154,8 +154,15 @@ Minimal shape:
     {
       "chapter_index": 1,
       "chunk_index": 0,
-      "path": "out/run-.../audio/chunks/chapter_001_chunk_000.wav",
-      "duration_seconds": 1.23
+      "part_index": 1,
+      "part_title": "Chapter 1",
+      "part_id": "001_01_chapter-1",
+      "source_order_indices": [1],
+      "path": "out/run-.../audio/chunks/001_01_chapter-1.wav",
+      "duration_seconds": 1.23,
+      "provider": "openai",
+      "model": "gpt-4o-mini-tts",
+      "voice": "alloy"
     }
   ]
 }
