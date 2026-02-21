@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.16] - 2026-02-21
+
+- Updated `TASK-014` definition of done to require secure persistent storage of CLI-entered API keys for future runs (for example OS keychain-backed storage).
+
 ## [0.1.15] - 2026-02-21
 
 - Revised `TASK-014` to require OpenAI-first real provider integration with provider-ready abstractions for future providers.

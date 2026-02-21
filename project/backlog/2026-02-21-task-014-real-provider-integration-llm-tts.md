@@ -28,6 +28,7 @@ Current configuration assumptions also rely too heavily on environment files, wh
 - [ ] Rewriter stage supports both real provider API calls and explicit bypass mode with documented deterministic behavior.
 - [ ] TTS stage performs real provider API calls and writes returned audio bytes to chunk artifacts.
 - [ ] CLI supports explicit API key and model input (interactive prompt support included) for users who do not use env files.
+- [ ] API key entered via CLI is stored securely for future runs (OS keychain or equivalently secure local credential storage) and can be reused without re-entry.
 - [ ] Configuration loading supports both `.env`/environment variables and CLI-provided values with deterministic precedence.
 - [ ] Provider API key and model validation errors are actionable and stage-specific in CLI output.
 - [ ] Pipeline errors from provider calls surface stage-specific actionable messages in CLI.
