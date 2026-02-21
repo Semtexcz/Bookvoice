@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.17] - 2026-02-21
+
+- Split `TASK-014` into an explicit epic with six concrete backlog subtasks: `TASK-014A` through `TASK-014F`.
+- Added dedicated task cards for provider abstraction/config foundation, CLI credential+model UX with secure storage, OpenAI LLM integration, OpenAI TTS integration, provider error diagnostics, and provider test matrix.
+- Updated `TASK-014` to track subtask completion and keep epic-level acceptance criteria.
+
 ## [0.1.16] - 2026-02-21
 
 - Updated `TASK-014` definition of done to require secure persistent storage of CLI-entered API keys for future runs (for example OS keychain-backed storage).
