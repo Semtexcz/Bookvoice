@@ -1,6 +1,6 @@
 ---
 task: TASK-008
-status: "backlog"
+status: "done"
 priority: P1
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Add basic resume support from manifest and existing artifacts
 
 Task: TASK-008
-Status: backlog
+Status: done
 Priority: P1
 Type: feature
 Author:

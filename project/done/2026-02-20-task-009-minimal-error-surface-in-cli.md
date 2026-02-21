@@ -1,6 +1,6 @@
 ---
 task: TASK-009
-status: "backlog"
+status: "done"
 priority: P1
 type: infra
 ---
@@ -8,7 +8,7 @@ type: infra
 # Improve minimal error handling and CLI diagnostics for MVP
 
 Task: TASK-009
-Status: backlog
+Status: done
 Priority: P1
 Type: infra
 Author:
@@ -21,10 +21,10 @@ Error reporting is currently ad-hoc and not structured for quick debugging of fa
 
 ## Definition of Done
 
-- [ ] Pipeline raises clear stage-specific exceptions for common failures.
-- [ ] CLI catches exceptions and prints concise, actionable messages.
-- [ ] Exit codes distinguish success vs failure.
-- [ ] README includes a short troubleshooting section for common MVP failures.
+- [x] Pipeline raises clear stage-specific exceptions for common failures.
+- [x] CLI catches exceptions and prints concise, actionable messages.
+- [x] Exit codes distinguish success vs failure.
+- [x] README includes a short troubleshooting section for common MVP failures.
 
 ## Notes
 

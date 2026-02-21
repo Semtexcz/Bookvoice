@@ -67,6 +67,13 @@ bookvoice resume out/run_manifest.json
 CLI currently supports full `build` and basic manifest-driven `resume` flows.
 `translate-only` and `tts-only` remain placeholders.
 
+## Troubleshooting
+
+- `build failed at stage extract`: ensure the input PDF path exists and the `pdftotext` tool is installed.
+- `resume failed at stage resume-manifest`: check that the manifest file exists and contains valid JSON.
+- `resume failed at stage resume-artifacts`: one or more artifact JSON files are corrupted; delete the broken artifact and rerun `bookvoice resume`.
+- `build failed at stage tts` or `merge`: verify output directories are writable and intermediate audio files are present.
+
 ## Development
 
 ### Local setup

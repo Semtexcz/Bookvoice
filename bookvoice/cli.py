@@ -12,11 +12,12 @@ Key public functions:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, NoReturn
 
 import typer
 
 from .config import BookvoiceConfig
+from .errors import PipelineStageError
 from .pipeline import BookvoicePipeline
 
 app = typer.Typer(
@@ -25,19 +26,36 @@ app = typer.Typer(
     help="Bookvoice CLI.",
 )
 
+
+def _exit_with_command_error(command_name: str, exc: Exception) -> NoReturn:
+    """Print concise diagnostics for command failures and exit with code 1."""
+
+    if isinstance(exc, PipelineStageError):
+        typer.secho(
+            f"{command_name} failed at stage `{exc.stage}`: {exc.detail}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        if exc.hint:
+            typer.secho(f"Hint: {exc.hint}", fg=typer.colors.YELLOW, err=True)
+    else:
+        typer.secho(f"{command_name} failed: {exc}", fg=typer.colors.RED, err=True)
+    raise typer.Exit(code=1) from exc
+
+
 @app.command("build")
 def build_command(
     input_pdf: Annotated[Path, typer.Argument(help="Path to source PDF.")],
     out: Annotated[Path, typer.Option("--out", help="Output directory.")] = Path("out"),
 ) -> None:
     """Run the full pipeline."""
+
     try:
         pipeline = BookvoicePipeline()
         config = BookvoiceConfig(input_pdf=input_pdf, output_dir=out)
         manifest = pipeline.run(config)
     except Exception as exc:
-        typer.secho(f"Build failed: {exc}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1) from exc
+        _exit_with_command_error("build", exc)
 
     typer.echo(f"Run id: {manifest.run_id}")
     typer.echo(f"Merged audio: {manifest.merged_audio_path}")
@@ -50,9 +68,14 @@ def translate_only_command(
     out: Annotated[Path, typer.Option("--out", help="Output directory.")] = Path("out"),
 ) -> None:
     """Run translation stages only (stub currently runs full pipeline)."""
-    pipeline = BookvoicePipeline()
-    config = BookvoiceConfig(input_pdf=input_pdf, output_dir=out)
-    manifest = pipeline.run(config)
+
+    try:
+        pipeline = BookvoicePipeline()
+        config = BookvoiceConfig(input_pdf=input_pdf, output_dir=out)
+        manifest = pipeline.run(config)
+    except Exception as exc:
+        _exit_with_command_error("translate-only", exc)
+
     typer.echo(f"[translate-only] Would process: {config.input_pdf}")
     typer.echo(f"[translate-only] Output dir: {config.output_dir}")
     typer.echo(f"[translate-only] Stub run id: {manifest.run_id}")
@@ -71,12 +94,12 @@ def resume_command(
     manifest: Annotated[Path, typer.Argument(help="Path to run manifest JSON.")],
 ) -> None:
     """Resume pipeline from an existing manifest."""
+
     try:
         pipeline = BookvoicePipeline()
         resumed_manifest = pipeline.resume(manifest)
     except Exception as exc:
-        typer.secho(f"Resume failed: {exc}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1) from exc
+        _exit_with_command_error("resume", exc)
 
     typer.echo(f"Run id: {resumed_manifest.run_id}")
     typer.echo(

@@ -19,6 +19,7 @@ from pathlib import Path
 from .audio.merger import AudioMerger
 from .audio.postprocess import AudioPostProcessor
 from .config import BookvoiceConfig
+from .errors import PipelineStageError
 from .io.chapter_splitter import ChapterSplitter
 from .io.pdf_text_extractor import PdfTextExtractor
 from .io.storage import ArtifactStore
@@ -355,85 +356,171 @@ class BookvoicePipeline:
     def _extract(self, config: BookvoiceConfig) -> str:
         """Extract raw text from the configured PDF input."""
 
-        extractor = PdfTextExtractor()
-        return extractor.extract(config.input_pdf)
+        try:
+            extractor = PdfTextExtractor()
+            return extractor.extract(config.input_pdf)
+        except PipelineStageError:
+            raise
+        except Exception as exc:
+            raise PipelineStageError(
+                stage="extract",
+                detail=f"Failed to extract text from PDF `{config.input_pdf}`: {exc}",
+                hint="Verify the input file exists and `pdftotext` is installed.",
+            ) from exc
 
     def _clean(self, raw_text: str) -> str:
         """Apply deterministic cleanup and normalization rules."""
 
-        cleaner = TextCleaner()
-        return cleaner.clean(raw_text).strip()
+        try:
+            cleaner = TextCleaner()
+            return cleaner.clean(raw_text).strip()
+        except PipelineStageError:
+            raise
+        except Exception as exc:
+            raise PipelineStageError(
+                stage="clean",
+                detail=f"Failed to normalize extracted text: {exc}",
+                hint="Inspect `text/raw.txt` and verify it contains readable UTF-8 text.",
+            ) from exc
 
     def _split_chapters(self, text: str) -> list[Chapter]:
         """Split cleaned text into chapter units."""
 
-        splitter = ChapterSplitter()
-        return splitter.split(text)
+        try:
+            splitter = ChapterSplitter()
+            return splitter.split(text)
+        except PipelineStageError:
+            raise
+        except Exception as exc:
+            raise PipelineStageError(
+                stage="split",
+                detail=f"Failed to split chapters: {exc}",
+                hint="Inspect cleaned text formatting in `text/clean.txt`.",
+            ) from exc
 
     def _chunk(self, chapters: list[Chapter], config: BookvoiceConfig) -> list[Chunk]:
         """Convert chapters into chunk-sized text units."""
 
-        chunker = Chunker()
-        return chunker.to_chunks(chapters, target_size=config.chunk_size_chars)
+        try:
+            chunker = Chunker()
+            return chunker.to_chunks(chapters, target_size=config.chunk_size_chars)
+        except PipelineStageError:
+            raise
+        except Exception as exc:
+            raise PipelineStageError(
+                stage="chunk",
+                detail=f"Failed to chunk chapters: {exc}",
+                hint="Verify chapter artifacts are well-formed and chunk size is positive.",
+            ) from exc
 
     def _translate(
         self, chunks: list[Chunk], config: BookvoiceConfig
     ) -> list[TranslationResult]:
         """Translate chunks into target language text."""
 
-        translator = OpenAITranslator()
-        return [translator.translate(chunk, target_language=config.language) for chunk in chunks]
+        try:
+            translator = OpenAITranslator()
+            return [
+                translator.translate(chunk, target_language=config.language)
+                for chunk in chunks
+            ]
+        except PipelineStageError:
+            raise
+        except Exception as exc:
+            raise PipelineStageError(
+                stage="translate",
+                detail=f"Failed to translate chunks: {exc}",
+                hint="Check translator provider configuration and language settings.",
+            ) from exc
 
     def _rewrite_for_audio(
         self, translations: list[TranslationResult], config: BookvoiceConfig
     ) -> list[RewriteResult]:
         """Rewrite translated text for natural spoken delivery."""
 
-        _ = config
-        rewriter = AudioRewriter()
-        return [rewriter.rewrite(translation) for translation in translations]
+        try:
+            _ = config
+            rewriter = AudioRewriter()
+            return [rewriter.rewrite(translation) for translation in translations]
+        except PipelineStageError:
+            raise
+        except Exception as exc:
+            raise PipelineStageError(
+                stage="rewrite",
+                detail=f"Failed to rewrite translated text for audio: {exc}",
+                hint="Check translator outputs and rewrite provider configuration.",
+            ) from exc
 
     def _tts(
         self, rewrites: list[RewriteResult], config: BookvoiceConfig, store: ArtifactStore
     ) -> list[AudioPart]:
         """Synthesize audio parts for rewritten text chunks."""
 
-        voice = VoiceProfile(
-            name="mvp-cs-voice",
-            provider_voice_id="mvp-cs-voice",
-            language=config.language,
-            speaking_rate=1.0,
-        )
-        synthesizer = OpenAITTSSynthesizer(output_root=store.root / "audio/chunks")
-        return [synthesizer.synthesize(item, voice) for item in rewrites]
+        try:
+            voice = VoiceProfile(
+                name="mvp-cs-voice",
+                provider_voice_id="mvp-cs-voice",
+                language=config.language,
+                speaking_rate=1.0,
+            )
+            synthesizer = OpenAITTSSynthesizer(output_root=store.root / "audio/chunks")
+            return [synthesizer.synthesize(item, voice) for item in rewrites]
+        except PipelineStageError:
+            raise
+        except Exception as exc:
+            raise PipelineStageError(
+                stage="tts",
+                detail=f"Failed to synthesize audio parts: {exc}",
+                hint="Check TTS provider configuration and output directory permissions.",
+            ) from exc
 
     def _postprocess(
         self, audio_parts: list[AudioPart], config: BookvoiceConfig
     ) -> list[AudioPart]:
         """Apply postprocessing to synthesized audio parts."""
 
-        _ = config
-        postprocessor = AudioPostProcessor()
-        processed: list[AudioPart] = []
-        for part in audio_parts:
-            normalized = postprocessor.normalize(part.path)
-            trimmed = postprocessor.trim_silence(normalized)
-            processed.append(
-                AudioPart(
-                    chapter_index=part.chapter_index,
-                    chunk_index=part.chunk_index,
-                    path=trimmed,
-                    duration_seconds=part.duration_seconds,
+        try:
+            _ = config
+            postprocessor = AudioPostProcessor()
+            processed: list[AudioPart] = []
+            for part in audio_parts:
+                normalized = postprocessor.normalize(part.path)
+                trimmed = postprocessor.trim_silence(normalized)
+                processed.append(
+                    AudioPart(
+                        chapter_index=part.chapter_index,
+                        chunk_index=part.chunk_index,
+                        path=trimmed,
+                        duration_seconds=part.duration_seconds,
+                    )
                 )
-            )
-        return processed
+            return processed
+        except PipelineStageError:
+            raise
+        except Exception as exc:
+            raise PipelineStageError(
+                stage="postprocess",
+                detail=f"Failed to postprocess synthesized audio: {exc}",
+                hint="Verify generated chunk WAV files are readable.",
+            ) from exc
 
     def _merge(self, audio_parts: list[AudioPart], config: BookvoiceConfig, store: ArtifactStore) -> Path:
         """Merge chapter or book-level audio outputs."""
 
-        _ = config
-        merger = AudioMerger()
-        return merger.merge(audio_parts, output_path=store.root / "audio/bookvoice_merged.wav")
+        try:
+            _ = config
+            merger = AudioMerger()
+            return merger.merge(
+                audio_parts, output_path=store.root / "audio/bookvoice_merged.wav"
+            )
+        except PipelineStageError:
+            raise
+        except Exception as exc:
+            raise PipelineStageError(
+                stage="merge",
+                detail=f"Failed to merge audio outputs: {exc}",
+                hint="Check synthesized part files and output directory permissions.",
+            ) from exc
 
     def _write_manifest(
         self,
@@ -446,33 +533,47 @@ class BookvoicePipeline:
     ) -> RunManifest:
         """Build a run manifest with deterministic identifiers."""
 
-        meta = BookMeta(
-            source_pdf=config.input_pdf,
-            title=config.input_pdf.stem,
-            author=None,
-            language=config.language,
-        )
-        manifest = RunManifest(
-            run_id=run_id,
-            config_hash=config_hash,
-            book=meta,
-            merged_audio_path=merged_audio_path,
-            total_llm_cost_usd=0.0,
-            total_tts_cost_usd=0.0,
-            extra=artifact_paths,
-        )
-        manifest_path = store.save_json(Path("run_manifest.json"), self._manifest_payload(manifest))
-        return RunManifest(
-            run_id=manifest.run_id,
-            config_hash=manifest.config_hash,
-            book=manifest.book,
-            merged_audio_path=manifest.merged_audio_path,
-            total_llm_cost_usd=manifest.total_llm_cost_usd,
-            total_tts_cost_usd=manifest.total_tts_cost_usd,
-            extra={**manifest.extra, "manifest_path": str(manifest_path)},
-        )
+        try:
+            meta = BookMeta(
+                source_pdf=config.input_pdf,
+                title=config.input_pdf.stem,
+                author=None,
+                language=config.language,
+            )
+            manifest = RunManifest(
+                run_id=run_id,
+                config_hash=config_hash,
+                book=meta,
+                merged_audio_path=merged_audio_path,
+                total_llm_cost_usd=0.0,
+                total_tts_cost_usd=0.0,
+                extra=artifact_paths,
+            )
+            manifest_path = store.save_json(
+                Path("run_manifest.json"),
+                self._manifest_payload(manifest),
+            )
+            return RunManifest(
+                run_id=manifest.run_id,
+                config_hash=manifest.config_hash,
+                book=manifest.book,
+                merged_audio_path=manifest.merged_audio_path,
+                total_llm_cost_usd=manifest.total_llm_cost_usd,
+                total_tts_cost_usd=manifest.total_tts_cost_usd,
+                extra={**manifest.extra, "manifest_path": str(manifest_path)},
+            )
+        except PipelineStageError:
+            raise
+        except Exception as exc:
+            raise PipelineStageError(
+                stage="manifest",
+                detail=f"Failed to write run manifest: {exc}",
+                hint="Verify output directory is writable.",
+            ) from exc
 
     def _manifest_payload(self, manifest: RunManifest) -> dict[str, object]:
+        """Serialize a run manifest into a JSON-safe payload."""
+
         return {
             "run_id": manifest.run_id,
             "config_hash": manifest.config_hash,
@@ -489,29 +590,47 @@ class BookvoicePipeline:
         }
 
     def _load_manifest_payload(self, manifest_path: Path) -> dict[str, object]:
+        """Load and validate the resume manifest payload."""
+
         if not manifest_path.exists():
-            raise ValueError(
-                f"Manifest file not found: {manifest_path}. Run `bookvoice build` first."
+            raise PipelineStageError(
+                stage="resume-manifest",
+                detail=f"Manifest file not found: {manifest_path}",
+                hint="Run `bookvoice build` first or pass a valid run manifest path.",
             )
         try:
             payload = json.loads(manifest_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
-            raise ValueError(f"Manifest is not valid JSON: {manifest_path}") from exc
+            raise PipelineStageError(
+                stage="resume-manifest",
+                detail=f"Manifest is not valid JSON: {manifest_path}",
+                hint="Regenerate the manifest by running `bookvoice build`.",
+            ) from exc
         if not isinstance(payload, dict):
-            raise ValueError(f"Manifest root must be a JSON object: {manifest_path}")
+            raise PipelineStageError(
+                stage="resume-manifest",
+                detail=f"Manifest root must be a JSON object: {manifest_path}",
+                hint="Regenerate the manifest by running `bookvoice build`.",
+            )
         return payload
 
     def _require_manifest_field(
         self, payload: dict[str, object], key: str, scope: str = "manifest"
     ) -> str:
+        """Require a non-empty string field from a manifest object."""
+
         value = payload.get(key)
         if not isinstance(value, str) or not value.strip():
-            raise ValueError(
-                f"Manifest is missing required `{scope}.{key}` field; cannot resume run."
+            raise PipelineStageError(
+                stage="resume-manifest",
+                detail=f"Manifest is missing required `{scope}.{key}` field.",
+                hint="Regenerate the manifest by running `bookvoice build`.",
             )
         return value
 
     def _resolve_run_root(self, manifest_path: Path, extra: dict[str, object]) -> Path:
+        """Resolve run root directory from manifest metadata."""
+
         raw = extra.get("run_root")
         if isinstance(raw, str) and raw.strip():
             candidate = Path(raw)
@@ -526,6 +645,8 @@ class BookvoicePipeline:
     def _resolve_merged_path(
         self, manifest_path: Path, run_root: Path, payload: dict[str, object]
     ) -> Path:
+        """Resolve merged audio path from manifest payload."""
+
         raw = payload.get("merged_audio_path")
         if isinstance(raw, str) and raw.strip():
             path = Path(raw)
@@ -545,6 +666,8 @@ class BookvoicePipeline:
         key: str,
         default_relative: Path,
     ) -> Path:
+        """Resolve an artifact path from resume metadata with fallback."""
+
         raw = extra.get(key)
         if isinstance(raw, str) and raw.strip():
             path = Path(raw)
@@ -568,6 +691,8 @@ class BookvoicePipeline:
         audio_parts_path: Path,
         merged_path: Path,
     ) -> str:
+        """Detect the first missing artifact stage for resume messaging."""
+
         if not raw_text_path.exists():
             return "extract"
         if not clean_text_path.exists():
@@ -587,23 +712,43 @@ class BookvoicePipeline:
         return "done"
 
     def _load_json_object(self, path: Path) -> dict[str, object]:
+        """Load an artifact JSON file and validate object root shape."""
+
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
-            raise ValueError(f"Artifact JSON is invalid: {path}") from exc
+            raise PipelineStageError(
+                stage="resume-artifacts",
+                detail=f"Artifact JSON is invalid: {path}",
+                hint="Delete the corrupted artifact and run `bookvoice resume` again.",
+            ) from exc
         if not isinstance(payload, dict):
-            raise ValueError(f"Artifact JSON must be an object: {path}")
+            raise PipelineStageError(
+                stage="resume-artifacts",
+                detail=f"Artifact JSON must be an object: {path}",
+                hint="Delete the corrupted artifact and run `bookvoice resume` again.",
+            )
         return payload
 
     def _load_chapters(self, path: Path) -> list[Chapter]:
+        """Load chapter artifacts from JSON."""
+
         payload = self._load_json_object(path)
         items = payload.get("chapters")
         if not isinstance(items, list):
-            raise ValueError(f"Artifact missing `chapters` list: {path}")
+            raise PipelineStageError(
+                stage="resume-artifacts",
+                detail=f"Artifact missing `chapters` list: {path}",
+                hint="Delete chapters artifact and rerun `bookvoice resume`.",
+            )
         chapters: list[Chapter] = []
         for item in items:
             if not isinstance(item, dict):
-                raise ValueError(f"Malformed chapter item in {path}")
+                raise PipelineStageError(
+                    stage="resume-artifacts",
+                    detail=f"Malformed chapter item in {path}",
+                    hint="Delete chapters artifact and rerun `bookvoice resume`.",
+                )
             chapters.append(
                 Chapter(
                     index=int(item["index"]),
@@ -614,14 +759,24 @@ class BookvoicePipeline:
         return chapters
 
     def _load_chunks(self, path: Path) -> list[Chunk]:
+        """Load chunk artifacts from JSON."""
+
         payload = self._load_json_object(path)
         items = payload.get("chunks")
         if not isinstance(items, list):
-            raise ValueError(f"Artifact missing `chunks` list: {path}")
+            raise PipelineStageError(
+                stage="resume-artifacts",
+                detail=f"Artifact missing `chunks` list: {path}",
+                hint="Delete chunks artifact and rerun `bookvoice resume`.",
+            )
         chunks: list[Chunk] = []
         for item in items:
             if not isinstance(item, dict):
-                raise ValueError(f"Malformed chunk item in {path}")
+                raise PipelineStageError(
+                    stage="resume-artifacts",
+                    detail=f"Malformed chunk item in {path}",
+                    hint="Delete chunks artifact and rerun `bookvoice resume`.",
+                )
             chunks.append(
                 Chunk(
                     chapter_index=int(item["chapter_index"]),
@@ -634,17 +789,31 @@ class BookvoicePipeline:
         return chunks
 
     def _load_translations(self, path: Path) -> list[TranslationResult]:
+        """Load translation artifacts from JSON."""
+
         payload = self._load_json_object(path)
         items = payload.get("translations")
         if not isinstance(items, list):
-            raise ValueError(f"Artifact missing `translations` list: {path}")
+            raise PipelineStageError(
+                stage="resume-artifacts",
+                detail=f"Artifact missing `translations` list: {path}",
+                hint="Delete translations artifact and rerun `bookvoice resume`.",
+            )
         translations: list[TranslationResult] = []
         for item in items:
             if not isinstance(item, dict):
-                raise ValueError(f"Malformed translation item in {path}")
+                raise PipelineStageError(
+                    stage="resume-artifacts",
+                    detail=f"Malformed translation item in {path}",
+                    hint="Delete translations artifact and rerun `bookvoice resume`.",
+                )
             chunk_payload = item.get("chunk")
             if not isinstance(chunk_payload, dict):
-                raise ValueError(f"Translation item missing `chunk` object in {path}")
+                raise PipelineStageError(
+                    stage="resume-artifacts",
+                    detail=f"Translation item missing `chunk` object in {path}",
+                    hint="Delete translations artifact and rerun `bookvoice resume`.",
+                )
             chunk = Chunk(
                 chapter_index=int(chunk_payload["chapter_index"]),
                 chunk_index=int(chunk_payload["chunk_index"]),
@@ -663,20 +832,38 @@ class BookvoicePipeline:
         return translations
 
     def _load_rewrites(self, path: Path) -> list[RewriteResult]:
+        """Load rewrite artifacts from JSON."""
+
         payload = self._load_json_object(path)
         items = payload.get("rewrites")
         if not isinstance(items, list):
-            raise ValueError(f"Artifact missing `rewrites` list: {path}")
+            raise PipelineStageError(
+                stage="resume-artifacts",
+                detail=f"Artifact missing `rewrites` list: {path}",
+                hint="Delete rewrites artifact and rerun `bookvoice resume`.",
+            )
         rewrites: list[RewriteResult] = []
         for item in items:
             if not isinstance(item, dict):
-                raise ValueError(f"Malformed rewrite item in {path}")
+                raise PipelineStageError(
+                    stage="resume-artifacts",
+                    detail=f"Malformed rewrite item in {path}",
+                    hint="Delete rewrites artifact and rerun `bookvoice resume`.",
+                )
             translation_payload = item.get("translation")
             if not isinstance(translation_payload, dict):
-                raise ValueError(f"Rewrite item missing `translation` object in {path}")
+                raise PipelineStageError(
+                    stage="resume-artifacts",
+                    detail=f"Rewrite item missing `translation` object in {path}",
+                    hint="Delete rewrites artifact and rerun `bookvoice resume`.",
+                )
             chunk_payload = translation_payload.get("chunk")
             if not isinstance(chunk_payload, dict):
-                raise ValueError(f"Rewrite translation missing `chunk` object in {path}")
+                raise PipelineStageError(
+                    stage="resume-artifacts",
+                    detail=f"Rewrite translation missing `chunk` object in {path}",
+                    hint="Delete rewrites artifact and rerun `bookvoice resume`.",
+                )
             chunk = Chunk(
                 chapter_index=int(chunk_payload["chapter_index"]),
                 chunk_index=int(chunk_payload["chunk_index"]),
@@ -701,14 +888,24 @@ class BookvoicePipeline:
         return rewrites
 
     def _load_audio_parts(self, path: Path) -> list[AudioPart]:
+        """Load synthesized audio part artifacts from JSON."""
+
         payload = self._load_json_object(path)
         items = payload.get("audio_parts")
         if not isinstance(items, list):
-            raise ValueError(f"Artifact missing `audio_parts` list: {path}")
+            raise PipelineStageError(
+                stage="resume-artifacts",
+                detail=f"Artifact missing `audio_parts` list: {path}",
+                hint="Delete audio parts artifact and rerun `bookvoice resume`.",
+            )
         audio_parts: list[AudioPart] = []
         for item in items:
             if not isinstance(item, dict):
-                raise ValueError(f"Malformed audio part item in {path}")
+                raise PipelineStageError(
+                    stage="resume-artifacts",
+                    detail=f"Malformed audio part item in {path}",
+                    hint="Delete audio parts artifact and rerun `bookvoice resume`.",
+                )
             audio_parts.append(
                 AudioPart(
                     chapter_index=int(item["chapter_index"]),
@@ -720,6 +917,8 @@ class BookvoicePipeline:
         return audio_parts
 
     def _config_hash(self, config: BookvoiceConfig) -> str:
+        """Compute deterministic hash for run-defining configuration fields."""
+
         payload = {
             "input_pdf": str(config.input_pdf),
             "output_dir": str(config.output_dir),
