@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.41] - 2026-02-21
+
+- Reorganized pipeline internals into a dedicated `bookvoice/pipeline/` package.
+- Moved orchestration into `bookvoice/pipeline/orchestrator.py`.
+- Moved artifact helpers into `bookvoice/pipeline/artifacts.py`.
+- Moved resume helpers into `bookvoice/pipeline/resume.py`.
+- Moved deterministic cost helpers into `bookvoice/pipeline/costs.py`.
+- Added compatibility exports in `bookvoice/pipeline/__init__.py` for `BookvoicePipeline`, `ChapterSplitter`, and `PdfOutlineChapterExtractor`.
+
 ## [0.1.40] - 2026-02-21
 
 - Refactored `bookvoice/pipeline.py` to improve readability by separating artifact serialization/loading, resume-path resolution, and cost estimation helpers into dedicated modules.

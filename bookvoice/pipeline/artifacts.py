@@ -12,9 +12,9 @@ from dataclasses import asdict
 import json
 from pathlib import Path
 
-from .config import ProviderRuntimeConfig
-from .errors import PipelineStageError
-from .models.datatypes import (
+from ..config import ProviderRuntimeConfig
+from ..errors import PipelineStageError
+from ..models.datatypes import (
     AudioPart,
     Chapter,
     ChapterStructureUnit,

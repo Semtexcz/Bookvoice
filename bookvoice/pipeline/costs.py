@@ -7,8 +7,8 @@ Responsibilities:
 
 from __future__ import annotations
 
-from .models.datatypes import RewriteResult, TranslationResult
-from .telemetry.cost_tracker import CostTracker
+from ..models.datatypes import RewriteResult, TranslationResult
+from ..telemetry.cost_tracker import CostTracker
 
 
 _TRANSLATE_COST_PER_1K_CHARS_USD = 0.0015

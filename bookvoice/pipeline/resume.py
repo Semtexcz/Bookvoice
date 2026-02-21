@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .errors import PipelineStageError
+from ..errors import PipelineStageError
 
 
 def manifest_string(payload: dict[str, object], key: str, default_value: str) -> str:
