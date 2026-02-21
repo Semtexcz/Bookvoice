@@ -22,6 +22,7 @@ Current audio generation can produce long chapter outputs that are less practica
 ## Definition of Done
 
 - [ ] Introduce deterministic chapter-part splitting based on a target text-length budget (characters).
+- [ ] Set default chapter-part text budget to `6500` characters (approximate 7-minute narration target).
 - [ ] Split points must prefer paragraph boundaries and must not cut a paragraph in the middle unless unavoidable.
 - [ ] When a chapter exceeds the text budget, split it into sequential chapter parts.
 - [ ] Preserve deterministic ordering and stable part numbering.
@@ -34,3 +35,4 @@ Current audio generation can produce long chapter outputs that are less practica
 - Keep merged output behavior explicit: either merged-per-part or merged-per-chapter with deterministic naming.
 - Ensure split logic stays compatible with resume/rebuild flow.
 - This task intentionally avoids post-generation trimming by measured audio duration.
+- Use `6500` characters as the explicit baseline budget for approximately 7 minutes of narration.
