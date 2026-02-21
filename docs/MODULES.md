@@ -1,46 +1,37 @@
 # Module Overview
 
-## Responsibilities and Public APIs
+## Package Responsibilities
 
-| Module | Responsibility | Public APIs |
+| Module | Responsibility | Key public APIs |
 |---|---|---|
 | `bookvoice.__init__` | Package exports and versioning | `__version__`, `BookvoicePipeline` |
-| `bookvoice.cli` | CLI entrypoint and subcommands | `app`, `main`, `build_command`, `translate_only_command`, `tts_only_command`, `resume_command` |
-| `bookvoice.config` | Runtime configuration model/loading | `BookvoiceConfig`, `ConfigLoader.from_yaml`, `ConfigLoader.from_env` |
-| `bookvoice.pipeline` | Stage orchestration | `BookvoicePipeline.run` |
-| `bookvoice.io.pdf_text_extractor` | PDF text extraction interfaces | `PdfTextExtractor.extract`, `PdfTextExtractor.extract_pages` |
-| `bookvoice.io.chapter_splitter` | Chapter boundary splitting | `ChapterSplitter.split` |
-| `bookvoice.io.storage` | Artifact persistence abstraction | `ArtifactStore.save_text`, `save_json`, `save_audio`, `load_text`, `exists` |
-| `bookvoice.text.cleaners` | Deterministic cleanup rules | `TextCleaner.clean`, `RemovePageNumbers.apply`, `RemoveHeadersFooters.apply`, `FixHyphenation.apply`, `NormalizeQuotes.apply`, `CollapseWhitespace.apply`, `RemoveFigureRefs.apply` |
-| `bookvoice.text.normalizer` | Language/form normalization | `TextNormalizer.normalize` |
-| `bookvoice.text.chunking` | Chunk generation from chapters | `Chunker.to_chunks` |
-| `bookvoice.text.structure` | Chapter/subchapter structure normalization | `ChapterStructureNormalizer.from_chapters` |
-| `bookvoice.llm.prompts` | Prompt template library | `PromptLibrary.translate_prompt`, `PromptLibrary.rewrite_for_audio_prompt` |
-| `bookvoice.llm.translator` | Translation interface + provider stubs | `Translator.translate`, `OpenAITranslator.translate` |
-| `bookvoice.llm.audio_rewriter` | Spoken-style rewrite stage | `AudioRewriter.rewrite` |
-| `bookvoice.llm.rate_limiter` | Request throttling abstraction | `RateLimiter.acquire` |
-| `bookvoice.llm.cache` | LLM response cache abstraction | `ResponseCache.get`, `ResponseCache.set` |
-| `bookvoice.tts.voices` | Voice profile metadata | `VoiceProfile` |
-| `bookvoice.tts.synthesizer` | TTS interface + provider stubs | `TTSSynthesizer.synthesize`, `OpenAITTSSynthesizer.synthesize` |
-| `bookvoice.audio.postprocess` | Audio cleanup primitives | `AudioPostProcessor.normalize`, `AudioPostProcessor.trim_silence` |
-| `bookvoice.audio.merger` | Multi-part merge orchestration | `AudioMerger.merge` |
-| `bookvoice.audio.tags` | Metadata tagging abstraction | `MetadataWriter.write_id3` |
-| `bookvoice.telemetry.cost_tracker` | Cost accounting | `CostTracker.add_llm_usage`, `add_tts_usage`, `summary` |
-| `bookvoice.telemetry.logger` | Structured run logging | `RunLogger.log_event`, `log_error` |
-| `bookvoice.models.datatypes` | Shared dataclasses | `BookMeta`, `Chapter`, `Chunk`, `TranslationResult`, `RewriteResult`, `AudioPart`, `ChapterStructureUnit`, `RunManifest` |
+| `bookvoice.cli` | CLI entrypoint and command wiring | `app`, `main`, `build_command`, `chapters_only_command`, `list_chapters_command`, `resume_command`, `credentials_command` |
+| `bookvoice.config` | Runtime config model and precedence resolution | `BookvoiceConfig`, `ProviderRuntimeConfig`, `RuntimeConfigSources`, `ConfigLoader` |
+| `bookvoice.credentials` | Secure API-key persistence via keyring | `CredentialStore`, `KeyringCredentialStore`, `create_credential_store` |
+| `bookvoice.provider_factory` | Provider to implementation mapping | `ProviderFactory.create_translator`, `create_rewriter`, `create_tts_synthesizer` |
+| `bookvoice.pipeline.orchestrator` | Top-level run/chapters-only/resume orchestration | `BookvoicePipeline.run`, `run_chapters_only`, `resume`, `list_chapters_from_pdf`, `list_chapters_from_artifact` |
+| `bookvoice.pipeline.artifacts` | Artifact payload serialization and loading | `chapter_artifact_payload`, `chunk_artifact_payload`, `audio_parts_artifact_payload`, `manifest_payload`, `load_*` helpers |
+| `bookvoice.pipeline.resume` | Resume manifest validation and stage detection | `load_manifest_payload`, `detect_next_stage`, `resolve_artifact_path` |
+| `bookvoice.io.*` | PDF extraction, chapter splitting, filesystem artifacts | `PdfTextExtractor`, `PdfOutlineChapterExtractor`, `ChapterSplitter`, `ArtifactStore` |
+| `bookvoice.text.*` | Text cleaning, chapter selection, structure normalization, chunk planning | `TextCleaner`, `parse_chapter_selection`, `ChapterStructureNormalizer`, `TextBudgetSegmentPlanner`, `Chunker`, `slugify_audio_title` |
+| `bookvoice.llm.*` | Prompting and OpenAI-backed translation/rewrite clients | `PromptLibrary`, `OpenAITranslator`, `AudioRewriter`, `DeterministicBypassRewriter`, `OpenAIChatClient` |
+| `bookvoice.tts.*` | Voice profiles and OpenAI speech synthesis | `VoiceProfile`, `resolve_voice_profile`, `OpenAITTSSynthesizer` |
+| `bookvoice.audio.*` | Postprocess/merge/tagging primitives | `AudioPostProcessor`, `AudioMerger`, `MetadataWriter` |
+| `bookvoice.telemetry.*` | Structured stage logs and cost accounting | `RunLogger`, `CostTracker` |
+| `bookvoice.models.datatypes` | Shared typed dataclasses | `BookMeta`, `Chapter`, `Chunk`, `TranslationResult`, `RewriteResult`, `AudioPart`, `ChapterStructureUnit`, `PlannedSegment`, `SegmentPlan`, `RunManifest` |
 
-## Cross-Module Dependencies
+## Dependency Notes
 
-- `bookvoice.pipeline` imports from: `bookvoice.config`, `bookvoice.models.datatypes`, `bookvoice.io`, `bookvoice.text`, `bookvoice.llm`, `bookvoice.tts`, `bookvoice.audio`, `bookvoice.telemetry`.
-- `bookvoice.cli` imports from: `bookvoice.config`, `bookvoice.pipeline`.
-- Provider modules should depend on shared models, not on each other.
-- Shared dataclasses in `bookvoice.models.datatypes` are the dependency anchor to avoid cycles.
+- `bookvoice.pipeline.*` modules coordinate all stage packages and remain the orchestration center.
+- Shared dataclasses in `bookvoice.models.datatypes` are the dependency anchor across modules.
+- Provider implementations do not depend on each other; orchestration chooses implementations through `ProviderFactory`.
+- `bookvoice.cli` focuses on argument normalization and error presentation, then delegates execution to `BookvoicePipeline`.
 
 ## Extension Points
 
-- Add a new PDF extractor:
-  - Implement `PdfTextExtractor` in a new module, wire into pipeline stage construction.
-- Add a new translator:
-  - Implement `Translator` protocol and plug provider config in `BookvoiceConfig`.
-- Add a new TTS provider:
-  - Implement `TTSSynthesizer` protocol and map to `VoiceProfile` selection.
+- Add a translator/rewriter/TTS provider:
+  - Implement the respective protocol and add factory wiring in `bookvoice/provider_factory.py`.
+- Add extraction strategy improvements:
+  - Extend `bookvoice/io/pdf_outline_extractor.py` and/or `bookvoice/io/chapter_splitter.py`.
+- Add new planning strategy:
+  - Implement additional planner logic in `bookvoice/text/*` and integrate into `PipelineExecutionMixin._chunk`.

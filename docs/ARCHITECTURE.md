@@ -2,53 +2,68 @@
 
 ## Core Data Model
 
-Bookvoice is centered around typed immutable artifacts where practical:
+Bookvoice is centered around typed dataclasses shared across stages:
 
-- `BookMeta`: top-level metadata about the input book and run identity.
-- `Chapter`: chapter-level unit produced after splitting.
-- `Chunk`: bounded text segment for translation and synthesis workflows.
+- `BookMeta`: source book identity.
+- `Chapter`: chapter split output.
+- `ChapterStructureUnit`: normalized chapter/subchapter planning unit.
+- `Chunk`: bounded text segment used by translate/rewrite/TTS.
 - `TranslationResult`: translation output per chunk.
-- `RewriteResult`: spoken-style rewrite output per chunk.
-- `AudioPart`: generated audio artifact metadata.
-- `RunManifest`: deterministic run record tying config, artifacts, and usage data.
+- `RewriteResult`: rewrite output per translation.
+- `AudioPart`: synthesized audio metadata per emitted WAV.
+- `SegmentPlan` and `PlannedSegment`: structure-aware segmentation output.
+- `RunManifest`: deterministic run record (config hash, outputs, costs, metadata).
 
-These models live in `bookvoice/models/datatypes.py` and are imported across modules.
+These models live in `bookvoice/models/datatypes.py`.
 
-## Orchestration Notes
+## Pipeline Design
 
-Pipeline stages are designed as explicit steps:
+`BookvoicePipeline` is composed from focused mixins:
 
-1. Extract
-2. Clean
-3. Split chapters
-4. Chunk
-5. Translate
-6. Rewrite for audio
-7. TTS
-8. Postprocess
-9. Merge
-10. Write manifest
+- `PipelineRuntimeMixin`: config validation, runtime provider resolution, run hashing.
+- `PipelineExecutionMixin`: extract/clean/split/chunk/translate/rewrite/tts/merge execution.
+- `PipelineChapterScopeMixin`: chapter-selection parsing and scope metadata.
+- `PipelineManifestMixin`: `RunManifest` construction and persistence.
+- `PipelineTelemetryMixin`: deterministic stage progress and structured stage events.
 
-Caching strategy (planned):
+Primary flow in `BookvoicePipeline.run`:
 
-- Hash key format: `sha256(stage_name + normalized_input + provider_id + config_slice)`.
-- Cache granularity: chunk-level for translation/rewrite/TTS artifacts.
-- Cache storage: deterministic path layout under the artifact store root.
+1. `extract`
+2. `clean`
+3. `split`
+4. `chunk`
+5. `translate`
+6. `rewrite`
+7. `tts`
+8. `merge`
+9. `manifest`
 
-Run reproducibility (planned):
+`resume` reuses available artifacts and executes only missing stages.
 
-- Persist complete `RunManifest` per run.
-- Include a canonical config hash in the manifest.
-- Ensure stage outputs are content-addressed and resumable.
+## Runtime Configuration
 
-## Error Handling and Retry Strategy (Planned)
+Runtime provider settings are resolved with deterministic precedence:
 
-- Fail-fast on deterministic preprocessing errors (invalid PDF path, unreadable artifacts).
-- Retry external-provider failures with bounded exponential backoff.
-- Record retry attempts and terminal failures in telemetry.
-- Keep partial artifacts to allow resume from the last successful stage.
-- Distinguish recoverable vs non-recoverable errors via explicit exception categories.
+`CLI explicit > secure credential storage > environment > config defaults`
 
-## Delivery Roadmap
+Supported provider set is currently `openai` for translator, rewriter, and TTS.
+Resolved non-secret runtime metadata is persisted in manifest `extra`.
 
-- See `docs/ROADMAP.md` for phased milestones, scope boundaries, and release targets.
+## Artifact and Reproducibility Model
+
+- Run ID and run directory are derived from a canonical config hash.
+- Stage outputs are written to deterministic paths under `<out>/run-<hash-prefix>/`.
+- Resume logic infers the next stage by checking expected artifact existence.
+- Manifest includes cost summary, chapter scope metadata, and part-mapping metadata.
+
+## Error Handling
+
+- Stage failures are normalized into `PipelineStageError` with `stage`, `detail`, and optional `hint`.
+- CLI prints concise stage-aware diagnostics.
+- Provider errors are translated to user-facing hints (key/config/model/provider checks).
+
+## Current Constraints
+
+- `translate-only` and `tts-only` commands are placeholders.
+- Audio postprocessing and metadata tagging are intentionally minimal.
+- YAML/environment config loader helpers are present but still placeholder implementations.

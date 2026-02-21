@@ -1,102 +1,66 @@
-# Roadmap (Fast MVP First)
+# Roadmap
 
-This roadmap prioritizes one outcome above all else:
+Reference date: 2026-02-21.
 
-**Convert a text-based PDF into a playable audiobook as quickly as possible.**
+## Product Goal
 
-Reference date: 2026-02-20.
+Primary outcome remains:
 
-## Product Priority
+`PDF (text) -> translated + rewrite-adapted text -> synthesized audiobook artifacts`
 
-- Primary goal: `PDF (text) -> translated/rewritten text -> synthesized audio file`.
-- Edge cases are explicitly deferred until after MVP.
-- Initial implementation can be pragmatic and narrow if it works reliably for happy-path inputs.
+## Current Delivery Status
 
-## MVP Scope (What must work)
+Implemented:
 
-- CLI command: `bookvoice build input.pdf --out out/`.
-- Text-native PDF extraction (single backend).
-- Basic cleanup and chunking (simple deterministic rules).
-- One translation/rewriter path (or bypass rewrite if needed for first playable output).
-- One TTS path.
-- Merge chunk audio into one final audiobook file.
-- Write a minimal `RunManifest` with key outputs and config hash.
+- End-to-end `build` pipeline with deterministic stage order.
+- Artifact persistence (`text/*`, `audio/*`, `run_manifest.json`).
+- Resume support from existing manifest/artifacts.
+- OpenAI-backed translation, rewrite, and TTS provider flow.
+- Rewrite bypass mode for deterministic pass-through.
+- Chapter listing and chapter-scope selection.
+- Deterministic segment planner with budget ceiling.
+- Structured stage logging and run-level cost summary.
 
-## Explicit Non-Goals for MVP
+Still limited:
 
-- OCR/scanned PDFs.
-- Advanced chapter detection heuristics.
-- Sophisticated retries/rate-limiting/caching strategies.
-- Rich metadata tagging and advanced audio mastering.
-- Full observability stack and broad test matrix.
+- `translate-only` and `tts-only` commands are placeholders.
+- Postprocessing and metadata tagging are minimal.
+- `ConfigLoader.from_yaml` and `ConfigLoader.from_env` remain placeholders.
 
-## Execution Plan
+## Next Priorities
 
-## Phase A: Thin Vertical Slice (Target: 3-5 days)
+## Phase 1: Command Completeness
 
 Goal:
-- Ship the fastest possible end-to-end happy path.
+- Replace placeholder command behavior with true partial-pipeline execution.
 
 Scope:
-- Wire pipeline stages so `build` produces a final merged audio artifact.
-- Implement minimal `ArtifactStore` filesystem reads/writes.
-- Keep one default provider path for translation and TTS.
-- Keep logs simple (stdout is enough).
+- Implement real `translate-only`.
+- Implement real `tts-only` from manifest/artifacts.
+- Add integration tests for both command paths.
 
-Definition of done:
-- Running `bookvoice build sample.pdf --out out/` produces:
-  - extracted/intermediate text artifacts,
-  - chunk-level audio parts,
-  - one merged playable output file,
-  - a `RunManifest` file.
-
-## Phase B: MVP Stabilization (Target: 4-7 days)
+## Phase 2: Reliability Hardening
 
 Goal:
-- Make happy-path execution predictable for repeated runs.
+- Improve resilience of external-provider stages.
 
 Scope:
-- Basic resume support from manifest/artifacts.
-- Minimal failure handling with clear user-facing errors.
-- Basic cost tracking in manifest (`LLM`, `TTS`, total).
-- Add smoke tests for CLI + pipeline integration path.
+- Retry/backoff policy for provider calls.
+- Better distinction of recoverable vs non-recoverable provider errors.
+- Expanded resume validation around partially missing artifact sets.
 
-Definition of done:
-- Re-running the same command with same input/config does not break output generation.
-- `resume` can continue a partially completed run in common scenarios.
-- Smoke tests cover the main build flow.
-
-## Phase C: Post-MVP Hardening (After first usable release)
+## Phase 3: Audio Quality and Metadata
 
 Goal:
-- Improve reliability, scale, and quality without blocking MVP delivery.
+- Improve output quality and playback metadata.
 
 Scope:
-- Better caching strategy and deterministic cache keys.
-- Retry/backoff and rate limiting.
-- Better chapter splitting and extraction diagnostics.
-- Audio postprocessing improvements and metadata writing.
-- Expanded tests, CI quality gates, and contributor workflow.
-
-Definition of done:
-- Failures are easier to recover from and diagnose.
-- Runtime cost and latency are reduced on repeated runs.
-- Project is ready for broader open-source usage.
+- Enhanced postprocessing pipeline.
+- Deterministic tagging metadata write path.
+- Optional output packaging formats beyond merged WAV.
 
 ## Milestones
 
-1. `v0.2.0-mvp`: first working PDF-to-audiobook happy path.
-2. `v0.3.0`: stabilization (resume, smoke tests, clearer errors).
-3. `v0.4.0`: hardening and quality improvements.
-
-## Implementation Order (Immediate)
-
-1. Implement real filesystem `ArtifactStore`.
-2. Implement one concrete text PDF extractor.
-3. Implement simple chapter split + chunk path.
-4. Implement one translator/rewriter execution path (minimal).
-5. Implement one TTS provider path.
-6. Implement merge step and manifest write.
-7. Add smoke test for full `build` command.
-
-This order is intentionally optimized for fastest delivery of an audible result, not for completeness.
+1. `v0.2.0`: fully functional command set (`build`, `chapters-only`, `list-chapters`, `resume`, `translate-only`, `tts-only`).
+2. `v0.3.0`: provider reliability hardening and stronger resume robustness.
+3. `v0.4.0`: audio quality and metadata improvements.

@@ -14,7 +14,7 @@ Implemented today:
 - Real OpenAI translation (`chat/completions`).
 - Real OpenAI rewrite-for-audio (`chat/completions`), plus `--rewrite-bypass`.
 - Real OpenAI TTS per segmented part (`audio/speech`) with deterministic `<chapter>_<part>_<title-slug>.wav` naming.
-- Structure-aware segment planning with chapter-local merging and paragraph-preferred boundaries (`6500` default budget, hard ceiling `9300` chars for approximately 10-minute parts).
+- Structure-aware segment planning with chapter-local merging and paragraph-preferred boundaries (`chunk_size_chars` default `1800`, planner hard ceiling `9300` chars).
 - Resumable artifact-driven pipeline with run manifest and cost summary.
 - Chapter listing and chapter-scope processing (`--chapters`).
 - Secure API-key storage via `keyring` (`bookvoice credentials`).
@@ -104,7 +104,7 @@ Common options:
 
 Runtime feedback during `build`:
 
-- Deterministic progress lines per phase (`extract`, `clean`, `split`, `chunk`, `translate`, `rewrite`, `tts`, `merge`, `manifest`).
+- Deterministic progress lines per stage (`extract`, `clean`, `split`, `chunk`, `translate`, `rewrite`, `tts`, `merge`, `manifest`).
 - Structured phase logs (`[phase]`) for stage start/complete/failure.
 - Output is concise and CI-friendly, with no credential material in logs.
 
@@ -154,7 +154,7 @@ Default models/voice:
 - Translate model: `gpt-4.1-mini`
 - Rewrite model: `gpt-4.1-mini`
 - TTS model: `gpt-4o-mini-tts`
-- TTS voice: `alloy`
+- TTS voice: `echo`
 
 Resolution precedence:
 
@@ -192,6 +192,8 @@ final emitted `filename`, source `source_order_indices`, and per-part
 `provider`/`model`/`voice` metadata.
 `run_manifest.json` `extra` includes compact chapter/part mapping and referenced
 structure indices for resume/rebuild stability, plus emitted audio filename fields.
+`text/chunks.json` includes planner metadata under `metadata.planner` and chunk-level
+`boundary_strategy` metadata.
 
 Filename examples:
 
