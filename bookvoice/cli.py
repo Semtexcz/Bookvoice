@@ -83,6 +83,26 @@ def build_command(
     _echo_cost_summary(manifest)
 
 
+@app.command("chapters-only")
+def chapters_only_command(
+    input_pdf: Annotated[Path, typer.Argument(help="Path to source PDF.")],
+    out: Annotated[Path, typer.Option("--out", help="Output directory.")] = Path("out"),
+) -> None:
+    """Run only extract, clean, and chapter split stages."""
+
+    try:
+        pipeline = BookvoicePipeline()
+        config = BookvoiceConfig(input_pdf=input_pdf, output_dir=out)
+        manifest = pipeline.run_chapters_only(config)
+    except Exception as exc:
+        _exit_with_command_error("chapters-only", exc)
+
+    typer.echo(f"Run id: {manifest.run_id}")
+    typer.echo(f"Chapters artifact: {manifest.extra.get('chapters', '(not written)')}")
+    typer.echo(f"Manifest: {manifest.extra.get('manifest_path', '(not written)')}")
+    _echo_chapter_summary(manifest)
+
+
 @app.command("translate-only")
 def translate_only_command(
     input_pdf: Annotated[Path, typer.Argument(help="Path to source PDF.")],

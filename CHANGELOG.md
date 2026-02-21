@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.10] - 2026-02-21
+
+- Completed `TASK-016` by adding a dedicated `bookvoice chapters-only` CLI command for extract/clean/chapter-split only.
+- Added deterministic chapter-only artifact coverage and verified downstream stage artifacts are not created.
+- Updated README and artifacts documentation with chapter-only usage and `text/chapters.json` metadata shape.
+
 ## [0.1.9] - 2026-02-21
 
 - Added `TASK-016` to backlog for a CLI chapter-only mode that splits PDF into chapters without running downstream stages.

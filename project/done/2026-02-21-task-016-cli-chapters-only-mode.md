@@ -1,6 +1,6 @@
 ---
 task: TASK-016
-status: "backlog"
+status: "done"
 priority: P1
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Add CLI mode for chapter-only PDF split
 
 Task: TASK-016
-Status: backlog
+Status: done
 Priority: P1
 Type: feature
 Author:
@@ -21,12 +21,12 @@ Current CLI commands focus on full pipeline execution (`build`) or resume behavi
 
 ## Definition of Done
 
-- [ ] Add a dedicated CLI command (or explicit mode flag) that runs only extract, clean, and chapter split stages.
-- [ ] Chapter-only command writes deterministic chapter artifacts (`text/chapters.json`) under run output.
-- [ ] Command output includes chapter extraction source metadata (`pdf_outline` vs `text_heuristic`) and fallback reason when applicable.
-- [ ] The command does not call translation, rewrite, TTS, postprocess, or merge stages.
-- [ ] Tests cover one successful run and assert that downstream stage artifacts are not created.
-- [ ] CLI help/README includes usage and expected outputs for the chapter-only mode.
+- [x] Add a dedicated CLI command (or explicit mode flag) that runs only extract, clean, and chapter split stages.
+- [x] Chapter-only command writes deterministic chapter artifacts (`text/chapters.json`) under run output.
+- [x] Command output includes chapter extraction source metadata (`pdf_outline` vs `text_heuristic`) and fallback reason when applicable.
+- [x] The command does not call translation, rewrite, TTS, postprocess, or merge stages.
+- [x] Tests cover one successful run and assert that downstream stage artifacts are not created.
+- [x] CLI help/README includes usage and expected outputs for the chapter-only mode.
 
 ## Notes
 

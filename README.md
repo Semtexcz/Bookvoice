@@ -59,12 +59,16 @@ These are planned and intentionally not implemented in this scaffold.
 
 ```bash
 bookvoice build input.pdf --out out/
+bookvoice chapters-only input.pdf --out out/
 bookvoice translate-only input.pdf
 bookvoice tts-only out/run_manifest.json
 bookvoice resume out/run_manifest.json
 ```
 
 CLI currently supports full `build` and basic manifest-driven `resume` flows.
+Use `chapters-only` to run only extract/clean/split and inspect chapter boundaries quickly.
+The command writes `text/raw.txt`, `text/clean.txt`, `text/chapters.json`, and `run_manifest.json`,
+including chapter source metadata (`pdf_outline` or `text_heuristic`) and fallback reason.
 `translate-only` and `tts-only` remain placeholders.
 
 ## Troubleshooting

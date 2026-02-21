@@ -1,6 +1,8 @@
 # Artifacts Reference
 
 This document lists filesystem artifacts produced by `bookvoice build`.
+The `bookvoice chapters-only` command produces a deterministic subset:
+`text/raw.txt`, `text/clean.txt`, `text/chapters.json`, and `run_manifest.json`.
 
 ## Run Root
 
@@ -43,6 +45,7 @@ out/
 ### `text/chapters.json`
 
 - Chapter list after split stage.
+- Includes extraction metadata for outline-vs-fallback diagnostics.
 
 Minimal shape:
 
@@ -50,7 +53,11 @@ Minimal shape:
 {
   "chapters": [
     { "index": 1, "title": "Chapter 1", "text": "..." }
-  ]
+  ],
+  "metadata": {
+    "source": "pdf_outline",
+    "fallback_reason": ""
+  }
 }
 ```
 

@@ -49,15 +49,21 @@ class BookvoicePipeline:
     _REWRITE_COST_PER_1K_CHARS_USD = 0.0008
     _TTS_COST_PER_1K_CHARS_USD = 0.0150
 
+    def _prepare_run(self, config: BookvoiceConfig) -> tuple[str, str, ArtifactStore]:
+        """Create deterministic run identifiers and artifact storage for a config."""
+
+        config_hash = self._config_hash(config)
+        run_id = f"run-{config_hash[:12]}"
+        store = ArtifactStore(config.output_dir / run_id)
+        return run_id, config_hash, store
+
     def run(self, config: BookvoiceConfig) -> RunManifest:
         """Run the full pipeline and return a manifest.
 
         MVP orchestration for text-native PDF to playable audio.
         """
 
-        config_hash = self._config_hash(config)
-        run_id = f"run-{config_hash[:12]}"
-        store = ArtifactStore(config.output_dir / run_id)
+        run_id, config_hash, store = self._prepare_run(config)
         cost_tracker = CostTracker()
 
         raw_text = self._extract(config)
@@ -161,6 +167,45 @@ class BookvoicePipeline:
             store=store,
         )
         return manifest
+
+    def run_chapters_only(self, config: BookvoiceConfig) -> RunManifest:
+        """Run only extract/clean/split stages and persist chapter artifacts."""
+
+        run_id, config_hash, store = self._prepare_run(config)
+
+        raw_text = self._extract(config)
+        raw_text_path = store.save_text(Path("text/raw.txt"), raw_text)
+
+        clean_text = self._clean(raw_text)
+        clean_text_path = store.save_text(Path("text/clean.txt"), clean_text)
+
+        chapters, chapter_source, chapter_fallback_reason = self._split_chapters(
+            clean_text, config.input_pdf
+        )
+        chapters_path = store.save_json(
+            Path("text/chapters.json"),
+            self._chapter_artifact_payload(
+                chapters, chapter_source, chapter_fallback_reason
+            ),
+        )
+
+        return self._write_manifest(
+            config=config,
+            run_id=run_id,
+            config_hash=config_hash,
+            merged_audio_path=store.root / "audio/bookvoice_merged.wav",
+            artifact_paths={
+                "run_root": str(store.root),
+                "raw_text": str(raw_text_path),
+                "clean_text": str(clean_text_path),
+                "chapters": str(chapters_path),
+                "chapter_source": chapter_source,
+                "chapter_fallback_reason": chapter_fallback_reason,
+                "pipeline_mode": "chapters_only",
+            },
+            cost_summary={"llm_cost_usd": 0.0, "tts_cost_usd": 0.0, "total_cost_usd": 0.0},
+            store=store,
+        )
 
     def resume(self, manifest_path: Path) -> RunManifest:
         """Resume a run from an existing manifest and artifacts."""
