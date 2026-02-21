@@ -28,13 +28,28 @@ class TTSSynthesizer(Protocol):
 class OpenAITTSSynthesizer:
     """Minimal local synthesizer that writes deterministic WAV chunks."""
 
-    def __init__(self, output_root: Path | None = None, sample_rate: int = 24000) -> None:
+    def __init__(
+        self,
+        output_root: Path | None = None,
+        sample_rate: int = 24000,
+        model: str = "gpt-4o-mini-tts",
+        provider_id: str = "openai",
+        api_key: str | None = None,
+    ) -> None:
+        """Initialize deterministic TTS synthesizer settings."""
+
         self.output_root = output_root
         self.sample_rate = sample_rate
+        self.model = model
+        self.provider_id = provider_id
+        self.api_key = api_key
 
     def synthesize(self, rewrite: RewriteResult, voice: VoiceProfile) -> AudioPart:
         """Synthesize one deterministic WAV file and return metadata."""
 
+        _ = self.model
+        _ = self.provider_id
+        _ = self.api_key
         chunk = rewrite.translation.chunk
         relative = Path(
             f"chapter_{chunk.chapter_index:03d}_chunk_{chunk.chunk_index:03d}.wav"
@@ -58,6 +73,8 @@ class OpenAITTSSynthesizer:
     def _render_wav(
         self, text: str, speaking_rate: float, chapter_index: int, chunk_index: int
     ) -> tuple[bytes, float]:
+        """Render deterministic mono WAV bytes derived from text/chunk identity."""
+
         base_duration = max(0.25, min(6.0, len(text) / 50.0))
         duration = base_duration / max(0.5, speaking_rate)
         frame_count = int(duration * self.sample_rate)

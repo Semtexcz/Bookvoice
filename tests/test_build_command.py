@@ -39,6 +39,13 @@ def test_build_command_creates_outputs(tmp_path: Path) -> None:
     )
     assert payload["extra"]["chapter_source"] in {"pdf_outline", "text_heuristic"}
     assert isinstance(payload["extra"]["chapter_fallback_reason"], str)
+    assert payload["extra"]["provider_translator"] == "openai"
+    assert payload["extra"]["provider_rewriter"] == "openai"
+    assert payload["extra"]["provider_tts"] == "openai"
+    assert payload["extra"]["model_translate"]
+    assert payload["extra"]["model_rewrite"]
+    assert payload["extra"]["model_tts"]
+    assert payload["extra"]["tts_voice"]
 
     assert "Chapter source:" in result.output
     assert "Cost LLM (USD):" in result.output

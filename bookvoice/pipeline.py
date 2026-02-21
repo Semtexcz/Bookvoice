@@ -14,18 +14,17 @@ from __future__ import annotations
 from dataclasses import asdict
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 
 from .audio.merger import AudioMerger
 from .audio.postprocess import AudioPostProcessor
-from .config import BookvoiceConfig
+from .config import BookvoiceConfig, ProviderRuntimeConfig, RuntimeConfigSources
 from .errors import PipelineStageError
 from .io.pdf_outline_extractor import PdfOutlineChapterExtractor
 from .io.chapter_splitter import ChapterSplitter
 from .io.pdf_text_extractor import PdfTextExtractor
 from .io.storage import ArtifactStore
-from .llm.audio_rewriter import AudioRewriter
-from .llm.translator import OpenAITranslator
 from .models.datatypes import (
     AudioPart,
     BookMeta,
@@ -35,6 +34,7 @@ from .models.datatypes import (
     RunManifest,
     TranslationResult,
 )
+from .provider_factory import ProviderFactory
 from .text.chapter_selection import (
     format_chapter_selection,
     parse_chapter_indices_csv,
@@ -43,7 +43,6 @@ from .text.chapter_selection import (
 from .text.chunking import Chunker
 from .text.cleaners import TextCleaner
 from .telemetry.cost_tracker import CostTracker
-from .tts.synthesizer import OpenAITTSSynthesizer
 from .tts.voices import VoiceProfile
 
 
@@ -57,6 +56,7 @@ class BookvoicePipeline:
     def _prepare_run(self, config: BookvoiceConfig) -> tuple[str, str, ArtifactStore]:
         """Create deterministic run identifiers and artifact storage for a config."""
 
+        self._validate_config(config)
         config_hash = self._config_hash(config)
         run_id = f"run-{config_hash[:12]}"
         store = ArtifactStore(config.output_dir / run_id)
@@ -116,6 +116,7 @@ class BookvoicePipeline:
         """
 
         run_id, config_hash, store = self._prepare_run(config)
+        runtime_config = self._resolve_runtime_config(config)
         cost_tracker = CostTracker()
 
         raw_text = self._extract(config)
@@ -160,11 +161,15 @@ class BookvoicePipeline:
                     }
                     for item in translations
                 ],
-                "metadata": {"chapter_scope": chapter_scope},
+                "metadata": {
+                    "chapter_scope": chapter_scope,
+                    "provider": runtime_config.translator_provider,
+                    "model": runtime_config.translate_model,
+                },
             },
         )
 
-        rewrites = self._rewrite_for_audio(translations, config)
+        rewrites = self._rewrite_for_audio(translations, config, runtime_config)
         self._add_rewrite_costs(rewrites, cost_tracker)
         rewrites_path = store.save_json(
             Path("text/rewrites.json"),
@@ -183,11 +188,15 @@ class BookvoicePipeline:
                     }
                     for item in rewrites
                 ],
-                "metadata": {"chapter_scope": chapter_scope},
+                "metadata": {
+                    "chapter_scope": chapter_scope,
+                    "provider": runtime_config.rewriter_provider,
+                    "model": runtime_config.rewrite_model,
+                },
             },
         )
 
-        audio_parts = self._tts(rewrites, config, store)
+        audio_parts = self._tts(rewrites, config, store, runtime_config)
         self._add_tts_costs(rewrites, cost_tracker)
         audio_parts_path = store.save_json(
             Path("audio/parts.json"),
@@ -201,7 +210,12 @@ class BookvoicePipeline:
                     }
                     for item in audio_parts
                 ],
-                "metadata": {"chapter_scope": chapter_scope},
+                "metadata": {
+                    "chapter_scope": chapter_scope,
+                    "provider": runtime_config.tts_provider,
+                    "model": runtime_config.tts_model,
+                    "voice": runtime_config.tts_voice,
+                },
             },
         )
 
@@ -228,6 +242,7 @@ class BookvoicePipeline:
                 "audio_parts": str(audio_parts_path),
                 "chapter_source": chapter_source,
                 "chapter_fallback_reason": chapter_fallback_reason,
+                **runtime_config.as_manifest_metadata(),
                 **chapter_scope,
             },
             cost_summary=self._rounded_cost_summary(cost_tracker),
@@ -239,6 +254,7 @@ class BookvoicePipeline:
         """Run only extract/clean/split stages and persist chapter artifacts."""
 
         run_id, config_hash, store = self._prepare_run(config)
+        runtime_config = self._resolve_runtime_config(config)
 
         raw_text = self._extract(config)
         raw_text_path = store.save_text(Path("text/raw.txt"), raw_text)
@@ -270,6 +286,7 @@ class BookvoicePipeline:
                 "chapter_source": chapter_source,
                 "chapter_fallback_reason": chapter_fallback_reason,
                 "pipeline_mode": "chapters_only",
+                **runtime_config.as_manifest_metadata(),
                 **chapter_scope,
             },
             cost_summary={"llm_cost_usd": 0.0, "tts_cost_usd": 0.0, "total_cost_usd": 0.0},
@@ -316,8 +333,16 @@ class BookvoicePipeline:
             input_pdf=source_pdf,
             output_dir=run_root.parent,
             language=language,
+            provider_translator=self._manifest_string(extra, "provider_translator", "openai"),
+            provider_rewriter=self._manifest_string(extra, "provider_rewriter", "openai"),
+            provider_tts=self._manifest_string(extra, "provider_tts", "openai"),
+            model_translate=self._manifest_string(extra, "model_translate", "gpt-4.1-mini"),
+            model_rewrite=self._manifest_string(extra, "model_rewrite", "gpt-4.1-mini"),
+            model_tts=self._manifest_string(extra, "model_tts", "gpt-4o-mini-tts"),
+            tts_voice=self._manifest_string(extra, "tts_voice", "alloy"),
             resume=True,
         )
+        runtime_config = self._resolve_runtime_config(config)
 
         raw_text_path = self._resolve_artifact_path(
             manifest_path, run_root, extra, "raw_text", Path("text/raw.txt")
@@ -417,7 +442,11 @@ class BookvoicePipeline:
                         }
                         for item in translations
                     ],
-                    "metadata": {"chapter_scope": chapter_scope},
+                    "metadata": {
+                        "chapter_scope": chapter_scope,
+                        "provider": runtime_config.translator_provider,
+                        "model": runtime_config.translate_model,
+                    },
                 },
             )
         self._add_translation_costs(translations, cost_tracker)
@@ -425,7 +454,7 @@ class BookvoicePipeline:
         if rewrites_path.exists():
             rewrites = self._load_rewrites(rewrites_path)
         else:
-            rewrites = self._rewrite_for_audio(translations, config)
+            rewrites = self._rewrite_for_audio(translations, config, runtime_config)
             rewrites_path = store.save_json(
                 Path("text/rewrites.json"),
                 {
@@ -443,7 +472,11 @@ class BookvoicePipeline:
                         }
                         for item in rewrites
                     ],
-                    "metadata": {"chapter_scope": chapter_scope},
+                    "metadata": {
+                        "chapter_scope": chapter_scope,
+                        "provider": runtime_config.rewriter_provider,
+                        "model": runtime_config.rewrite_model,
+                    },
                 },
             )
         self._add_rewrite_costs(rewrites, cost_tracker)
@@ -455,7 +488,7 @@ class BookvoicePipeline:
                 audio_parts = loaded_parts
                 reuse_audio_parts = True
             else:
-                audio_parts = self._tts(rewrites, config, store)
+                audio_parts = self._tts(rewrites, config, store, runtime_config)
                 audio_parts_path = store.save_json(
                     Path("audio/parts.json"),
                     {
@@ -468,11 +501,16 @@ class BookvoicePipeline:
                             }
                             for item in audio_parts
                         ],
-                        "metadata": {"chapter_scope": chapter_scope},
+                        "metadata": {
+                            "chapter_scope": chapter_scope,
+                            "provider": runtime_config.tts_provider,
+                            "model": runtime_config.tts_model,
+                            "voice": runtime_config.tts_voice,
+                        },
                     },
                 )
         else:
-            audio_parts = self._tts(rewrites, config, store)
+            audio_parts = self._tts(rewrites, config, store, runtime_config)
             audio_parts_path = store.save_json(
                 Path("audio/parts.json"),
                 {
@@ -485,7 +523,12 @@ class BookvoicePipeline:
                             }
                             for item in audio_parts
                         ],
-                        "metadata": {"chapter_scope": chapter_scope},
+                        "metadata": {
+                            "chapter_scope": chapter_scope,
+                            "provider": runtime_config.tts_provider,
+                            "model": runtime_config.tts_model,
+                            "voice": runtime_config.tts_voice,
+                        },
                     },
                 )
         self._add_tts_costs(rewrites, cost_tracker)
@@ -518,6 +561,7 @@ class BookvoicePipeline:
                 "resume_next_stage": next_stage,
                 "chapter_source": chapter_source,
                 "chapter_fallback_reason": chapter_fallback_reason,
+                **runtime_config.as_manifest_metadata(),
                 **chapter_scope,
             },
             cost_summary=self._rounded_cost_summary(cost_tracker),
@@ -730,7 +774,12 @@ class BookvoicePipeline:
         """Translate chunks into target language text."""
 
         try:
-            translator = OpenAITranslator()
+            runtime_config = self._resolve_runtime_config(config)
+            translator = ProviderFactory.create_translator(
+                provider_id=runtime_config.translator_provider,
+                model=runtime_config.translate_model,
+                api_key=runtime_config.api_key,
+            )
             return [
                 translator.translate(chunk, target_language=config.language)
                 for chunk in chunks
@@ -745,13 +794,24 @@ class BookvoicePipeline:
             ) from exc
 
     def _rewrite_for_audio(
-        self, translations: list[TranslationResult], config: BookvoiceConfig
+        self,
+        translations: list[TranslationResult],
+        config: BookvoiceConfig,
+        runtime_config: ProviderRuntimeConfig | None = None,
     ) -> list[RewriteResult]:
         """Rewrite translated text for natural spoken delivery."""
 
         try:
-            _ = config
-            rewriter = AudioRewriter()
+            resolved_runtime = (
+                runtime_config
+                if runtime_config is not None
+                else self._resolve_runtime_config(config)
+            )
+            rewriter = ProviderFactory.create_rewriter(
+                provider_id=resolved_runtime.rewriter_provider,
+                model=resolved_runtime.rewrite_model,
+                api_key=resolved_runtime.api_key,
+            )
             return [rewriter.rewrite(translation) for translation in translations]
         except PipelineStageError:
             raise
@@ -763,18 +823,32 @@ class BookvoicePipeline:
             ) from exc
 
     def _tts(
-        self, rewrites: list[RewriteResult], config: BookvoiceConfig, store: ArtifactStore
+        self,
+        rewrites: list[RewriteResult],
+        config: BookvoiceConfig,
+        store: ArtifactStore,
+        runtime_config: ProviderRuntimeConfig | None = None,
     ) -> list[AudioPart]:
         """Synthesize audio parts for rewritten text chunks."""
 
         try:
+            resolved_runtime = (
+                runtime_config
+                if runtime_config is not None
+                else self._resolve_runtime_config(config)
+            )
             voice = VoiceProfile(
-                name="mvp-cs-voice",
-                provider_voice_id="mvp-cs-voice",
+                name=resolved_runtime.tts_voice,
+                provider_voice_id=resolved_runtime.tts_voice,
                 language=config.language,
                 speaking_rate=1.0,
             )
-            synthesizer = OpenAITTSSynthesizer(output_root=store.root / "audio/chunks")
+            synthesizer = ProviderFactory.create_tts_synthesizer(
+                provider_id=resolved_runtime.tts_provider,
+                output_root=store.root / "audio/chunks",
+                model=resolved_runtime.tts_model,
+                api_key=resolved_runtime.api_key,
+            )
             return [synthesizer.synthesize(item, voice) for item in rewrites]
         except PipelineStageError:
             raise
@@ -977,6 +1051,44 @@ class BookvoicePipeline:
             "tts_cost_usd": tts_cost_usd,
             "total_cost_usd": round(llm_cost_usd + tts_cost_usd, 6),
         }
+
+    def _validate_config(self, config: BookvoiceConfig) -> None:
+        """Validate top-level configuration and map failures to a stage-aware error."""
+
+        try:
+            config.validate()
+        except ValueError as exc:
+            raise PipelineStageError(
+                stage="config",
+                detail=str(exc),
+                hint="Update provider/model options and rerun the command.",
+            ) from exc
+
+    def _resolve_runtime_config(self, config: BookvoiceConfig) -> ProviderRuntimeConfig:
+        """Resolve runtime provider settings with deterministic source precedence."""
+
+        try:
+            runtime_sources = RuntimeConfigSources(env=os.environ)
+            return config.resolved_provider_runtime(runtime_sources)
+        except ValueError as exc:
+            raise PipelineStageError(
+                stage="config",
+                detail=str(exc),
+                hint=(
+                    "Set supported provider IDs and non-empty model/voice values in "
+                    "CLI, secure storage, environment, or config defaults."
+                ),
+            ) from exc
+
+    def _manifest_string(
+        self, payload: dict[str, object], key: str, default_value: str
+    ) -> str:
+        """Read a non-empty string from manifest extras with a deterministic default."""
+
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        return default_value
 
     def _load_manifest_payload(self, manifest_path: Path) -> dict[str, object]:
         """Load and validate the resume manifest payload."""
@@ -1329,7 +1441,12 @@ class BookvoicePipeline:
             "output_dir": str(config.output_dir),
             "language": config.language,
             "provider_translator": config.provider_translator,
+            "provider_rewriter": config.provider_rewriter,
             "provider_tts": config.provider_tts,
+            "model_translate": config.model_translate,
+            "model_rewrite": config.model_rewrite,
+            "model_tts": config.model_tts,
+            "tts_voice": config.tts_voice,
             "chunk_size_chars": config.chunk_size_chars,
             "chapter_selection": config.chapter_selection,
             "resume": config.resume,

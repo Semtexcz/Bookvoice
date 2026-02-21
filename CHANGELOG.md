@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.18] - 2026-02-21
+
+- Completed `TASK-014A` by introducing provider factory abstractions for translation, rewrite, and TTS client construction.
+- Expanded runtime config with provider/model fields (`provider_translator`, `provider_rewriter`, `provider_tts`, `model_translate`, `model_rewrite`, `model_tts`, `tts_voice`) and deterministic precedence resolution (`CLI > secure storage > environment > defaults`).
+- Added configuration validation for supported provider IDs and required model/voice values.
+- Wired pipeline stages to resolve provider runtime settings through the new factory layer while keeping `openai` as the only implemented provider.
+- Persisted resolved provider/model/voice identifiers into stage artifacts metadata and run manifest metadata.
+- Added tests for provider factory resolution, unsupported-provider validation, precedence behavior, and manifest metadata assertions.
+
 ## [0.1.17] - 2026-02-21
 
 - Split `TASK-014` into an explicit epic with six concrete backlog subtasks: `TASK-014A` through `TASK-014F`.
