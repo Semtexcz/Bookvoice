@@ -30,3 +30,5 @@ LLM stage modules are placeholders. MVP needs one practical way to obtain Czech 
 
 - Use one default provider path only.
 - Skip advanced prompt versioning and multi-provider strategy for MVP.
+- This task is satisfied by the minimal deterministic provider path for MVP.
+- Real external provider API integration is tracked in `TASK-014`.

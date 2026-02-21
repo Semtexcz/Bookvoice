@@ -30,3 +30,5 @@ TTS interfaces are currently stubbed, so no real audio parts are generated from 
 
 - Focus on Czech output voice support for MVP.
 - Voice profile configuration can stay minimal.
+- This task is satisfied by the minimal deterministic provider path for MVP.
+- Real external provider API integration is tracked in `TASK-014`.
