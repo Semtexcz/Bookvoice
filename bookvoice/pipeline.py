@@ -324,7 +324,7 @@ class BookvoicePipeline:
             model_translate=self._manifest_string(extra, "model_translate", "gpt-4.1-mini"),
             model_rewrite=self._manifest_string(extra, "model_rewrite", "gpt-4.1-mini"),
             model_tts=self._manifest_string(extra, "model_tts", "gpt-4o-mini-tts"),
-            tts_voice=self._manifest_string(extra, "tts_voice", "alloy"),
+            tts_voice=self._manifest_string(extra, "tts_voice", "echo"),
             rewrite_bypass=self._manifest_bool(extra, "rewrite_bypass", False),
             resume=True,
         )

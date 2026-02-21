@@ -22,7 +22,7 @@ from typing import Mapping
 _DEFAULT_TRANSLATION_MODEL = "gpt-4.1-mini"
 _DEFAULT_REWRITE_MODEL = "gpt-4.1-mini"
 _DEFAULT_TTS_MODEL = "gpt-4o-mini-tts"
-_DEFAULT_TTS_VOICE = "alloy"
+_DEFAULT_TTS_VOICE = "echo"
 _SUPPORTED_PROVIDER_IDS = frozenset({"openai"})
 
 

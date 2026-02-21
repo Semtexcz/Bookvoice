@@ -87,7 +87,7 @@ def _prompt_for_provider_runtime_values(
     ).strip()
     runtime_cli_values["tts_voice"] = typer.prompt(
         "TTS voice",
-        default=runtime_cli_values.get("tts_voice", "alloy"),
+        default=runtime_cli_values.get("tts_voice", "echo"),
     ).strip()
     if not prompt_api_key:
         return False
