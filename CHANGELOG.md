@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.8] - 2026-02-21
+
+- Added `pytest-cov` to development test dependencies.
+- Enabled optional coverage runs through `pytest-cov` (for example `pytest --cov=bookvoice --cov-report=term-missing`).
+
 ## [0.1.7] - 2026-02-21
 
 - Added integration coverage for real PDF outline chapter splitting using a generated outline-enabled PDF fixture.
