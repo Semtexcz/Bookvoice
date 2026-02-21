@@ -1,19 +1,18 @@
-"""TTS synthesizer interfaces and stubs.
+"""TTS synthesizer interfaces and OpenAI-backed implementation.
 
 Responsibilities:
 - Define protocol for chunk-level speech synthesis.
-- Provide placeholder provider implementation for future integration.
+- Provide OpenAI-backed chunk-level speech synthesis.
 """
 
 from __future__ import annotations
 
 import io
-import math
-import struct
 import wave
 from pathlib import Path
 from typing import Protocol
 
+from ..llm.openai_client import OpenAIProviderError, OpenAISpeechClient
 from ..models.datatypes import AudioPart, RewriteResult
 from .voices import VoiceProfile
 
@@ -26,41 +25,38 @@ class TTSSynthesizer(Protocol):
 
 
 class OpenAITTSSynthesizer:
-    """Minimal local synthesizer that writes deterministic WAV chunks."""
+    """OpenAI-backed synthesizer that writes deterministic chunk WAV artifacts."""
 
     def __init__(
         self,
         output_root: Path | None = None,
-        sample_rate: int = 24000,
         model: str = "gpt-4o-mini-tts",
         provider_id: str = "openai",
         api_key: str | None = None,
     ) -> None:
-        """Initialize deterministic TTS synthesizer settings."""
+        """Initialize OpenAI-backed TTS synthesizer settings."""
 
         self.output_root = output_root
-        self.sample_rate = sample_rate
         self.model = model
         self.provider_id = provider_id
-        self.api_key = api_key
+        self.client = OpenAISpeechClient(api_key=api_key)
 
     def synthesize(self, rewrite: RewriteResult, voice: VoiceProfile) -> AudioPart:
-        """Synthesize one deterministic WAV file and return metadata."""
+        """Synthesize one OpenAI WAV file and return deterministic chunk metadata."""
 
-        _ = self.model
-        _ = self.provider_id
-        _ = self.api_key
         chunk = rewrite.translation.chunk
         relative = Path(
             f"chapter_{chunk.chapter_index:03d}_chunk_{chunk.chunk_index:03d}.wav"
         )
         output_path = relative if self.output_root is None else self.output_root / relative
-        audio_bytes, duration = self._render_wav(
+        audio_bytes = self.client.synthesize_speech(
+            model=self.model,
+            voice=voice.provider_voice_id,
             text=rewrite.rewritten_text,
-            speaking_rate=voice.speaking_rate,
-            chapter_index=chunk.chapter_index,
-            chunk_index=chunk.chunk_index,
+            response_format="wav",
+            speed=max(0.25, min(4.0, voice.speaking_rate)),
         )
+        duration = self._wav_duration_seconds(audio_bytes)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(audio_bytes)
         return AudioPart(
@@ -68,31 +64,22 @@ class OpenAITTSSynthesizer:
             chunk_index=chunk.chunk_index,
             path=output_path,
             duration_seconds=duration,
+            provider=self.provider_id,
+            model=self.model,
+            voice=voice.provider_voice_id,
         )
 
-    def _render_wav(
-        self, text: str, speaking_rate: float, chapter_index: int, chunk_index: int
-    ) -> tuple[bytes, float]:
-        """Render deterministic mono WAV bytes derived from text/chunk identity."""
+    def _wav_duration_seconds(self, audio_bytes: bytes) -> float:
+        """Compute WAV duration in seconds from OpenAI speech response bytes."""
 
-        base_duration = max(0.25, min(6.0, len(text) / 50.0))
-        duration = base_duration / max(0.5, speaking_rate)
-        frame_count = int(duration * self.sample_rate)
-        frequency = 220.0 + float((chapter_index * 31 + chunk_index * 17) % 180)
-        amplitude = 0.20
-
-        buffer = io.BytesIO()
-        with wave.open(buffer, "wb") as wav_file:
-            wav_file.setnchannels(1)
-            wav_file.setsampwidth(2)
-            wav_file.setframerate(self.sample_rate)
-
-            frames = bytearray()
-            for frame_index in range(frame_count):
-                sample = amplitude * math.sin(
-                    (2.0 * math.pi * frequency * frame_index) / self.sample_rate
-                )
-                frames.extend(struct.pack("<h", int(sample * 32767)))
-            wav_file.writeframes(bytes(frames))
-
-        return buffer.getvalue(), frame_count / float(self.sample_rate)
+        try:
+            with wave.open(io.BytesIO(audio_bytes), "rb") as wav_file:
+                frame_count = wav_file.getnframes()
+                sample_rate = wav_file.getframerate()
+        except Exception as exc:
+            raise OpenAIProviderError(
+                "OpenAI speech response is not a readable WAV payload."
+            ) from exc
+        if sample_rate <= 0:
+            raise OpenAIProviderError("OpenAI speech response has invalid WAV sample rate.")
+        return frame_count / float(sample_rate)

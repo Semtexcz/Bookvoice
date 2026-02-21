@@ -95,6 +95,9 @@ class AudioPart:
     chunk_index: int
     path: Path
     duration_seconds: float
+    provider: str | None = None
+    model: str | None = None
+    voice: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

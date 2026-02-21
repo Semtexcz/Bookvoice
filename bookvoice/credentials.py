@@ -70,7 +70,10 @@ class KeyringCredentialStore(CredentialStore):
         keyring_module = self._load_keyring_module()
         if keyring_module is None:
             return None
-        value = keyring_module.get_password(self.service_name, self.account_name)
+        try:
+            value = keyring_module.get_password(self.service_name, self.account_name)
+        except Exception:
+            return None
         if value is None:
             return None
         normalized = value.strip()
@@ -104,7 +107,10 @@ class KeyringCredentialStore(CredentialStore):
         if existing is None:
             return False
 
-        keyring_module.delete_password(self.service_name, self.account_name)
+        try:
+            keyring_module.delete_password(self.service_name, self.account_name)
+        except Exception:
+            return False
         return True
 
 

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.23] - 2026-02-21
+
+- Completed `TASK-014D` by replacing deterministic local TTS stub output with real OpenAI `/audio/speech` synthesis per rewrite chunk.
+- Preserved deterministic chunk artifact paths while persisting per-chunk TTS metadata (`provider`, `model`, `voice`) in `audio/parts.json`.
+- Added explicit stage-level provider failure mapping for `tts` with actionable API-key/model/voice hints.
+- Added mocked unit coverage for OpenAI TTS happy path, provider-failure path, and pipeline `tts` stage error mapping.
+
 ## [0.1.22] - 2026-02-21
 
 - Completed `TASK-014C` by implementing real OpenAI chat-completions integration for translation and rewrite stages.

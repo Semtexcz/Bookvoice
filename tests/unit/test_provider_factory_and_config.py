@@ -1,16 +1,31 @@
 """Tests for provider factories and provider runtime configuration resolution."""
 
+import io
 from pathlib import Path
+import wave
 
 import pytest
 
 from bookvoice.config import BookvoiceConfig, RuntimeConfigSources
 from bookvoice.errors import PipelineStageError
-from bookvoice.llm.openai_client import OpenAIChatClient
+from bookvoice.llm.openai_client import OpenAIChatClient, OpenAISpeechClient
 from bookvoice.models.datatypes import Chunk, TranslationResult
 from bookvoice.pipeline import BookvoicePipeline
 from bookvoice.provider_factory import ProviderFactory
 from bookvoice.tts.voices import VoiceProfile
+
+
+def _mock_wav_bytes(duration_seconds: float = 0.25, sample_rate: int = 24000) -> bytes:
+    """Build deterministic mono WAV bytes for provider-factory TTS tests."""
+
+    frame_count = int(duration_seconds * sample_rate)
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(b"\x00\x00" * frame_count)
+    return buffer.getvalue()
 
 
 def test_runtime_config_precedence_cli_over_secure_over_env_over_default() -> None:
@@ -77,7 +92,15 @@ def test_provider_factory_creates_openai_clients_with_selected_models(
         _ = kwargs
         return "mocked output"
 
+    def _mock_synthesize_speech(self, **kwargs: object) -> bytes:
+        """Return deterministic WAV bytes for provider factory unit testing."""
+
+        _ = self
+        _ = kwargs
+        return _mock_wav_bytes()
+
     monkeypatch.setattr(OpenAIChatClient, "chat_completion_text", _mock_chat_completion)
+    monkeypatch.setattr(OpenAISpeechClient, "synthesize_speech", _mock_synthesize_speech)
 
     chunk = Chunk(chapter_index=1, chunk_index=0, text="Hello", char_start=0, char_end=5)
     translation = TranslationResult(

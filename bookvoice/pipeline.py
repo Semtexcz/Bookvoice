@@ -201,23 +201,7 @@ class BookvoicePipeline:
         self._add_tts_costs(rewrites, cost_tracker)
         audio_parts_path = store.save_json(
             Path("audio/parts.json"),
-            {
-                "audio_parts": [
-                    {
-                        "chapter_index": item.chapter_index,
-                        "chunk_index": item.chunk_index,
-                        "path": str(item.path),
-                        "duration_seconds": item.duration_seconds,
-                    }
-                    for item in audio_parts
-                ],
-                "metadata": {
-                    "chapter_scope": chapter_scope,
-                    "provider": runtime_config.tts_provider,
-                    "model": runtime_config.tts_model,
-                    "voice": runtime_config.tts_voice,
-                },
-            },
+            self._audio_parts_artifact_payload(audio_parts, chapter_scope, runtime_config),
         )
 
         processed = self._postprocess(audio_parts, config)
@@ -492,45 +476,15 @@ class BookvoicePipeline:
                 audio_parts = self._tts(rewrites, config, store, runtime_config)
                 audio_parts_path = store.save_json(
                     Path("audio/parts.json"),
-                    {
-                        "audio_parts": [
-                            {
-                                "chapter_index": item.chapter_index,
-                                "chunk_index": item.chunk_index,
-                                "path": str(item.path),
-                                "duration_seconds": item.duration_seconds,
-                            }
-                            for item in audio_parts
-                        ],
-                        "metadata": {
-                            "chapter_scope": chapter_scope,
-                            "provider": runtime_config.tts_provider,
-                            "model": runtime_config.tts_model,
-                            "voice": runtime_config.tts_voice,
-                        },
-                    },
+                    self._audio_parts_artifact_payload(
+                        audio_parts, chapter_scope, runtime_config
+                    ),
                 )
         else:
             audio_parts = self._tts(rewrites, config, store, runtime_config)
             audio_parts_path = store.save_json(
                 Path("audio/parts.json"),
-                {
-                    "audio_parts": [
-                        {
-                            "chapter_index": item.chapter_index,
-                            "chunk_index": item.chunk_index,
-                            "path": str(item.path),
-                            "duration_seconds": item.duration_seconds,
-                            }
-                            for item in audio_parts
-                        ],
-                        "metadata": {
-                            "chapter_scope": chapter_scope,
-                            "provider": runtime_config.tts_provider,
-                            "model": runtime_config.tts_model,
-                            "voice": runtime_config.tts_voice,
-                        },
-                    },
+                self._audio_parts_artifact_payload(audio_parts, chapter_scope, runtime_config),
                 )
         self._add_tts_costs(rewrites, cost_tracker)
 
@@ -866,6 +820,35 @@ class BookvoicePipeline:
             "rewrite_bypass": "true" if runtime_config.rewrite_bypass else "false",
         }
 
+    def _audio_parts_artifact_payload(
+        self,
+        audio_parts: list[AudioPart],
+        chapter_scope: dict[str, str],
+        runtime_config: ProviderRuntimeConfig,
+    ) -> dict[str, object]:
+        """Build deterministic audio-parts artifact payload with provider metadata."""
+
+        return {
+            "audio_parts": [
+                {
+                    "chapter_index": item.chapter_index,
+                    "chunk_index": item.chunk_index,
+                    "path": str(item.path),
+                    "duration_seconds": item.duration_seconds,
+                    "provider": item.provider,
+                    "model": item.model,
+                    "voice": item.voice,
+                }
+                for item in audio_parts
+            ],
+            "metadata": {
+                "chapter_scope": chapter_scope,
+                "provider": runtime_config.tts_provider,
+                "model": runtime_config.tts_model,
+                "voice": runtime_config.tts_voice,
+            },
+        }
+
     def _tts(
         self,
         rewrites: list[RewriteResult],
@@ -894,6 +877,15 @@ class BookvoicePipeline:
                 api_key=resolved_runtime.api_key,
             )
             return [synthesizer.synthesize(item, voice) for item in rewrites]
+        except OpenAIProviderError as exc:
+            raise PipelineStageError(
+                stage="tts",
+                detail=str(exc),
+                hint=(
+                    "Verify `OPENAI_API_KEY` or `bookvoice credentials`, then confirm "
+                    "the TTS model/voice/provider configuration."
+                ),
+            ) from exc
         except PipelineStageError:
             raise
         except Exception as exc:
@@ -921,6 +913,9 @@ class BookvoicePipeline:
                         chunk_index=part.chunk_index,
                         path=trimmed,
                         duration_seconds=part.duration_seconds,
+                        provider=part.provider,
+                        model=part.model,
+                        voice=part.voice,
                     )
                 )
             return processed
@@ -1494,6 +1489,17 @@ class BookvoicePipeline:
                     chunk_index=int(item["chunk_index"]),
                     path=Path(str(item["path"])),
                     duration_seconds=float(item["duration_seconds"]),
+                    provider=(
+                        str(item["provider"])
+                        if isinstance(item.get("provider"), str)
+                        else None
+                    ),
+                    model=(
+                        str(item["model"]) if isinstance(item.get("model"), str) else None
+                    ),
+                    voice=(
+                        str(item["voice"]) if isinstance(item.get("voice"), str) else None
+                    ),
                 )
             )
         return audio_parts

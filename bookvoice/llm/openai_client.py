@@ -1,7 +1,7 @@
-"""OpenAI chat-completions client utilities for LLM stages.
+"""OpenAI HTTP client utilities for LLM and TTS stages.
 
 Responsibilities:
-- Send minimal chat-completions requests to OpenAI's REST API.
+- Send minimal chat-completions and speech requests to OpenAI's REST API.
 - Normalize response extraction for deterministic stage integrations.
 - Raise actionable provider exceptions for pipeline-level error mapping.
 """
@@ -17,8 +17,8 @@ class OpenAIProviderError(RuntimeError):
     """Raised when an OpenAI provider request fails or returns malformed output."""
 
 
-class OpenAIChatClient:
-    """Minimal stdlib-based OpenAI chat-completions HTTP client."""
+class _OpenAIBaseClient:
+    """Shared OpenAI HTTP settings and helpers used by stage-specific clients."""
 
     def __init__(
         self,
@@ -27,11 +27,36 @@ class OpenAIChatClient:
         base_url: str = "https://api.openai.com/v1",
         timeout_seconds: float = 60.0,
     ) -> None:
-        """Initialize OpenAI HTTP client settings for chat-completions calls."""
+        """Initialize OpenAI HTTP client settings."""
 
         self.api_key = api_key.strip() if isinstance(api_key, str) else ""
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
+
+    def _require_api_key(self) -> None:
+        """Require API key presence before issuing OpenAI requests."""
+
+        if not self.api_key:
+            raise OpenAIProviderError(
+                "Missing OpenAI API key. Set `OPENAI_API_KEY`, use `--api-key`, or "
+                "`--prompt-api-key`."
+            )
+
+    @staticmethod
+    def _decode_error_body(exc: error.HTTPError) -> str:
+        """Decode an HTTP error body into a short diagnostic string."""
+
+        try:
+            payload = exc.read().decode("utf-8", errors="replace").strip()
+        except Exception:
+            payload = ""
+        if payload:
+            return payload
+        return "No response body."
+
+
+class OpenAIChatClient(_OpenAIBaseClient):
+    """Minimal stdlib-based OpenAI chat-completions HTTP client."""
 
     def chat_completion_text(
         self,
@@ -43,11 +68,7 @@ class OpenAIChatClient:
     ) -> str:
         """Return the first assistant text response from a chat-completions request."""
 
-        if not self.api_key:
-            raise OpenAIProviderError(
-                "Missing OpenAI API key. Set `OPENAI_API_KEY`, use `--api-key`, or "
-                "`--prompt-api-key`."
-            )
+        self._require_api_key()
 
         payload = {
             "model": model,
@@ -85,18 +106,6 @@ class OpenAIChatClient:
             raise OpenAIProviderError(f"OpenAI request failed: {exc}") from exc
 
         return self._extract_message_text(raw_payload)
-
-    @staticmethod
-    def _decode_error_body(exc: error.HTTPError) -> str:
-        """Decode an HTTP error body into a short diagnostic string."""
-
-        try:
-            payload = exc.read().decode("utf-8", errors="replace").strip()
-        except Exception:
-            payload = ""
-        if payload:
-            return payload
-        return "No response body."
 
     @staticmethod
     def _extract_message_text(raw_payload: str) -> str:
@@ -141,3 +150,58 @@ class OpenAIChatClient:
                     parts.append(item["text"])
             return "".join(parts)
         return ""
+
+
+class OpenAISpeechClient(_OpenAIBaseClient):
+    """Minimal stdlib-based OpenAI speech HTTP client for TTS synthesis."""
+
+    def synthesize_speech(
+        self,
+        *,
+        model: str,
+        voice: str,
+        text: str,
+        response_format: str = "wav",
+        speed: float = 1.0,
+    ) -> bytes:
+        """Return synthesized audio bytes from OpenAI `/audio/speech`."""
+
+        self._require_api_key()
+
+        payload = {
+            "model": model,
+            "voice": voice,
+            "input": text,
+            "response_format": response_format,
+            "speed": speed,
+        }
+        body = json.dumps(payload).encode("utf-8")
+        endpoint = f"{self.base_url}/audio/speech"
+        http_request = request.Request(
+            endpoint,
+            data=body,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        try:
+            with request.urlopen(http_request, timeout=self.timeout_seconds) as response:
+                audio_bytes = response.read()
+        except error.HTTPError as exc:
+            detail = self._decode_error_body(exc)
+            raise OpenAIProviderError(
+                f"OpenAI request failed with HTTP {exc.code}: {detail}"
+            ) from exc
+        except error.URLError as exc:
+            reason = getattr(exc, "reason", exc)
+            raise OpenAIProviderError(f"OpenAI request transport error: {reason}") from exc
+        except TimeoutError as exc:
+            raise OpenAIProviderError("OpenAI request timed out.") from exc
+        except Exception as exc:
+            raise OpenAIProviderError(f"OpenAI request failed: {exc}") from exc
+
+        if not isinstance(audio_bytes, (bytes, bytearray)) or not audio_bytes:
+            raise OpenAIProviderError("OpenAI speech response is empty.")
+        return bytes(audio_bytes)
