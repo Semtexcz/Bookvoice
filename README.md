@@ -3,6 +3,7 @@
 `bookvoice` is a Python project scaffold for a deterministic, pay-as-you-go pipeline that converts text-based PDF books into Czech audiobook outputs.
 
 What it is not:
+
 - It is not a DRM bypass tool.
 - It is not intended for copyrighted material without proper rights.
 - It does not ship real provider integrations yet.
@@ -39,6 +40,7 @@ Artifacts + Cache <-------------------------------- [TTS Synthesis]
 ```
 
 Stage summary:
+
 - Extract text: pull raw text (and optionally page-wise text) from a PDF backend.
 - Clean/normalize: apply deterministic text rules.
 - Split chapters/chunk: segment text for translation and synthesis boundaries.
