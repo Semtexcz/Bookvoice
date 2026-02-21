@@ -4,41 +4,23 @@ skinparam shadowing false
 
 title Bookvoice - Component Overview
 
-package "CLI" {
-  [bookvoice.cli] as CLI
-}
+allowmixing
 
-package "Orchestration" {
-  [bookvoice.pipeline\nBookvoicePipeline] as PIPELINE
-  [bookvoice.config\nBookvoiceConfig] as CONFIG
-}
-
-package "IO" {
-  [bookvoice.io.pdf_text_extractor\nPdfTextExtractor] as EXTRACTOR
-  [bookvoice.io.chapter_splitter\nChapterSplitter] as SPLITTER
-  [bookvoice.io.storage\nArtifactStore] as STORE
-}
-
-package "Text" {
-  [bookvoice.text.cleaners\nTextCleaner] as CLEANER
-  [bookvoice.text.chunking\nChunker] as CHUNKER
-}
-
-package "LLM" {
-  [bookvoice.llm.translator\nOpenAITranslator] as TRANSLATOR
-  [bookvoice.llm.audio_rewriter\nAudioRewriter] as REWRITER
-}
-
-package "TTS/Audio" {
-  [bookvoice.tts.synthesizer\nOpenAITTSSynthesizer] as SYNTH
-  [bookvoice.tts.voices\nVoiceProfile] as VOICE
-  [bookvoice.audio.postprocess\nAudioPostProcessor] as POST
-  [bookvoice.audio.merger\nAudioMerger] as MERGER
-}
-
-package "Shared Models" {
-  [bookvoice.models.datatypes] as MODELS
-}
+component "bookvoice.cli" as CLI
+component "bookvoice.pipeline (BookvoicePipeline)" as PIPELINE
+component "bookvoice.config (BookvoiceConfig)" as CONFIG
+component "bookvoice.io.pdf_text_extractor (PdfTextExtractor)" as EXTRACTOR
+component "bookvoice.io.chapter_splitter (ChapterSplitter)" as SPLITTER
+component "bookvoice.io.storage (ArtifactStore)" as STORE
+component "bookvoice.text.cleaners (TextCleaner)" as CLEANER
+component "bookvoice.text.chunking (Chunker)" as CHUNKER
+component "bookvoice.llm.translator (OpenAITranslator)" as TRANSLATOR
+component "bookvoice.llm.audio_rewriter (AudioRewriter)" as REWRITER
+component "bookvoice.tts.synthesizer (OpenAITTSSynthesizer)" as SYNTH
+component "bookvoice.tts.voices (VoiceProfile)" as VOICE
+component "bookvoice.audio.postprocess (AudioPostProcessor)" as POST
+component "bookvoice.audio.merger (AudioMerger)" as MERGER
+component "bookvoice.models.datatypes" as MODELS
 
 CLI --> CONFIG
 CLI --> PIPELINE
