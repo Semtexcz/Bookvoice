@@ -1,6 +1,6 @@
 ---
 task: TASK-010
-status: "backlog"
+status: "done"
 priority: P1
 type: test
 ---
@@ -8,7 +8,7 @@ type: test
 # Add smoke test coverage for full build command
 
 Task: TASK-010
-Status: backlog
+Status: done
 Priority: P1
 Type: test
 Author:
@@ -21,10 +21,10 @@ There is no automated confidence check that the main user journey (`build`) rema
 
 ## Definition of Done
 
-- [ ] A smoke test runs `bookvoice build` on a controlled text-PDF fixture.
-- [ ] Test verifies final audio artifact and manifest are produced.
-- [ ] Test is runnable locally with standard Python tooling.
-- [ ] Test failure output clearly indicates failing pipeline stage.
+- [x] A smoke test runs `bookvoice build` on a controlled text-PDF fixture.
+- [x] Test verifies final audio artifact and manifest are produced.
+- [x] Test is runnable locally with standard Python tooling.
+- [x] Test failure output clearly indicates failing pipeline stage.
 
 ## Notes
 
