@@ -1,0 +1,72 @@
+@startuml
+title BookvoicePipeline.run - Sequence
+
+actor User
+participant "bookvoice.cli\nbuild_command" as CLI
+participant "BookvoicePipeline" as PIPE
+participant "ArtifactStore" as STORE
+participant "PdfTextExtractor" as EXTRACT
+participant "TextCleaner" as CLEAN
+participant "ChapterSplitter" as SPLIT
+participant "Chunker" as CHUNK
+participant "OpenAITranslator" as TRANSLATE
+participant "AudioRewriter" as REWRITE
+participant "OpenAITTSSynthesizer" as TTS
+participant "AudioPostProcessor" as POST
+participant "AudioMerger" as MERGE
+
+User -> CLI: bookvoice build input.pdf --out out/
+CLI -> PIPE: run(config)
+
+PIPE -> PIPE: _config_hash(config)
+PIPE -> STORE: ArtifactStore(output_dir/run_id)
+
+PIPE -> EXTRACT: extract(input_pdf)
+EXTRACT --> PIPE: raw_text
+PIPE -> STORE: save_text("text/raw.txt", raw_text)
+
+PIPE -> CLEAN: clean(raw_text)
+CLEAN --> PIPE: clean_text
+PIPE -> STORE: save_text("text/clean.txt", clean_text)
+
+PIPE -> SPLIT: split(clean_text)
+SPLIT --> PIPE: chapters[]
+PIPE -> STORE: save_json("text/chapters.json", ...)
+
+PIPE -> CHUNK: to_chunks(chapters, chunk_size_chars)
+CHUNK --> PIPE: chunks[]
+PIPE -> STORE: save_json("text/chunks.json", ...)
+
+loop each chunk
+  PIPE -> TRANSLATE: translate(chunk, language)
+  TRANSLATE --> PIPE: TranslationResult
+end
+PIPE -> STORE: save_json("text/translations.json", ...)
+
+loop each translation
+  PIPE -> REWRITE: rewrite(translation)
+  REWRITE --> PIPE: RewriteResult
+end
+PIPE -> STORE: save_json("text/rewrites.json", ...)
+
+loop each rewrite
+  PIPE -> TTS: synthesize(rewrite, voice)
+  TTS --> PIPE: AudioPart
+end
+PIPE -> STORE: save_json("audio/parts.json", ...)
+
+loop each audio part
+  PIPE -> POST: normalize(path)
+  POST --> PIPE: normalized_path
+  PIPE -> POST: trim_silence(normalized_path)
+  POST --> PIPE: trimmed_path
+end
+
+PIPE -> MERGE: merge(audio_parts, output_path)
+MERGE --> PIPE: merged_audio_path
+
+PIPE -> STORE: save_json("run_manifest.json", manifest)
+PIPE --> CLI: RunManifest
+CLI --> User: run_id + merged_audio + manifest_path
+
+@enduml

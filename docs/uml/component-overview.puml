@@ -1,0 +1,68 @@
+@startuml
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+title Bookvoice - Component Overview
+
+package "CLI" {
+  [bookvoice.cli] as CLI
+}
+
+package "Orchestration" {
+  [bookvoice.pipeline\nBookvoicePipeline] as PIPELINE
+  [bookvoice.config\nBookvoiceConfig] as CONFIG
+}
+
+package "IO" {
+  [bookvoice.io.pdf_text_extractor\nPdfTextExtractor] as EXTRACTOR
+  [bookvoice.io.chapter_splitter\nChapterSplitter] as SPLITTER
+  [bookvoice.io.storage\nArtifactStore] as STORE
+}
+
+package "Text" {
+  [bookvoice.text.cleaners\nTextCleaner] as CLEANER
+  [bookvoice.text.chunking\nChunker] as CHUNKER
+}
+
+package "LLM" {
+  [bookvoice.llm.translator\nOpenAITranslator] as TRANSLATOR
+  [bookvoice.llm.audio_rewriter\nAudioRewriter] as REWRITER
+}
+
+package "TTS/Audio" {
+  [bookvoice.tts.synthesizer\nOpenAITTSSynthesizer] as SYNTH
+  [bookvoice.tts.voices\nVoiceProfile] as VOICE
+  [bookvoice.audio.postprocess\nAudioPostProcessor] as POST
+  [bookvoice.audio.merger\nAudioMerger] as MERGER
+}
+
+package "Shared Models" {
+  [bookvoice.models.datatypes] as MODELS
+}
+
+CLI --> CONFIG
+CLI --> PIPELINE
+
+PIPELINE --> CONFIG
+PIPELINE --> EXTRACTOR
+PIPELINE --> CLEANER
+PIPELINE --> SPLITTER
+PIPELINE --> CHUNKER
+PIPELINE --> TRANSLATOR
+PIPELINE --> REWRITER
+PIPELINE --> SYNTH
+PIPELINE --> VOICE
+PIPELINE --> POST
+PIPELINE --> MERGER
+PIPELINE --> STORE
+PIPELINE --> MODELS
+
+SPLITTER --> MODELS
+CHUNKER --> MODELS
+TRANSLATOR --> MODELS
+REWRITER --> MODELS
+SYNTH --> MODELS
+POST --> MODELS
+MERGER --> MODELS
+
+@enduml

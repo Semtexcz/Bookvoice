@@ -1,0 +1,61 @@
+@startuml
+hide methods
+hide circle
+skinparam shadowing false
+
+title Bookvoice - Core Domain Model
+
+class BookMeta {
+  +source_pdf: Path
+  +title: str
+  +author: str?
+  +language: str
+}
+
+class Chapter {
+  +index: int
+  +title: str
+  +text: str
+}
+
+class Chunk {
+  +chapter_index: int
+  +chunk_index: int
+  +text: str
+  +char_start: int
+  +char_end: int
+}
+
+class TranslationResult {
+  +translated_text: str
+  +provider: str
+  +model: str
+}
+
+class RewriteResult {
+  +rewritten_text: str
+  +provider: str
+  +model: str
+}
+
+class AudioPart {
+  +chapter_index: int
+  +chunk_index: int
+  +path: Path
+  +duration_seconds: float
+}
+
+class RunManifest {
+  +run_id: str
+  +config_hash: str
+  +merged_audio_path: Path
+  +total_llm_cost_usd: float
+  +total_tts_cost_usd: float
+  +extra: Mapping[str, str]
+}
+
+TranslationResult --> Chunk : chunk
+RewriteResult --> TranslationResult : translation
+RunManifest --> BookMeta : book
+
+@enduml

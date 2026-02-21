@@ -1,0 +1,36 @@
+@startuml
+title Chapter Split + Chunking Activity (TASK-004 scope)
+
+start
+:Input cleaned text;
+
+if (Text empty?) then (yes)
+  :Return [] chapters;
+  :Return [] chunks;
+  stop
+else (no)
+  :ChapterSplitter.split(text);
+  note right
+    Current MVP behavior:
+    one chapter
+    index=1
+    title="Chapter 1"
+  end note
+endif
+
+:For each chapter;
+if (target_size <= 0?) then (yes)
+  :Return [] chunks;
+  stop
+else (no)
+  :Initialize chunk_index = 0;
+  :Iterate by target_size;
+  :Create Chunk with offsets
+  (char_start, char_end);
+  :Increment chunk_index;
+endif
+
+:Return deterministic chunk list;
+stop
+
+@enduml
