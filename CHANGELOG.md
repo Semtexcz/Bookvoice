@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.11] - 2026-02-21
+
+- Added `TASK-017` to backlog for a CLI command that lists extracted book chapters with source metadata.
+- Added `TASK-018` to backlog for CLI chapter selection (single/list/range) to support partial processing for faster testing.
+
 ## [0.1.10] - 2026-02-21
 
 - Completed `TASK-016` by adding a dedicated `bookvoice chapters-only` CLI command for extract/clean/chapter-split only.
