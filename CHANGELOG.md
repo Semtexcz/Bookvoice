@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.39] - 2026-02-21
+
+- Fixed sentence-boundary handling in `TextBudgetSegmentPlanner` long-paragraph splitting to avoid mid-sentence chunk cuts.
+- Added period/abbreviation/decimal-aware boundary detection and bounded forward sentence extension in planner fallback path.
+- Added unit coverage for sentence-complete long-paragraph segmentation in planner-generated chunks.
+
 ## [0.1.38] - 2026-02-21
 
 - Completed `TASK-023` by enforcing sentence-complete boundaries in fallback chapter chunking.

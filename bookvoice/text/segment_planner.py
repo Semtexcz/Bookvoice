@@ -32,7 +32,30 @@ class TextBudgetSegmentPlanner:
 
     DEFAULT_BUDGET_CHARS = 6500
     TEN_MINUTE_BUDGET_CEILING_CHARS = 9300
+    _MIN_SENTENCE_BOUNDARY_RATIO = 0.60
+    _MAX_SENTENCE_EXTENSION_RATIO = 0.35
     _PARAGRAPH_BOUNDARY_RE = re.compile(r"\n\s*\n+")
+    _TRAILING_SENTENCE_CLOSERS = "\"')]}»”"
+    _COMMON_ABBREVIATIONS = frozenset(
+        {
+            "mr.",
+            "mrs.",
+            "ms.",
+            "dr.",
+            "prof.",
+            "sr.",
+            "jr.",
+            "st.",
+            "etc.",
+            "e.g.",
+            "i.e.",
+            "vs.",
+            "no.",
+            "fig.",
+            "al.",
+        }
+    )
+    _ACRONYM_PATTERN = re.compile(r"(?:[A-Za-z]\.){2,}$")
 
     def plan(
         self,
@@ -206,20 +229,19 @@ class TextBudgetSegmentPlanner:
         paragraph_start: int,
         budget_chars: int,
     ) -> list[_SegmentDraft]:
-        """Split an oversized paragraph by whitespace with deterministic fallback cuts."""
+        """Split an oversized paragraph using sentence boundaries with deterministic fallback."""
 
         parts: list[_SegmentDraft] = []
         start = 0
         while start < len(paragraph_text):
-            end = min(start + budget_chars, len(paragraph_text))
-            if end < len(paragraph_text):
-                split_at = paragraph_text.rfind(" ", start, end)
-                if split_at <= start:
-                    split_at = end
-                else:
-                    split_at += 1
+            if start + budget_chars >= len(paragraph_text):
+                split_at = len(paragraph_text)
             else:
-                split_at = end
+                split_at = self._resolve_sentence_split(
+                    text=paragraph_text,
+                    start=start,
+                    budget_chars=budget_chars,
+                )
             piece = paragraph_text[start:split_at].strip()
             if piece:
                 local_start = paragraph_start + start
@@ -227,6 +249,138 @@ class TextBudgetSegmentPlanner:
                 parts.append(self._build_unit_part(unit, piece, local_start, local_end))
             start = split_at
         return parts
+
+    def _resolve_sentence_split(
+        self,
+        text: str,
+        start: int,
+        budget_chars: int,
+    ) -> int:
+        """Resolve split index that prefers sentence-complete boundaries for long paragraphs."""
+
+        text_length = len(text)
+        target_end = min(start + budget_chars, text_length)
+        min_boundary = start + int(budget_chars * self._MIN_SENTENCE_BOUNDARY_RATIO)
+
+        backward_boundary = self._find_backward_sentence_boundary(
+            text=text,
+            start=start,
+            target_end=target_end,
+            min_boundary=min_boundary,
+        )
+        if backward_boundary is not None:
+            return backward_boundary
+
+        extension_budget = max(1, int(budget_chars * self._MAX_SENTENCE_EXTENSION_RATIO))
+        extension_limit = min(text_length, target_end + extension_budget)
+        forward_boundary = self._find_forward_sentence_boundary(
+            text=text,
+            from_index=target_end,
+            extension_limit=extension_limit,
+        )
+        if forward_boundary is not None:
+            return forward_boundary
+
+        return self._fallback_split(text, start, target_end, extension_limit)
+
+    def _find_backward_sentence_boundary(
+        self,
+        text: str,
+        start: int,
+        target_end: int,
+        min_boundary: int,
+    ) -> int | None:
+        """Find nearest acceptable sentence boundary before target end."""
+
+        for punctuation in (".", "!", "?"):
+            index = target_end - 1
+            while index >= max(start, min_boundary):
+                if text[index] == punctuation and self._is_sentence_boundary(text, index):
+                    return self._consume_trailing_sentence_tail(text, index + 1)
+                index -= 1
+        return None
+
+    def _find_forward_sentence_boundary(
+        self,
+        text: str,
+        from_index: int,
+        extension_limit: int,
+    ) -> int | None:
+        """Find next acceptable sentence boundary after target end within safety margin."""
+
+        if extension_limit <= from_index:
+            return None
+
+        for punctuation in (".", "!", "?"):
+            index = from_index
+            while index < extension_limit:
+                if text[index] == punctuation and self._is_sentence_boundary(text, index):
+                    return self._consume_trailing_sentence_tail(text, index + 1)
+                index += 1
+        return None
+
+    def _is_sentence_boundary(self, text: str, punctuation_index: int) -> bool:
+        """Return whether punctuation at index terminates a sentence."""
+
+        punctuation = text[punctuation_index]
+        if punctuation != ".":
+            return True
+        if self._is_decimal_period(text, punctuation_index):
+            return False
+        if self._is_abbreviation_period(text, punctuation_index):
+            return False
+        return True
+
+    def _is_decimal_period(self, text: str, punctuation_index: int) -> bool:
+        """Return whether a period is part of a decimal number."""
+
+        if punctuation_index <= 0 or punctuation_index + 1 >= len(text):
+            return False
+        return text[punctuation_index - 1].isdigit() and text[punctuation_index + 1].isdigit()
+
+    def _is_abbreviation_period(self, text: str, punctuation_index: int) -> bool:
+        """Return whether a period belongs to a likely abbreviation token."""
+
+        start = punctuation_index
+        while start > 0 and text[start - 1].isalpha():
+            start -= 1
+        token = text[start : punctuation_index + 1].lower()
+        if token in self._COMMON_ABBREVIATIONS:
+            return True
+
+        acronym_start = max(0, punctuation_index - 8)
+        acronym_window = text[acronym_start : punctuation_index + 1]
+        return bool(self._ACRONYM_PATTERN.search(acronym_window))
+
+    def _consume_trailing_sentence_tail(self, text: str, index: int) -> int:
+        """Consume trailing closing punctuation and whitespace after sentence end."""
+
+        adjusted = index
+        text_length = len(text)
+        while adjusted < text_length and text[adjusted] in self._TRAILING_SENTENCE_CLOSERS:
+            adjusted += 1
+        while adjusted < text_length and text[adjusted].isspace():
+            adjusted += 1
+        return adjusted
+
+    def _fallback_split(
+        self,
+        text: str,
+        start: int,
+        target_end: int,
+        extension_limit: int,
+    ) -> int:
+        """Return deterministic split index when sentence boundary is not available."""
+
+        for index in range(target_end, extension_limit):
+            if text[index].isspace():
+                return index + 1
+
+        for index in range(target_end - 1, start, -1):
+            if text[index].isspace():
+                return index + 1
+
+        return extension_limit if extension_limit > start else target_end
 
     def _paragraph_spans(self, text: str) -> list[tuple[str, int, int]]:
         """Return deterministic paragraph spans from normalized text."""

@@ -142,3 +142,55 @@ def test_planner_to_chunks_uses_ascii_slug_for_part_ids() -> None:
     chunks = planner.to_chunks(planner.plan(units, budget_chars=100))
 
     assert chunks[0].part_id == "001_01_cesky-nazev-uvod"
+
+
+def test_planner_long_paragraph_split_prefers_sentence_boundary() -> None:
+    """Planner should split oversized paragraph at sentence boundary when possible."""
+
+    planner = TextBudgetSegmentPlanner()
+    text = "A short sentence. Another short one."
+    units = [
+        ChapterStructureUnit(
+            order_index=1,
+            chapter_index=1,
+            chapter_title="Chapter 1",
+            subchapter_index=1,
+            subchapter_title="1.1",
+            text=text,
+            char_start=0,
+            char_end=len(text),
+            source="text_heuristic",
+        )
+    ]
+
+    plan = planner.plan(units, budget_chars=15)
+
+    assert len(plan.segments) == 2
+    assert plan.segments[0].text == "A short sentence."
+    assert plan.segments[1].text == "Another short one."
+
+
+def test_planner_long_paragraph_split_avoids_decimal_and_abbreviation_boundaries() -> None:
+    """Planner should avoid splitting on abbreviation and decimal periods."""
+
+    planner = TextBudgetSegmentPlanner()
+    text = "Dr. Smith measured 3.14 units today. Then he wrote a report."
+    units = [
+        ChapterStructureUnit(
+            order_index=1,
+            chapter_index=1,
+            chapter_title="Chapter 1",
+            subchapter_index=1,
+            subchapter_title="1.1",
+            text=text,
+            char_start=0,
+            char_end=len(text),
+            source="text_heuristic",
+        )
+    ]
+
+    plan = planner.plan(units, budget_chars=30)
+
+    assert len(plan.segments) == 2
+    assert plan.segments[0].text == "Dr. Smith measured 3.14 units today."
+    assert plan.segments[1].text == "Then he wrote a report."
