@@ -32,7 +32,8 @@ class PromptLibrary:
         """Return deterministic system prompt for narration rewrite behavior."""
 
         return (
-            "You rewrite text for audiobook narration. "
+            "You are an expert audiobook narration editor. Rewrite text for natural spoken "
+            "delivery while preserving meaning, facts, names, and chronology. "
             "Return only rewritten narration text with no commentary."
         )
 
@@ -40,8 +41,14 @@ class PromptLibrary:
         """Return rewrite prompt text for natural spoken narration."""
 
         return (
-            "Rewrite the following text to sound natural when read aloud while preserving "
-            "meaning, facts, and names. Keep the same language as the input text. "
+            "Rewrite the following text for audiobook narration.\n"
+            "Requirements:\n"
+            "- Keep the same language as the input text.\n"
+            "- Preserve all facts, names, numbers, and key details.\n"
+            "- Improve listenability with natural spoken rhythm and clear sentence flow.\n"
+            "- Prefer concise spoken phrasing and punctuation that supports pauses.\n"
+            "- Keep paragraph structure unless a small split improves clarity.\n"
+            "- Do not add new information, analysis, or meta commentary.\n"
             "Output only the rewritten text.\n\n"
             f"{translated_text}"
         )
