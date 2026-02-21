@@ -91,6 +91,23 @@ Common options:
 - `--store-api-key/--no-store-api-key`.
 - `--rewrite-bypass/--no-rewrite-bypass`.
 
+Runtime feedback during `build`:
+
+- Deterministic progress lines per phase (`extract`, `clean`, `split`, `chunk`, `translate`, `rewrite`, `tts`, `merge`, `manifest`).
+- Structured phase logs (`[phase]`) for stage start/complete/failure.
+- Output is concise and CI-friendly, with no credential material in logs.
+
+Example output excerpt:
+
+```text
+[progress] command=build | 1/9 stage=extract
+[phase] level=INFO stage=extract event=start
+[phase] level=INFO stage=extract event=complete
+...
+[progress] command=build | 9/9 stage=manifest
+[phase] level=INFO stage=manifest event=complete
+```
+
 ### Chapters-only (fast boundary inspection)
 
 ```bash

@@ -1,6 +1,6 @@
 ---
 task: TASK-019
-status: "backlog"
+status: "done"
 priority: P1
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Add build progress indicator and pipeline stage logging
 
 Task: TASK-019
-Status: backlog
+Status: done
 Priority: P1
 Type: feature
 Author:
@@ -21,12 +21,12 @@ The `bookvoice build` command can run for a longer time without visible activity
 
 ## Definition of Done
 
-- [ ] Add visible runtime activity feedback to `bookvoice build` (spinner like `|/-\\` or progress bar).
-- [ ] Show clear stage transitions for pipeline phases (`extract`, `clean`, `split`, `chunk`, `translate`, `rewrite`, `tts`, `merge`, `manifest`).
-- [ ] Integrate `loguru` for structured phase-level logging with deterministic, readable terminal output.
-- [ ] Keep logs concise by default and avoid leaking secrets (API keys, credential material).
-- [ ] Add tests that verify phase log emission and progress indicator activation in CLI output.
-- [ ] Update `README.md` with logging/progress behavior and examples.
+- [x] Add visible runtime activity feedback to `bookvoice build` (spinner like `|/-\\` or progress bar).
+- [x] Show clear stage transitions for pipeline phases (`extract`, `clean`, `split`, `chunk`, `translate`, `rewrite`, `tts`, `merge`, `manifest`).
+- [x] Integrate `loguru` for structured phase-level logging with deterministic, readable terminal output.
+- [x] Keep logs concise by default and avoid leaking secrets (API keys, credential material).
+- [x] Add tests that verify phase log emission and progress indicator activation in CLI output.
+- [x] Update `README.md` with logging/progress behavior and examples.
 
 ## Notes
 

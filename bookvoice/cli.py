@@ -22,12 +22,33 @@ from .credentials import create_credential_store
 from .errors import PipelineStageError
 from .models.datatypes import Chapter, RunManifest
 from .pipeline import BookvoicePipeline
+from .telemetry.logger import RunLogger
 
 app = typer.Typer(
     name="bookvoice",
     no_args_is_help=True,
     help="Bookvoice CLI.",
 )
+
+
+class BuildProgressIndicator:
+    """Render deterministic per-stage progress lines for long-running commands."""
+
+    _SPINNER_FRAMES = "|/-\\"
+
+    def __init__(self, command_name: str) -> None:
+        """Initialize progress indicator metadata for a command invocation."""
+
+        self._command_name = command_name
+
+    def on_stage_start(self, stage_name: str, stage_index: int, stage_total: int) -> None:
+        """Print one progress line for a stage start transition."""
+
+        spinner = self._SPINNER_FRAMES[(stage_index - 1) % len(self._SPINNER_FRAMES)]
+        typer.echo(
+            f"[progress] command={self._command_name} "
+            f"{spinner} {stage_index}/{stage_total} stage={stage_name}"
+        )
 
 
 def _normalize_optional_text(value: str | None) -> str | None:
@@ -314,7 +335,11 @@ def build_command(
             prompt_api_key=prompt_api_key,
             store_api_key=store_api_key,
         )
-        pipeline = BookvoicePipeline()
+        progress = BuildProgressIndicator(command_name="build")
+        pipeline = BookvoicePipeline(
+            run_logger=RunLogger(),
+            stage_progress_callback=progress.on_stage_start,
+        )
         config = BookvoiceConfig(
             input_pdf=input_pdf,
             output_dir=out,
@@ -536,7 +561,11 @@ def resume_command(
     """Resume pipeline from an existing manifest."""
 
     try:
-        pipeline = BookvoicePipeline()
+        progress = BuildProgressIndicator(command_name="resume")
+        pipeline = BookvoicePipeline(
+            run_logger=RunLogger(),
+            stage_progress_callback=progress.on_stage_start,
+        )
         resumed_manifest = pipeline.resume(manifest)
     except Exception as exc:
         _exit_with_command_error("resume", exc)

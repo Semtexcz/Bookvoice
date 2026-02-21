@@ -11,11 +11,13 @@ Key types:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import asdict
 from hashlib import sha256
 import json
 import os
 from pathlib import Path
+from typing import TypeVar
 
 from .audio.merger import AudioMerger
 from .audio.postprocess import AudioPostProcessor
@@ -47,7 +49,10 @@ from .text.chunking import Chunker
 from .text.cleaners import TextCleaner
 from .text.structure import ChapterStructureNormalizer
 from .telemetry.cost_tracker import CostTracker
+from .telemetry.logger import RunLogger
 from .tts.voices import VoiceProfile
+
+_StageResult = TypeVar("_StageResult")
 
 
 class BookvoicePipeline:
@@ -56,6 +61,27 @@ class BookvoicePipeline:
     _TRANSLATE_COST_PER_1K_CHARS_USD = 0.0015
     _REWRITE_COST_PER_1K_CHARS_USD = 0.0008
     _TTS_COST_PER_1K_CHARS_USD = 0.0150
+    _PHASE_SEQUENCE = (
+        "extract",
+        "clean",
+        "split",
+        "chunk",
+        "translate",
+        "rewrite",
+        "tts",
+        "merge",
+        "manifest",
+    )
+
+    def __init__(
+        self,
+        run_logger: RunLogger | None = None,
+        stage_progress_callback: Callable[[str, int, int], None] | None = None,
+    ) -> None:
+        """Initialize optional runtime logging and progress reporting hooks."""
+
+        self._run_logger = run_logger
+        self._stage_progress_callback = stage_progress_callback
 
     def _prepare_run(self, config: BookvoiceConfig) -> tuple[str, str, ArtifactStore]:
         """Create deterministic run identifiers and artifact storage for a config."""
@@ -123,14 +149,15 @@ class BookvoicePipeline:
         runtime_config = self._resolve_runtime_config(config)
         cost_tracker = CostTracker()
 
-        raw_text = self._extract(config)
+        raw_text = self._run_stage("extract", lambda: self._extract(config))
         raw_text_path = store.save_text(Path("text/raw.txt"), raw_text)
 
-        clean_text = self._clean(raw_text)
+        clean_text = self._run_stage("clean", lambda: self._clean(raw_text))
         clean_text_path = store.save_text(Path("text/clean.txt"), clean_text)
 
-        chapters, chapter_source, chapter_fallback_reason = self._split_chapters(
-            clean_text, config.input_pdf
+        chapters, chapter_source, chapter_fallback_reason = self._run_stage(
+            "split",
+            lambda: self._split_chapters(clean_text, config.input_pdf),
         )
         selected_chapters, chapter_scope = self._resolve_chapter_scope(
             chapters, config.chapter_selection
@@ -146,7 +173,7 @@ class BookvoicePipeline:
             ),
         )
 
-        chunks = self._chunk(selected_chapters, config)
+        chunks = self._run_stage("chunk", lambda: self._chunk(selected_chapters, config))
         chunks_path = store.save_json(
             Path("text/chunks.json"),
             {
@@ -155,7 +182,7 @@ class BookvoicePipeline:
             },
         )
 
-        translations = self._translate(chunks, config)
+        translations = self._run_stage("translate", lambda: self._translate(chunks, config))
         self._add_translation_costs(translations, cost_tracker)
         translations_path = store.save_json(
             Path("text/translations.json"),
@@ -177,7 +204,10 @@ class BookvoicePipeline:
             },
         )
 
-        rewrites = self._rewrite_for_audio(translations, config, runtime_config)
+        rewrites = self._run_stage(
+            "rewrite",
+            lambda: self._rewrite_for_audio(translations, config, runtime_config),
+        )
         self._add_rewrite_costs(rewrites, cost_tracker)
         rewrites_path = store.save_json(
             Path("text/rewrites.json"),
@@ -203,41 +233,49 @@ class BookvoicePipeline:
             },
         )
 
-        audio_parts = self._tts(rewrites, config, store, runtime_config)
+        audio_parts = self._run_stage(
+            "tts",
+            lambda: self._tts(rewrites, config, store, runtime_config),
+        )
         self._add_tts_costs(rewrites, cost_tracker)
         audio_parts_path = store.save_json(
             Path("audio/parts.json"),
             self._audio_parts_artifact_payload(audio_parts, chapter_scope, runtime_config),
         )
 
-        processed = self._postprocess(audio_parts, config)
-        merged_path = self._merge(
-            processed,
-            config,
-            store,
-            output_path=self._merged_output_path_for_scope(store, chapter_scope),
+        merged_path = self._run_stage(
+            "merge",
+            lambda: self._merge(
+                self._postprocess(audio_parts, config),
+                config,
+                store,
+                output_path=self._merged_output_path_for_scope(store, chapter_scope),
+            ),
         )
-        manifest = self._write_manifest(
-            config=config,
-            run_id=run_id,
-            config_hash=config_hash,
-            merged_audio_path=merged_path,
-            artifact_paths={
-                "run_root": str(store.root),
-                "raw_text": str(raw_text_path),
-                "clean_text": str(clean_text_path),
-                "chapters": str(chapters_path),
-                "chunks": str(chunks_path),
-                "translations": str(translations_path),
-                "rewrites": str(rewrites_path),
-                "audio_parts": str(audio_parts_path),
-                "chapter_source": chapter_source,
-                "chapter_fallback_reason": chapter_fallback_reason,
-                **runtime_config.as_manifest_metadata(),
-                **chapter_scope,
-            },
-            cost_summary=self._rounded_cost_summary(cost_tracker),
-            store=store,
+        manifest = self._run_stage(
+            "manifest",
+            lambda: self._write_manifest(
+                config=config,
+                run_id=run_id,
+                config_hash=config_hash,
+                merged_audio_path=merged_path,
+                artifact_paths={
+                    "run_root": str(store.root),
+                    "raw_text": str(raw_text_path),
+                    "clean_text": str(clean_text_path),
+                    "chapters": str(chapters_path),
+                    "chunks": str(chunks_path),
+                    "translations": str(translations_path),
+                    "rewrites": str(rewrites_path),
+                    "audio_parts": str(audio_parts_path),
+                    "chapter_source": chapter_source,
+                    "chapter_fallback_reason": chapter_fallback_reason,
+                    **runtime_config.as_manifest_metadata(),
+                    **chapter_scope,
+                },
+                cost_summary=self._rounded_cost_summary(cost_tracker),
+                store=store,
+            ),
         )
         return manifest
 
@@ -1310,6 +1348,52 @@ class BookvoicePipeline:
         if not merged_path.exists():
             return "merge"
         return "done"
+
+    def _stage_position(self, stage_name: str) -> tuple[int, int] | None:
+        """Return 1-based stage index and total stage count for known pipeline stages."""
+
+        try:
+            index = self._PHASE_SEQUENCE.index(stage_name) + 1
+        except ValueError:
+            return None
+        return index, len(self._PHASE_SEQUENCE)
+
+    def _on_stage_start(self, stage_name: str) -> None:
+        """Emit start events to stage progress callback and structured logger."""
+
+        stage_position = self._stage_position(stage_name)
+        if stage_position and self._stage_progress_callback is not None:
+            self._stage_progress_callback(stage_name, stage_position[0], stage_position[1])
+        if self._run_logger is not None:
+            self._run_logger.log_stage_start(stage_name)
+
+    def _on_stage_complete(self, stage_name: str) -> None:
+        """Emit stage-complete event to the structured logger."""
+
+        if self._run_logger is not None:
+            self._run_logger.log_stage_complete(stage_name)
+
+    def _on_stage_failure(self, stage_name: str, exc: Exception) -> None:
+        """Emit stage-failure event with sanitized exception metadata."""
+
+        if self._run_logger is not None:
+            self._run_logger.log_stage_failure(stage_name, type(exc).__name__)
+
+    def _run_stage(
+        self,
+        stage_name: str,
+        action: Callable[[], _StageResult],
+    ) -> _StageResult:
+        """Run one named stage and emit start/complete/failure telemetry events."""
+
+        self._on_stage_start(stage_name)
+        try:
+            result = action()
+        except Exception as exc:
+            self._on_stage_failure(stage_name, exc)
+            raise
+        self._on_stage_complete(stage_name)
+        return result
 
     def _load_json_object(self, path: Path) -> dict[str, object]:
         """Load an artifact JSON file and validate object root shape."""

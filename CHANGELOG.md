@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.33] - 2026-02-21
+
+- Completed `TASK-019` by adding visible `bookvoice build` runtime progress lines across all core pipeline phases.
+- Integrated phase-level structured logging through a new `RunLogger` implementation backed by `loguru` (with deterministic fallback output).
+- Wired pipeline stage transition hooks (`start`/`complete`/`failure`) for `extract`, `clean`, `split`, `chunk`, `translate`, `rewrite`, `tts`, `merge`, and `manifest`.
+- Added integration coverage asserting build progress indicator activation and phase log emission in CLI output.
+- Updated `README.md` with runtime feedback behavior and sample output.
+
 ## [0.1.32] - 2026-02-21
 
 - Completed `TASK-024` by adding a normalized `ChapterStructureUnit` model for chapter/subchapter-aware planning.
