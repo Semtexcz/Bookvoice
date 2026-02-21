@@ -23,8 +23,8 @@ from .audio.merger import AudioMerger
 from .audio.postprocess import AudioPostProcessor
 from .config import BookvoiceConfig, ProviderRuntimeConfig, RuntimeConfigSources
 from .errors import PipelineStageError
-from .io.pdf_outline_extractor import PdfOutlineChapterExtractor
 from .io.chapter_splitter import ChapterSplitter
+from .io.pdf_outline_extractor import PdfOutlineChapterExtractor
 from .io.pdf_text_extractor import PdfTextExtractor
 from .io.storage import ArtifactStore
 from .llm.audio_rewriter import DeterministicBypassRewriter
@@ -38,6 +38,37 @@ from .models.datatypes import (
     RewriteResult,
     RunManifest,
     TranslationResult,
+)
+from .pipeline_artifacts import (
+    audio_parts_artifact_payload,
+    chapter_artifact_payload,
+    chunk_artifact_payload,
+    load_audio_parts,
+    load_chapter_metadata,
+    load_chapters,
+    load_chunks,
+    load_normalized_structure,
+    load_rewrites,
+    load_translations,
+    manifest_payload,
+    part_mapping_manifest_metadata,
+    rewrite_artifact_metadata,
+)
+from .pipeline_costs import (
+    add_rewrite_costs,
+    add_translation_costs,
+    add_tts_costs,
+    rounded_cost_summary,
+)
+from .pipeline_resume import (
+    detect_next_stage,
+    load_manifest_payload,
+    manifest_bool,
+    manifest_string,
+    require_manifest_field,
+    resolve_artifact_path,
+    resolve_merged_path,
+    resolve_run_root,
 )
 from .provider_factory import ProviderFactory
 from .text.chapter_selection import (
@@ -60,9 +91,6 @@ _StageResult = TypeVar("_StageResult")
 class BookvoicePipeline:
     """Coordinate all stages for a single Bookvoice run."""
 
-    _TRANSLATE_COST_PER_1K_CHARS_USD = 0.0015
-    _REWRITE_COST_PER_1K_CHARS_USD = 0.0008
-    _TTS_COST_PER_1K_CHARS_USD = 0.0150
     _PHASE_SEQUENCE = (
         "extract",
         "clean",
@@ -117,9 +145,10 @@ class BookvoicePipeline:
                     "a valid `text/chapters.json` path."
                 ),
             )
+
         try:
-            chapters = self._load_chapters(chapters_artifact)
-            metadata = self._load_chapter_metadata(chapters_artifact)
+            chapters = load_chapters(chapters_artifact)
+            metadata = load_chapter_metadata(chapters_artifact)
         except PipelineStageError as exc:
             raise PipelineStageError(
                 stage="chapters-artifact",
@@ -142,10 +171,7 @@ class BookvoicePipeline:
         return chapters, metadata["source"], metadata["fallback_reason"]
 
     def run(self, config: BookvoiceConfig) -> RunManifest:
-        """Run the full pipeline and return a manifest.
-
-        MVP orchestration for text-native PDF to playable audio.
-        """
+        """Run the full pipeline and return a manifest."""
 
         run_id, config_hash, store = self._prepare_run(config)
         runtime_config = self._resolve_runtime_config(config)
@@ -169,7 +195,7 @@ class BookvoicePipeline:
         )
         chapters_path = store.save_json(
             Path("text/chapters.json"),
-            self._chapter_artifact_payload(
+            chapter_artifact_payload(
                 chapters,
                 chapter_source,
                 chapter_fallback_reason,
@@ -180,19 +206,15 @@ class BookvoicePipeline:
 
         chunks, chunk_metadata = self._run_stage(
             "chunk",
-            lambda: self._chunk(
-                selected_chapters,
-                normalized_structure,
-                config,
-            ),
+            lambda: self._chunk(selected_chapters, normalized_structure, config),
         )
         chunks_path = store.save_json(
             Path("text/chunks.json"),
-            self._chunk_artifact_payload(chunks, chapter_scope, chunk_metadata),
+            chunk_artifact_payload(chunks, chapter_scope, chunk_metadata),
         )
 
         translations = self._run_stage("translate", lambda: self._translate(chunks, config))
-        self._add_translation_costs(translations, cost_tracker)
+        add_translation_costs(translations, cost_tracker)
         translations_path = store.save_json(
             Path("text/translations.json"),
             {
@@ -217,7 +239,7 @@ class BookvoicePipeline:
             "rewrite",
             lambda: self._rewrite_for_audio(translations, config, runtime_config),
         )
-        self._add_rewrite_costs(rewrites, cost_tracker)
+        add_rewrite_costs(rewrites, cost_tracker)
         rewrites_path = store.save_json(
             Path("text/rewrites.json"),
             {
@@ -237,7 +259,7 @@ class BookvoicePipeline:
                 ],
                 "metadata": {
                     "chapter_scope": chapter_scope,
-                    **self._rewrite_artifact_metadata(rewrites, runtime_config),
+                    **rewrite_artifact_metadata(rewrites, runtime_config),
                 },
             },
         )
@@ -246,12 +268,12 @@ class BookvoicePipeline:
             "tts",
             lambda: self._tts(rewrites, config, store, runtime_config),
         )
-        self._add_tts_costs(rewrites, cost_tracker)
+        add_tts_costs(rewrites, cost_tracker)
         audio_parts_path = store.save_json(
             Path("audio/parts.json"),
-            self._audio_parts_artifact_payload(audio_parts, chapter_scope, runtime_config),
+            audio_parts_artifact_payload(audio_parts, chapter_scope, runtime_config),
         )
-        part_mapping_metadata = self._part_mapping_manifest_metadata(audio_parts)
+        part_mapping_metadata = part_mapping_manifest_metadata(audio_parts)
 
         merged_path = self._run_stage(
             "merge",
@@ -262,6 +284,7 @@ class BookvoicePipeline:
                 output_path=self._merged_output_path_for_scope(store, chapter_scope),
             ),
         )
+
         manifest = self._run_stage(
             "manifest",
             lambda: self._write_manifest(
@@ -285,7 +308,7 @@ class BookvoicePipeline:
                     **runtime_config.as_manifest_metadata(),
                     **chapter_scope,
                 },
-                cost_summary=self._rounded_cost_summary(cost_tracker),
+                cost_summary=rounded_cost_summary(cost_tracker),
                 store=store,
             ),
         )
@@ -309,7 +332,7 @@ class BookvoicePipeline:
         _, chapter_scope = self._resolve_chapter_scope(chapters, config.chapter_selection)
         chapters_path = store.save_json(
             Path("text/chapters.json"),
-            self._chapter_artifact_payload(
+            chapter_artifact_payload(
                 chapters,
                 chapter_source,
                 chapter_fallback_reason,
@@ -341,9 +364,9 @@ class BookvoicePipeline:
     def resume(self, manifest_path: Path) -> RunManifest:
         """Resume a run from an existing manifest and artifacts."""
 
-        payload = self._load_manifest_payload(manifest_path)
-        run_id = self._require_manifest_field(payload, "run_id")
-        config_hash = self._require_manifest_field(payload, "config_hash")
+        payload = load_manifest_payload(manifest_path)
+        run_id = require_manifest_field(payload, "run_id")
+        config_hash = require_manifest_field(payload, "config_hash")
 
         book_payload = payload.get("book")
         if not isinstance(book_payload, dict):
@@ -351,8 +374,8 @@ class BookvoicePipeline:
                 "Manifest is missing required object `book`; run `bookvoice build` again "
                 "or provide a valid manifest."
             )
-        source_pdf_value = self._require_manifest_field(book_payload, "source_pdf", scope="book")
-        language_value = self._require_manifest_field(book_payload, "language", scope="book")
+        source_pdf_value = require_manifest_field(book_payload, "source_pdf", scope="book")
+        language_value = require_manifest_field(book_payload, "language", scope="book")
 
         source_pdf = Path(source_pdf_value)
         language = str(language_value)
@@ -372,48 +395,48 @@ class BookvoicePipeline:
         )
         cost_tracker = CostTracker()
 
-        run_root = self._resolve_run_root(manifest_path, extra)
+        run_root = resolve_run_root(manifest_path, extra)
         store = ArtifactStore(run_root)
         config = BookvoiceConfig(
             input_pdf=source_pdf,
             output_dir=run_root.parent,
             language=language,
-            provider_translator=self._manifest_string(extra, "provider_translator", "openai"),
-            provider_rewriter=self._manifest_string(extra, "provider_rewriter", "openai"),
-            provider_tts=self._manifest_string(extra, "provider_tts", "openai"),
-            model_translate=self._manifest_string(extra, "model_translate", "gpt-4.1-mini"),
-            model_rewrite=self._manifest_string(extra, "model_rewrite", "gpt-4.1-mini"),
-            model_tts=self._manifest_string(extra, "model_tts", "gpt-4o-mini-tts"),
-            tts_voice=self._manifest_string(extra, "tts_voice", "echo"),
-            rewrite_bypass=self._manifest_bool(extra, "rewrite_bypass", False),
+            provider_translator=manifest_string(extra, "provider_translator", "openai"),
+            provider_rewriter=manifest_string(extra, "provider_rewriter", "openai"),
+            provider_tts=manifest_string(extra, "provider_tts", "openai"),
+            model_translate=manifest_string(extra, "model_translate", "gpt-4.1-mini"),
+            model_rewrite=manifest_string(extra, "model_rewrite", "gpt-4.1-mini"),
+            model_tts=manifest_string(extra, "model_tts", "gpt-4o-mini-tts"),
+            tts_voice=manifest_string(extra, "tts_voice", "echo"),
+            rewrite_bypass=manifest_bool(extra, "rewrite_bypass", False),
             resume=True,
         )
         runtime_config = self._resolve_runtime_config(config)
 
-        raw_text_path = self._resolve_artifact_path(
+        raw_text_path = resolve_artifact_path(
             manifest_path, run_root, extra, "raw_text", Path("text/raw.txt")
         )
-        clean_text_path = self._resolve_artifact_path(
+        clean_text_path = resolve_artifact_path(
             manifest_path, run_root, extra, "clean_text", Path("text/clean.txt")
         )
-        chapters_path = self._resolve_artifact_path(
+        chapters_path = resolve_artifact_path(
             manifest_path, run_root, extra, "chapters", Path("text/chapters.json")
         )
-        chunks_path = self._resolve_artifact_path(
+        chunks_path = resolve_artifact_path(
             manifest_path, run_root, extra, "chunks", Path("text/chunks.json")
         )
-        translations_path = self._resolve_artifact_path(
+        translations_path = resolve_artifact_path(
             manifest_path, run_root, extra, "translations", Path("text/translations.json")
         )
-        rewrites_path = self._resolve_artifact_path(
+        rewrites_path = resolve_artifact_path(
             manifest_path, run_root, extra, "rewrites", Path("text/rewrites.json")
         )
-        audio_parts_path = self._resolve_artifact_path(
+        audio_parts_path = resolve_artifact_path(
             manifest_path, run_root, extra, "audio_parts", Path("audio/parts.json")
         )
-        merged_path = self._resolve_merged_path(manifest_path, run_root, payload)
+        merged_path = resolve_merged_path(manifest_path, run_root, payload)
 
-        next_stage = self._detect_next_stage(
+        next_stage = detect_next_stage(
             raw_text_path=raw_text_path,
             clean_text_path=clean_text_path,
             chapters_path=chapters_path,
@@ -442,12 +465,12 @@ class BookvoicePipeline:
             clean_text_path = store.save_text(Path("text/clean.txt"), clean_text)
 
         if chapters_path.exists():
-            chapters = self._load_chapters(chapters_path)
-            chapter_metadata = self._load_chapter_metadata(chapters_path)
+            chapters = load_chapters(chapters_path)
+            chapter_metadata = load_chapter_metadata(chapters_path)
             if chapter_metadata["source"]:
                 chapter_source = chapter_metadata["source"]
             chapter_fallback_reason = chapter_metadata["fallback_reason"]
-            normalized_structure = self._load_normalized_structure(chapters_path)
+            normalized_structure = load_normalized_structure(chapters_path)
         else:
             chapters, chapter_source, chapter_fallback_reason = self._split_chapters(
                 clean_text, config.input_pdf
@@ -458,7 +481,7 @@ class BookvoicePipeline:
             _, chapter_scope = self._resolve_resume_chapter_scope(chapters, extra)
             chapters_path = store.save_json(
                 Path("text/chapters.json"),
-                self._chapter_artifact_payload(
+                chapter_artifact_payload(
                     chapters,
                     chapter_source,
                     chapter_fallback_reason,
@@ -466,6 +489,7 @@ class BookvoicePipeline:
                     normalized_structure,
                 ),
             )
+
         if not normalized_structure:
             normalized_structure = ChapterStructureNormalizer().from_chapters(
                 chapters=chapters,
@@ -474,16 +498,16 @@ class BookvoicePipeline:
         selected_chapters, chapter_scope = self._resolve_resume_chapter_scope(chapters, extra)
 
         if chunks_path.exists():
-            chunks = self._load_chunks(chunks_path)
+            chunks = load_chunks(chunks_path)
         else:
             chunks, chunk_metadata = self._chunk(selected_chapters, normalized_structure, config)
             chunks_path = store.save_json(
                 Path("text/chunks.json"),
-                self._chunk_artifact_payload(chunks, chapter_scope, chunk_metadata),
+                chunk_artifact_payload(chunks, chapter_scope, chunk_metadata),
             )
 
         if translations_path.exists():
-            translations = self._load_translations(translations_path)
+            translations = load_translations(translations_path)
         else:
             translations = self._translate(chunks, config)
             translations_path = store.save_json(
@@ -505,10 +529,10 @@ class BookvoicePipeline:
                     },
                 },
             )
-        self._add_translation_costs(translations, cost_tracker)
+        add_translation_costs(translations, cost_tracker)
 
         if rewrites_path.exists():
-            rewrites = self._load_rewrites(rewrites_path)
+            rewrites = load_rewrites(rewrites_path)
         else:
             rewrites = self._rewrite_for_audio(translations, config, runtime_config)
             rewrites_path = store.save_json(
@@ -528,17 +552,17 @@ class BookvoicePipeline:
                         }
                         for item in rewrites
                     ],
-                        "metadata": {
-                            "chapter_scope": chapter_scope,
-                            **self._rewrite_artifact_metadata(rewrites, runtime_config),
-                        },
+                    "metadata": {
+                        "chapter_scope": chapter_scope,
+                        **rewrite_artifact_metadata(rewrites, runtime_config),
                     },
-                )
-        self._add_rewrite_costs(rewrites, cost_tracker)
+                },
+            )
+        add_rewrite_costs(rewrites, cost_tracker)
 
         reuse_audio_parts = False
         if audio_parts_path.exists():
-            loaded_parts = self._load_audio_parts(audio_parts_path)
+            loaded_parts = load_audio_parts(audio_parts_path)
             if all(part.path.exists() for part in loaded_parts):
                 audio_parts = loaded_parts
                 reuse_audio_parts = True
@@ -546,18 +570,16 @@ class BookvoicePipeline:
                 audio_parts = self._tts(rewrites, config, store, runtime_config)
                 audio_parts_path = store.save_json(
                     Path("audio/parts.json"),
-                    self._audio_parts_artifact_payload(
-                        audio_parts, chapter_scope, runtime_config
-                    ),
+                    audio_parts_artifact_payload(audio_parts, chapter_scope, runtime_config),
                 )
         else:
             audio_parts = self._tts(rewrites, config, store, runtime_config)
             audio_parts_path = store.save_json(
                 Path("audio/parts.json"),
-                self._audio_parts_artifact_payload(audio_parts, chapter_scope, runtime_config),
-                )
-        self._add_tts_costs(rewrites, cost_tracker)
-        part_mapping_metadata = self._part_mapping_manifest_metadata(audio_parts)
+                audio_parts_artifact_payload(audio_parts, chapter_scope, runtime_config),
+            )
+        add_tts_costs(rewrites, cost_tracker)
+        part_mapping_metadata = part_mapping_manifest_metadata(audio_parts)
 
         if merged_path.exists() and reuse_audio_parts:
             final_merged_path = merged_path
@@ -592,7 +614,7 @@ class BookvoicePipeline:
                 **runtime_config.as_manifest_metadata(),
                 **chapter_scope,
             },
-            cost_summary=self._rounded_cost_summary(cost_tracker),
+            cost_summary=rounded_cost_summary(cost_tracker),
             store=store,
         )
 
@@ -653,26 +675,6 @@ class BookvoicePipeline:
                 hint="Inspect cleaned text formatting in `text/clean.txt` and PDF outline metadata.",
             ) from exc
 
-    def _chapter_artifact_payload(
-        self,
-        chapters: list[Chapter],
-        source: str,
-        fallback_reason: str,
-        chapter_scope: dict[str, str],
-        normalized_structure: list[ChapterStructureUnit],
-    ) -> dict[str, object]:
-        """Serialize chapter artifacts with extraction metadata for resume and diagnostics."""
-
-        return {
-            "chapters": [asdict(chapter) for chapter in chapters],
-            "metadata": {
-                "source": source,
-                "fallback_reason": fallback_reason,
-                "chapter_scope": chapter_scope,
-                "normalized_structure": [asdict(unit) for unit in normalized_structure],
-            },
-        }
-
     def _extract_normalized_structure(
         self,
         chapters: list[Chapter],
@@ -697,7 +699,7 @@ class BookvoicePipeline:
     def _resolve_chapter_scope(
         self, chapters: list[Chapter], chapter_selection: str | None
     ) -> tuple[list[Chapter], dict[str, str]]:
-        """Resolve selected chapters for a run from user chapter selection expression."""
+        """Resolve selected chapters for a run from chapter selection expression."""
 
         available_indices = [chapter.index for chapter in chapters]
         try:
@@ -735,9 +737,7 @@ class BookvoicePipeline:
         raw_indices_csv = extra.get("chapter_scope_indices_csv")
         if isinstance(raw_indices_csv, str) and raw_indices_csv.strip():
             try:
-                selected_indices = parse_chapter_indices_csv(
-                    raw_indices_csv, available_indices
-                )
+                selected_indices = parse_chapter_indices_csv(raw_indices_csv, available_indices)
             except ValueError as exc:
                 raise PipelineStageError(
                     stage="resume-artifacts",
@@ -754,9 +754,7 @@ class BookvoicePipeline:
             ):
                 selection_input = raw_selection_input.strip()
                 try:
-                    selected_indices = parse_chapter_selection(
-                        selection_input, available_indices
-                    )
+                    selected_indices = parse_chapter_selection(selection_input, available_indices)
                 except ValueError as exc:
                     raise PipelineStageError(
                         stage="resume-artifacts",
@@ -810,7 +808,7 @@ class BookvoicePipeline:
         normalized_structure: list[ChapterStructureUnit],
         config: BookvoiceConfig,
     ) -> tuple[list[Chunk], dict[str, object]]:
-        """Plan deterministic chapter parts from structure units and return chunk metadata."""
+        """Plan deterministic chapter parts from structure units."""
 
         try:
             selected_units = self._selected_structure_units(chapters, normalized_structure)
@@ -897,26 +895,10 @@ class BookvoicePipeline:
             )
         return decorated
 
-    def _chunk_artifact_payload(
-        self,
-        chunks: list[Chunk],
-        chapter_scope: dict[str, str],
-        planner_metadata: dict[str, object],
-    ) -> dict[str, object]:
-        """Build chunk artifact payload with chapter scope and planner metadata."""
-
-        return {
-            "chunks": [asdict(chunk) for chunk in chunks],
-            "metadata": {
-                "chapter_scope": chapter_scope,
-                **planner_metadata,
-            },
-        }
-
     def _translate(
         self, chunks: list[Chunk], config: BookvoiceConfig
     ) -> list[TranslationResult]:
-        """Translate chunks into target language text."""
+        """Translate chunks into target-language text."""
 
         try:
             runtime_config = self._resolve_runtime_config(config)
@@ -987,102 +969,6 @@ class BookvoicePipeline:
                 detail=f"Failed to rewrite translated text for audio: {exc}",
                 hint="Check translator outputs and rewrite provider configuration.",
             ) from exc
-
-    def _rewrite_artifact_metadata(
-        self,
-        rewrites: list[RewriteResult],
-        runtime_config: ProviderRuntimeConfig,
-    ) -> dict[str, str]:
-        """Build rewrite artifact metadata that reflects actual rewrite mode/provider."""
-
-        if rewrites:
-            provider = rewrites[0].provider
-            model = rewrites[0].model
-        elif runtime_config.rewrite_bypass:
-            provider = "bypass"
-            model = "deterministic-pass-through-v1"
-        else:
-            provider = runtime_config.rewriter_provider
-            model = runtime_config.rewrite_model
-        return {
-            "provider": provider,
-            "model": model,
-            "rewrite_bypass": "true" if runtime_config.rewrite_bypass else "false",
-        }
-
-    def _audio_parts_artifact_payload(
-        self,
-        audio_parts: list[AudioPart],
-        chapter_scope: dict[str, str],
-        runtime_config: ProviderRuntimeConfig,
-    ) -> dict[str, object]:
-        """Build deterministic audio-parts artifact payload with provider metadata."""
-
-        return {
-            "audio_parts": [
-                {
-                    "chapter_index": item.chapter_index,
-                    "chunk_index": item.chunk_index,
-                    "part_index": item.part_index,
-                    "part_title": item.part_title,
-                    "part_id": item.part_id,
-                    "source_order_indices": list(item.source_order_indices),
-                    "filename": item.path.name,
-                    "path": str(item.path),
-                    "duration_seconds": item.duration_seconds,
-                    "provider": item.provider,
-                    "model": item.model,
-                    "voice": item.voice,
-                }
-                for item in audio_parts
-            ],
-            "metadata": {
-                "chapter_scope": chapter_scope,
-                "provider": runtime_config.tts_provider,
-                "model": runtime_config.tts_model,
-                "voice": runtime_config.tts_voice,
-                "chapter_part_map": [
-                    {
-                        "chapter_index": part.chapter_index,
-                        "part_index": part.part_index,
-                        "part_id": part.part_id,
-                        "source_order_indices": list(part.source_order_indices),
-                        "filename": part.path.name,
-                    }
-                    for part in audio_parts
-                ],
-            },
-        }
-
-    def _part_mapping_manifest_metadata(
-        self,
-        audio_parts: list[AudioPart],
-    ) -> dict[str, str]:
-        """Build compact manifest metadata for chapter/part and source references."""
-
-        chapter_part_map_entries = [
-            f"{item.chapter_index}:{item.part_index if item.part_index is not None else item.chunk_index + 1}"
-            for item in sorted(audio_parts, key=lambda part: (part.chapter_index, part.chunk_index))
-        ]
-        part_filename_entries = [
-            item.path.name
-            for item in sorted(audio_parts, key=lambda part: (part.chapter_index, part.chunk_index))
-        ]
-        referenced_unit_indices: list[int] = sorted(
-            {
-                index
-                for item in audio_parts
-                for index in item.source_order_indices
-            }
-        )
-        return {
-            "part_count": str(len(audio_parts)),
-            "chapter_part_map_csv": ",".join(chapter_part_map_entries),
-            "part_filenames_csv": ",".join(part_filename_entries),
-            "part_source_structure_indices_csv": ",".join(
-                str(index) for index in referenced_unit_indices
-            ),
-        }
 
     def _tts(
         self,
@@ -1199,7 +1085,7 @@ class BookvoicePipeline:
     def _merged_output_path_for_scope(
         self, store: ArtifactStore, chapter_scope: dict[str, str]
     ) -> Path:
-        """Compute deterministic merged output path for full or selected chapter scope."""
+        """Compute deterministic merged output path for full or selected scope."""
 
         scope_mode = chapter_scope.get("chapter_scope_mode", "all")
         if scope_mode == "all":
@@ -1222,7 +1108,7 @@ class BookvoicePipeline:
         cost_summary: dict[str, float],
         store: ArtifactStore,
     ) -> RunManifest:
-        """Build a run manifest with deterministic identifiers."""
+        """Build and persist a run manifest with deterministic identifiers."""
 
         try:
             meta = BookMeta(
@@ -1241,10 +1127,7 @@ class BookvoicePipeline:
                 total_cost_usd=cost_summary["total_cost_usd"],
                 extra=artifact_paths,
             )
-            manifest_path = store.save_json(
-                Path("run_manifest.json"),
-                self._manifest_payload(manifest),
-            )
+            manifest_path = store.save_json(Path("run_manifest.json"), manifest_payload(manifest))
             return RunManifest(
                 run_id=manifest.run_id,
                 config_hash=manifest.config_hash,
@@ -1264,74 +1147,8 @@ class BookvoicePipeline:
                 hint="Verify output directory is writable.",
             ) from exc
 
-    def _manifest_payload(self, manifest: RunManifest) -> dict[str, object]:
-        """Serialize a run manifest into a JSON-safe payload."""
-
-        return {
-            "run_id": manifest.run_id,
-            "config_hash": manifest.config_hash,
-            "book": {
-                "source_pdf": str(manifest.book.source_pdf),
-                "title": manifest.book.title,
-                "author": manifest.book.author,
-                "language": manifest.book.language,
-            },
-            "merged_audio_path": str(manifest.merged_audio_path),
-            "total_llm_cost_usd": manifest.total_llm_cost_usd,
-            "total_tts_cost_usd": manifest.total_tts_cost_usd,
-            "total_cost_usd": manifest.total_cost_usd,
-            "extra": json.loads(json.dumps(dict(manifest.extra))),
-        }
-
-    def _add_translation_costs(
-        self, translations: list[TranslationResult], cost_tracker: CostTracker
-    ) -> None:
-        """Accumulate deterministic LLM cost estimate for translation stage."""
-
-        for item in translations:
-            source_chars = len(item.chunk.text)
-            translated_chars = len(item.translated_text)
-            billable_chars = max(1, source_chars + translated_chars)
-            cost_tracker.add_llm_usage(
-                (billable_chars / 1000.0) * self._TRANSLATE_COST_PER_1K_CHARS_USD
-            )
-
-    def _add_rewrite_costs(
-        self, rewrites: list[RewriteResult], cost_tracker: CostTracker
-    ) -> None:
-        """Accumulate deterministic LLM cost estimate for rewrite stage."""
-
-        for item in rewrites:
-            input_chars = len(item.translation.translated_text)
-            output_chars = len(item.rewritten_text)
-            billable_chars = max(1, input_chars + output_chars)
-            cost_tracker.add_llm_usage(
-                (billable_chars / 1000.0) * self._REWRITE_COST_PER_1K_CHARS_USD
-            )
-
-    def _add_tts_costs(self, rewrites: list[RewriteResult], cost_tracker: CostTracker) -> None:
-        """Accumulate deterministic TTS cost estimate for synthesis stage."""
-
-        for item in rewrites:
-            billable_chars = max(1, len(item.rewritten_text))
-            cost_tracker.add_tts_usage(
-                (billable_chars / 1000.0) * self._TTS_COST_PER_1K_CHARS_USD
-            )
-
-    def _rounded_cost_summary(self, cost_tracker: CostTracker) -> dict[str, float]:
-        """Return cost summary rounded for stable JSON and CLI display."""
-
-        summary = cost_tracker.summary()
-        llm_cost_usd = round(summary["llm_cost_usd"], 6)
-        tts_cost_usd = round(summary["tts_cost_usd"], 6)
-        return {
-            "llm_cost_usd": llm_cost_usd,
-            "tts_cost_usd": tts_cost_usd,
-            "total_cost_usd": round(llm_cost_usd + tts_cost_usd, 6),
-        }
-
     def _validate_config(self, config: BookvoiceConfig) -> None:
-        """Validate top-level configuration and map failures to a stage-aware error."""
+        """Validate top-level configuration and map failures to stage-aware error."""
 
         try:
             config.validate()
@@ -1363,156 +1180,31 @@ class BookvoicePipeline:
                 ),
             ) from exc
 
-    def _manifest_string(
-        self, payload: dict[str, object], key: str, default_value: str
-    ) -> str:
-        """Read a non-empty string from manifest extras with a deterministic default."""
+    def _config_hash(self, config: BookvoiceConfig) -> str:
+        """Compute deterministic hash for run-defining configuration fields."""
 
-        value = payload.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-        return default_value
-
-    def _manifest_bool(
-        self, payload: dict[str, object], key: str, default_value: bool
-    ) -> bool:
-        """Read a boolean value from manifest extras with permissive string parsing."""
-
-        value = payload.get(key)
-        if isinstance(value, bool):
-            return value
-        if isinstance(value, str):
-            normalized = value.strip().lower()
-            if normalized in {"1", "true", "yes", "on"}:
-                return True
-            if normalized in {"0", "false", "no", "off"}:
-                return False
-        return default_value
-
-    def _load_manifest_payload(self, manifest_path: Path) -> dict[str, object]:
-        """Load and validate the resume manifest payload."""
-
-        if not manifest_path.exists():
-            raise PipelineStageError(
-                stage="resume-manifest",
-                detail=f"Manifest file not found: {manifest_path}",
-                hint="Run `bookvoice build` first or pass a valid run manifest path.",
-            )
-        try:
-            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
-            raise PipelineStageError(
-                stage="resume-manifest",
-                detail=f"Manifest is not valid JSON: {manifest_path}",
-                hint="Regenerate the manifest by running `bookvoice build`.",
-            ) from exc
-        if not isinstance(payload, dict):
-            raise PipelineStageError(
-                stage="resume-manifest",
-                detail=f"Manifest root must be a JSON object: {manifest_path}",
-                hint="Regenerate the manifest by running `bookvoice build`.",
-            )
-        return payload
-
-    def _require_manifest_field(
-        self, payload: dict[str, object], key: str, scope: str = "manifest"
-    ) -> str:
-        """Require a non-empty string field from a manifest object."""
-
-        value = payload.get(key)
-        if not isinstance(value, str) or not value.strip():
-            raise PipelineStageError(
-                stage="resume-manifest",
-                detail=f"Manifest is missing required `{scope}.{key}` field.",
-                hint="Regenerate the manifest by running `bookvoice build`.",
-            )
-        return value
-
-    def _resolve_run_root(self, manifest_path: Path, extra: dict[str, object]) -> Path:
-        """Resolve run root directory from manifest metadata."""
-
-        raw = extra.get("run_root")
-        if isinstance(raw, str) and raw.strip():
-            candidate = Path(raw)
-            if candidate.is_absolute():
-                return candidate
-            anchored = manifest_path.parent / candidate
-            if anchored.exists():
-                return anchored
-            return candidate
-        return manifest_path.parent
-
-    def _resolve_merged_path(
-        self, manifest_path: Path, run_root: Path, payload: dict[str, object]
-    ) -> Path:
-        """Resolve merged audio path from manifest payload."""
-
-        raw = payload.get("merged_audio_path")
-        if isinstance(raw, str) and raw.strip():
-            path = Path(raw)
-            if path.is_absolute():
-                return path
-            anchored = manifest_path.parent / path
-            if anchored.exists():
-                return anchored
-            return path
-        return run_root / "audio/bookvoice_merged.wav"
-
-    def _resolve_artifact_path(
-        self,
-        manifest_path: Path,
-        run_root: Path,
-        extra: dict[str, object],
-        key: str,
-        default_relative: Path,
-    ) -> Path:
-        """Resolve an artifact path from resume metadata with fallback."""
-
-        raw = extra.get(key)
-        if isinstance(raw, str) and raw.strip():
-            path = Path(raw)
-            if path.is_absolute():
-                return path
-            anchored = manifest_path.parent / path
-            if anchored.exists():
-                return anchored
-            return path
-        return run_root / default_relative
-
-    def _detect_next_stage(
-        self,
-        *,
-        raw_text_path: Path,
-        clean_text_path: Path,
-        chapters_path: Path,
-        chunks_path: Path,
-        translations_path: Path,
-        rewrites_path: Path,
-        audio_parts_path: Path,
-        merged_path: Path,
-    ) -> str:
-        """Detect the first missing artifact stage for resume messaging."""
-
-        if not raw_text_path.exists():
-            return "extract"
-        if not clean_text_path.exists():
-            return "clean"
-        if not chapters_path.exists():
-            return "split"
-        if not chunks_path.exists():
-            return "chunk"
-        if not translations_path.exists():
-            return "translate"
-        if not rewrites_path.exists():
-            return "rewrite"
-        if not audio_parts_path.exists():
-            return "tts"
-        if not merged_path.exists():
-            return "merge"
-        return "done"
+        payload = {
+            "input_pdf": str(config.input_pdf),
+            "output_dir": str(config.output_dir),
+            "language": config.language,
+            "provider_translator": config.provider_translator,
+            "provider_rewriter": config.provider_rewriter,
+            "provider_tts": config.provider_tts,
+            "model_translate": config.model_translate,
+            "model_rewrite": config.model_rewrite,
+            "model_tts": config.model_tts,
+            "tts_voice": config.tts_voice,
+            "rewrite_bypass": config.rewrite_bypass,
+            "chunk_size_chars": config.chunk_size_chars,
+            "chapter_selection": config.chapter_selection,
+            "resume": config.resume,
+            "extra": dict(config.extra),
+        }
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        return sha256(canonical.encode("utf-8")).hexdigest()
 
     def _stage_position(self, stage_name: str) -> tuple[int, int] | None:
-        """Return 1-based stage index and total stage count for known pipeline stages."""
+        """Return 1-based stage index and total stage count for known stages."""
 
         try:
             index = self._PHASE_SEQUENCE.index(stage_name) + 1
@@ -1556,373 +1248,3 @@ class BookvoicePipeline:
             raise
         self._on_stage_complete(stage_name)
         return result
-
-    def _load_json_object(self, path: Path) -> dict[str, object]:
-        """Load an artifact JSON file and validate object root shape."""
-
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
-            raise PipelineStageError(
-                stage="resume-artifacts",
-                detail=f"Artifact JSON is invalid: {path}",
-                hint="Delete the corrupted artifact and run `bookvoice resume` again.",
-            ) from exc
-        if not isinstance(payload, dict):
-            raise PipelineStageError(
-                stage="resume-artifacts",
-                detail=f"Artifact JSON must be an object: {path}",
-                hint="Delete the corrupted artifact and run `bookvoice resume` again.",
-            )
-        return payload
-
-    def _load_chapters(self, path: Path) -> list[Chapter]:
-        """Load chapter artifacts from JSON."""
-
-        payload = self._load_json_object(path)
-        items = payload.get("chapters")
-        if not isinstance(items, list):
-            raise PipelineStageError(
-                stage="resume-artifacts",
-                detail=f"Artifact missing `chapters` list: {path}",
-                hint="Delete chapters artifact and rerun `bookvoice resume`.",
-            )
-        chapters: list[Chapter] = []
-        for item in items:
-            if not isinstance(item, dict):
-                raise PipelineStageError(
-                    stage="resume-artifacts",
-                    detail=f"Malformed chapter item in {path}",
-                    hint="Delete chapters artifact and rerun `bookvoice resume`.",
-                )
-            chapters.append(
-                Chapter(
-                    index=int(item["index"]),
-                    title=str(item["title"]),
-                    text=str(item["text"]),
-                )
-            )
-        return chapters
-
-    def _load_chapter_metadata(self, path: Path) -> dict[str, str]:
-        """Load chapter extraction metadata from chapter artifacts."""
-
-        payload = self._load_json_object(path)
-        metadata = payload.get("metadata")
-        if not isinstance(metadata, dict):
-            return {"source": "", "fallback_reason": ""}
-        source = metadata.get("source")
-        fallback_reason = metadata.get("fallback_reason")
-        return {
-            "source": str(source) if isinstance(source, str) else "",
-            "fallback_reason": (
-                str(fallback_reason) if isinstance(fallback_reason, str) else ""
-            ),
-        }
-
-    def _load_normalized_structure(self, path: Path) -> list[ChapterStructureUnit]:
-        """Load normalized structure units from chapter artifact metadata."""
-
-        payload = self._load_json_object(path)
-        metadata = payload.get("metadata")
-        if not isinstance(metadata, dict):
-            return []
-        raw_units = metadata.get("normalized_structure")
-        if not isinstance(raw_units, list):
-            return []
-
-        units: list[ChapterStructureUnit] = []
-        for item in raw_units:
-            if not isinstance(item, dict):
-                continue
-            units.append(
-                ChapterStructureUnit(
-                    order_index=int(item["order_index"]),
-                    chapter_index=int(item["chapter_index"]),
-                    chapter_title=str(item["chapter_title"]),
-                    subchapter_index=(
-                        int(item["subchapter_index"])
-                        if item.get("subchapter_index") is not None
-                        else None
-                    ),
-                    subchapter_title=(
-                        str(item["subchapter_title"])
-                        if item.get("subchapter_title") is not None
-                        else None
-                    ),
-                    text=str(item["text"]),
-                    char_start=int(item["char_start"]),
-                    char_end=int(item["char_end"]),
-                    source=str(item["source"]),
-                )
-            )
-        return units
-
-    def _load_chunks(self, path: Path) -> list[Chunk]:
-        """Load chunk artifacts from JSON."""
-
-        payload = self._load_json_object(path)
-        items = payload.get("chunks")
-        if not isinstance(items, list):
-            raise PipelineStageError(
-                stage="resume-artifacts",
-                detail=f"Artifact missing `chunks` list: {path}",
-                hint="Delete chunks artifact and rerun `bookvoice resume`.",
-            )
-        chunks: list[Chunk] = []
-        for item in items:
-            if not isinstance(item, dict):
-                raise PipelineStageError(
-                    stage="resume-artifacts",
-                    detail=f"Malformed chunk item in {path}",
-                    hint="Delete chunks artifact and rerun `bookvoice resume`.",
-                )
-            chunks.append(
-                Chunk(
-                    chapter_index=int(item["chapter_index"]),
-                    chunk_index=int(item["chunk_index"]),
-                    text=str(item["text"]),
-                    char_start=int(item["char_start"]),
-                    char_end=int(item["char_end"]),
-                    part_index=(
-                        int(item["part_index"])
-                        if item.get("part_index") is not None
-                        else None
-                    ),
-                    part_title=(
-                        str(item["part_title"])
-                        if item.get("part_title") is not None
-                        else None
-                    ),
-                    part_id=(
-                        str(item["part_id"]) if item.get("part_id") is not None else None
-                    ),
-                    source_order_indices=tuple(
-                        int(index) for index in item.get("source_order_indices", [])
-                    ),
-                    boundary_strategy=str(
-                        item.get("boundary_strategy", "sentence_complete")
-                    ),
-                )
-            )
-        return chunks
-
-    def _load_translations(self, path: Path) -> list[TranslationResult]:
-        """Load translation artifacts from JSON."""
-
-        payload = self._load_json_object(path)
-        items = payload.get("translations")
-        if not isinstance(items, list):
-            raise PipelineStageError(
-                stage="resume-artifacts",
-                detail=f"Artifact missing `translations` list: {path}",
-                hint="Delete translations artifact and rerun `bookvoice resume`.",
-            )
-        translations: list[TranslationResult] = []
-        for item in items:
-            if not isinstance(item, dict):
-                raise PipelineStageError(
-                    stage="resume-artifacts",
-                    detail=f"Malformed translation item in {path}",
-                    hint="Delete translations artifact and rerun `bookvoice resume`.",
-                )
-            chunk_payload = item.get("chunk")
-            if not isinstance(chunk_payload, dict):
-                raise PipelineStageError(
-                    stage="resume-artifacts",
-                    detail=f"Translation item missing `chunk` object in {path}",
-                    hint="Delete translations artifact and rerun `bookvoice resume`.",
-                )
-            chunk = Chunk(
-                chapter_index=int(chunk_payload["chapter_index"]),
-                chunk_index=int(chunk_payload["chunk_index"]),
-                text=str(chunk_payload["text"]),
-                char_start=int(chunk_payload["char_start"]),
-                char_end=int(chunk_payload["char_end"]),
-                part_index=(
-                    int(chunk_payload["part_index"])
-                    if chunk_payload.get("part_index") is not None
-                    else None
-                ),
-                part_title=(
-                    str(chunk_payload["part_title"])
-                    if chunk_payload.get("part_title") is not None
-                    else None
-                ),
-                part_id=(
-                    str(chunk_payload["part_id"])
-                    if chunk_payload.get("part_id") is not None
-                    else None
-                ),
-                source_order_indices=tuple(
-                    int(index) for index in chunk_payload.get("source_order_indices", [])
-                ),
-                boundary_strategy=str(
-                    chunk_payload.get("boundary_strategy", "sentence_complete")
-                ),
-            )
-            translations.append(
-                TranslationResult(
-                    chunk=chunk,
-                    translated_text=str(item["translated_text"]),
-                    provider=str(item["provider"]),
-                    model=str(item["model"]),
-                )
-            )
-        return translations
-
-    def _load_rewrites(self, path: Path) -> list[RewriteResult]:
-        """Load rewrite artifacts from JSON."""
-
-        payload = self._load_json_object(path)
-        items = payload.get("rewrites")
-        if not isinstance(items, list):
-            raise PipelineStageError(
-                stage="resume-artifacts",
-                detail=f"Artifact missing `rewrites` list: {path}",
-                hint="Delete rewrites artifact and rerun `bookvoice resume`.",
-            )
-        rewrites: list[RewriteResult] = []
-        for item in items:
-            if not isinstance(item, dict):
-                raise PipelineStageError(
-                    stage="resume-artifacts",
-                    detail=f"Malformed rewrite item in {path}",
-                    hint="Delete rewrites artifact and rerun `bookvoice resume`.",
-                )
-            translation_payload = item.get("translation")
-            if not isinstance(translation_payload, dict):
-                raise PipelineStageError(
-                    stage="resume-artifacts",
-                    detail=f"Rewrite item missing `translation` object in {path}",
-                    hint="Delete rewrites artifact and rerun `bookvoice resume`.",
-                )
-            chunk_payload = translation_payload.get("chunk")
-            if not isinstance(chunk_payload, dict):
-                raise PipelineStageError(
-                    stage="resume-artifacts",
-                    detail=f"Rewrite translation missing `chunk` object in {path}",
-                    hint="Delete rewrites artifact and rerun `bookvoice resume`.",
-                )
-            chunk = Chunk(
-                chapter_index=int(chunk_payload["chapter_index"]),
-                chunk_index=int(chunk_payload["chunk_index"]),
-                text=str(chunk_payload["text"]),
-                char_start=int(chunk_payload["char_start"]),
-                char_end=int(chunk_payload["char_end"]),
-                part_index=(
-                    int(chunk_payload["part_index"])
-                    if chunk_payload.get("part_index") is not None
-                    else None
-                ),
-                part_title=(
-                    str(chunk_payload["part_title"])
-                    if chunk_payload.get("part_title") is not None
-                    else None
-                ),
-                part_id=(
-                    str(chunk_payload["part_id"])
-                    if chunk_payload.get("part_id") is not None
-                    else None
-                ),
-                source_order_indices=tuple(
-                    int(index) for index in chunk_payload.get("source_order_indices", [])
-                ),
-                boundary_strategy=str(
-                    chunk_payload.get("boundary_strategy", "sentence_complete")
-                ),
-            )
-            translation = TranslationResult(
-                chunk=chunk,
-                translated_text=str(translation_payload["translated_text"]),
-                provider=str(translation_payload["provider"]),
-                model=str(translation_payload["model"]),
-            )
-            rewrites.append(
-                RewriteResult(
-                    translation=translation,
-                    rewritten_text=str(item["rewritten_text"]),
-                    provider=str(item["provider"]),
-                    model=str(item["model"]),
-                )
-            )
-        return rewrites
-
-    def _load_audio_parts(self, path: Path) -> list[AudioPart]:
-        """Load synthesized audio part artifacts from JSON."""
-
-        payload = self._load_json_object(path)
-        items = payload.get("audio_parts")
-        if not isinstance(items, list):
-            raise PipelineStageError(
-                stage="resume-artifacts",
-                detail=f"Artifact missing `audio_parts` list: {path}",
-                hint="Delete audio parts artifact and rerun `bookvoice resume`.",
-            )
-        audio_parts: list[AudioPart] = []
-        for item in items:
-            if not isinstance(item, dict):
-                raise PipelineStageError(
-                    stage="resume-artifacts",
-                    detail=f"Malformed audio part item in {path}",
-                    hint="Delete audio parts artifact and rerun `bookvoice resume`.",
-                )
-            audio_parts.append(
-                AudioPart(
-                    chapter_index=int(item["chapter_index"]),
-                    chunk_index=int(item["chunk_index"]),
-                    path=Path(str(item["path"])),
-                    duration_seconds=float(item["duration_seconds"]),
-                    part_index=(
-                        int(item["part_index"])
-                        if item.get("part_index") is not None
-                        else None
-                    ),
-                    part_title=(
-                        str(item["part_title"])
-                        if item.get("part_title") is not None
-                        else None
-                    ),
-                    part_id=(
-                        str(item["part_id"]) if item.get("part_id") is not None else None
-                    ),
-                    source_order_indices=tuple(
-                        int(index) for index in item.get("source_order_indices", [])
-                    ),
-                    provider=(
-                        str(item["provider"])
-                        if isinstance(item.get("provider"), str)
-                        else None
-                    ),
-                    model=(
-                        str(item["model"]) if isinstance(item.get("model"), str) else None
-                    ),
-                    voice=(
-                        str(item["voice"]) if isinstance(item.get("voice"), str) else None
-                    ),
-                )
-            )
-        return audio_parts
-
-    def _config_hash(self, config: BookvoiceConfig) -> str:
-        """Compute deterministic hash for run-defining configuration fields."""
-
-        payload = {
-            "input_pdf": str(config.input_pdf),
-            "output_dir": str(config.output_dir),
-            "language": config.language,
-            "provider_translator": config.provider_translator,
-            "provider_rewriter": config.provider_rewriter,
-            "provider_tts": config.provider_tts,
-            "model_translate": config.model_translate,
-            "model_rewrite": config.model_rewrite,
-            "model_tts": config.model_tts,
-            "tts_voice": config.tts_voice,
-            "rewrite_bypass": config.rewrite_bypass,
-            "chunk_size_chars": config.chunk_size_chars,
-            "chapter_selection": config.chapter_selection,
-            "resume": config.resume,
-            "extra": dict(config.extra),
-        }
-        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-        return sha256(canonical.encode("utf-8")).hexdigest()

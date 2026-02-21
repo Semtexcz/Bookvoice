@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.40] - 2026-02-21
+
+- Refactored `bookvoice/pipeline.py` to improve readability by separating artifact serialization/loading, resume-path resolution, and cost estimation helpers into dedicated modules.
+- Added `bookvoice/pipeline_artifacts.py` for deterministic artifact payload builders and typed artifact loaders.
+- Added `bookvoice/pipeline_resume.py` for manifest parsing, resume artifact path resolution, and missing-stage detection.
+- Added `bookvoice/pipeline_costs.py` for deterministic translation/rewrite/TTS cost accumulation and rounded summary generation.
+
 ## [0.1.39] - 2026-02-21
 
 - Fixed sentence-boundary handling in `TextBudgetSegmentPlanner` long-paragraph splitting to avoid mid-sentence chunk cuts.
