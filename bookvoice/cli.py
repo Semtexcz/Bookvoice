@@ -52,6 +52,16 @@ def _echo_cost_summary(manifest: RunManifest) -> None:
     typer.echo(f"Cost Total (USD): {manifest.total_cost_usd:.6f}")
 
 
+def _echo_chapter_summary(manifest: RunManifest) -> None:
+    """Print chapter extraction source and fallback reason when available."""
+
+    source = manifest.extra.get("chapter_source", "unknown")
+    fallback_reason = manifest.extra.get("chapter_fallback_reason", "")
+    typer.echo(f"Chapter source: {source}")
+    if fallback_reason:
+        typer.echo(f"Chapter fallback reason: {fallback_reason}")
+
+
 @app.command("build")
 def build_command(
     input_pdf: Annotated[Path, typer.Argument(help="Path to source PDF.")],
@@ -69,6 +79,7 @@ def build_command(
     typer.echo(f"Run id: {manifest.run_id}")
     typer.echo(f"Merged audio: {manifest.merged_audio_path}")
     typer.echo(f"Manifest: {manifest.extra.get('manifest_path', '(not written)')}")
+    _echo_chapter_summary(manifest)
     _echo_cost_summary(manifest)
 
 
@@ -117,6 +128,7 @@ def resume_command(
     )
     typer.echo(f"Merged audio: {resumed_manifest.merged_audio_path}")
     typer.echo(f"Manifest: {resumed_manifest.extra.get('manifest_path', '(not written)')}")
+    _echo_chapter_summary(resumed_manifest)
     _echo_cost_summary(resumed_manifest)
 
 

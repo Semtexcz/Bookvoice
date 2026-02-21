@@ -20,6 +20,7 @@ from .audio.merger import AudioMerger
 from .audio.postprocess import AudioPostProcessor
 from .config import BookvoiceConfig
 from .errors import PipelineStageError
+from .io.pdf_outline_extractor import PdfOutlineChapterExtractor
 from .io.chapter_splitter import ChapterSplitter
 from .io.pdf_text_extractor import PdfTextExtractor
 from .io.storage import ArtifactStore
@@ -65,10 +66,14 @@ class BookvoicePipeline:
         clean_text = self._clean(raw_text)
         clean_text_path = store.save_text(Path("text/clean.txt"), clean_text)
 
-        chapters = self._split_chapters(clean_text)
+        chapters, chapter_source, chapter_fallback_reason = self._split_chapters(
+            clean_text, config.input_pdf
+        )
         chapters_path = store.save_json(
             Path("text/chapters.json"),
-            {"chapters": [asdict(chapter) for chapter in chapters]},
+            self._chapter_artifact_payload(
+                chapters, chapter_source, chapter_fallback_reason
+            ),
         )
 
         chunks = self._chunk(chapters, config)
@@ -149,6 +154,8 @@ class BookvoicePipeline:
                 "translations": str(translations_path),
                 "rewrites": str(rewrites_path),
                 "audio_parts": str(audio_parts_path),
+                "chapter_source": chapter_source,
+                "chapter_fallback_reason": chapter_fallback_reason,
             },
             cost_summary=self._rounded_cost_summary(cost_tracker),
             store=store,
@@ -177,6 +184,16 @@ class BookvoicePipeline:
         extra = payload.get("extra")
         if not isinstance(extra, dict):
             extra = {}
+        chapter_source = (
+            str(extra.get("chapter_source"))
+            if isinstance(extra.get("chapter_source"), str)
+            else "unknown"
+        )
+        chapter_fallback_reason = (
+            str(extra.get("chapter_fallback_reason"))
+            if isinstance(extra.get("chapter_fallback_reason"), str)
+            else ""
+        )
         cost_tracker = CostTracker()
 
         run_root = self._resolve_run_root(manifest_path, extra)
@@ -241,11 +258,19 @@ class BookvoicePipeline:
 
         if chapters_path.exists():
             chapters = self._load_chapters(chapters_path)
+            chapter_metadata = self._load_chapter_metadata(chapters_path)
+            if chapter_metadata["source"]:
+                chapter_source = chapter_metadata["source"]
+            chapter_fallback_reason = chapter_metadata["fallback_reason"]
         else:
-            chapters = self._split_chapters(clean_text)
+            chapters, chapter_source, chapter_fallback_reason = self._split_chapters(
+                clean_text, config.input_pdf
+            )
             chapters_path = store.save_json(
                 Path("text/chapters.json"),
-                {"chapters": [asdict(chapter) for chapter in chapters]},
+                self._chapter_artifact_payload(
+                    chapters, chapter_source, chapter_fallback_reason
+                ),
             )
 
         if chunks_path.exists():
@@ -363,6 +388,8 @@ class BookvoicePipeline:
                 "rewrites": str(rewrites_path),
                 "audio_parts": str(audio_parts_path),
                 "resume_next_stage": next_stage,
+                "chapter_source": chapter_source,
+                "chapter_fallback_reason": chapter_fallback_reason,
             },
             cost_summary=self._rounded_cost_summary(cost_tracker),
             store=store,
@@ -398,20 +425,45 @@ class BookvoicePipeline:
                 hint="Inspect `text/raw.txt` and verify it contains readable UTF-8 text.",
             ) from exc
 
-    def _split_chapters(self, text: str) -> list[Chapter]:
-        """Split cleaned text into chapter units."""
+    def _split_chapters(
+        self, text: str, source_pdf: Path
+    ) -> tuple[list[Chapter], str, str]:
+        """Split chapters using PDF outline first, then deterministic text fallback."""
+
+        fallback_reason = "outline_invalid"
+        try:
+            outline_result = PdfOutlineChapterExtractor().extract(source_pdf)
+            if outline_result.chapters:
+                return outline_result.chapters, "pdf_outline", ""
+            fallback_reason = outline_result.status
+        except Exception:
+            fallback_reason = "outline_invalid"
 
         try:
             splitter = ChapterSplitter()
-            return splitter.split(text)
+            chapters = splitter.split(text)
+            return chapters, "text_heuristic", fallback_reason
         except PipelineStageError:
             raise
         except Exception as exc:
             raise PipelineStageError(
                 stage="split",
                 detail=f"Failed to split chapters: {exc}",
-                hint="Inspect cleaned text formatting in `text/clean.txt`.",
+                hint="Inspect cleaned text formatting in `text/clean.txt` and PDF outline metadata.",
             ) from exc
+
+    def _chapter_artifact_payload(
+        self, chapters: list[Chapter], source: str, fallback_reason: str
+    ) -> dict[str, object]:
+        """Serialize chapter artifacts with extraction metadata for resume and diagnostics."""
+
+        return {
+            "chapters": [asdict(chapter) for chapter in chapters],
+            "metadata": {
+                "source": source,
+                "fallback_reason": fallback_reason,
+            },
+        }
 
     def _chunk(self, chapters: list[Chapter], config: BookvoiceConfig) -> list[Chunk]:
         """Convert chapters into chunk-sized text units."""
@@ -823,6 +875,22 @@ class BookvoicePipeline:
                 )
             )
         return chapters
+
+    def _load_chapter_metadata(self, path: Path) -> dict[str, str]:
+        """Load chapter extraction metadata from chapter artifacts."""
+
+        payload = self._load_json_object(path)
+        metadata = payload.get("metadata")
+        if not isinstance(metadata, dict):
+            return {"source": "", "fallback_reason": ""}
+        source = metadata.get("source")
+        fallback_reason = metadata.get("fallback_reason")
+        return {
+            "source": str(source) if isinstance(source, str) else "",
+            "fallback_reason": (
+                str(fallback_reason) if isinstance(fallback_reason, str) else ""
+            ),
+        }
 
     def _load_chunks(self, path: Path) -> list[Chunk]:
         """Load chunk artifacts from JSON."""

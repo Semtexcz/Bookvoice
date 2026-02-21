@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.7] - 2026-02-21
+
+- Added integration coverage for real PDF outline chapter splitting using a generated outline-enabled PDF fixture.
+- Verified that pipeline chapter splitting prefers `pdf_outline` source even when cleaned text lacks chapter heading markers.
+
+## [0.1.6] - 2026-02-21
+
+- Completed `TASK-013` by adding first-level PDF outline chapter extraction with deterministic text-split fallback.
+- Updated pipeline chapter splitting to prefer PDF outline boundaries and persist source/fallback metadata in chapter artifacts and run manifest.
+- Added test coverage for both chapter extraction paths (outline-present and fallback-to-text), and surfaced chapter source details in CLI output.
+
 ## [0.1.5] - 2026-02-21
 
 - Added `TASK-015` to backlog for online model-based pricing integration in cost tracking and manifest reporting.

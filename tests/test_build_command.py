@@ -37,7 +37,10 @@ def test_build_command_creates_outputs(tmp_path: Path) -> None:
     assert payload["total_cost_usd"] == pytest.approx(
         payload["total_llm_cost_usd"] + payload["total_tts_cost_usd"]
     )
+    assert payload["extra"]["chapter_source"] in {"pdf_outline", "text_heuristic"}
+    assert isinstance(payload["extra"]["chapter_fallback_reason"], str)
 
+    assert "Chapter source:" in result.output
     assert "Cost LLM (USD):" in result.output
     assert "Cost TTS (USD):" in result.output
     assert "Cost Total (USD):" in result.output

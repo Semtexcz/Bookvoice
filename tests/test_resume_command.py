@@ -40,6 +40,8 @@ def test_resume_command_recovers_from_interrupted_run(tmp_path: Path) -> None:
     assert Path(resumed_payload["extra"]["audio_parts"]).exists()
     assert Path(resumed_payload["merged_audio_path"]).exists()
     assert raw_text_path.read_text(encoding="utf-8") == raw_before
+    assert resumed_payload["extra"]["chapter_source"] in {"pdf_outline", "text_heuristic", "unknown"}
+    assert isinstance(resumed_payload["extra"]["chapter_fallback_reason"], str)
     assert resumed_payload["total_llm_cost_usd"] > 0.0
     assert resumed_payload["total_tts_cost_usd"] > 0.0
     assert resumed_payload["total_cost_usd"] == pytest.approx(

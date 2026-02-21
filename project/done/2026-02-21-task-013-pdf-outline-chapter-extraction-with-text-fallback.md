@@ -1,6 +1,6 @@
 ---
 task: TASK-013
-status: "backlog"
+status: "done"
 priority: P1
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Prefer PDF outline chapter extraction with deterministic text fallback
 
 Task: TASK-013
-Status: backlog
+Status: done
 Priority: P1
 Type: feature
 Author:
@@ -21,11 +21,11 @@ Chapter splitting currently depends on text heuristics only. Many PDFs already c
 
 ## Definition of Done
 
-- [ ] Add a PDF chapter extractor that reads outline/bookmarks when available.
-- [ ] Pipeline prefers PDF outline-based chapters before text heuristic splitting.
-- [ ] If outline is missing/invalid, pipeline deterministically falls back to `ChapterSplitter.split(clean_text)`.
-- [ ] Chapter ordering and indices remain stable for the same input.
-- [ ] Tests cover both paths: outline-present and fallback-to-text.
+- [x] Add a PDF chapter extractor that reads outline/bookmarks when available.
+- [x] Pipeline prefers PDF outline-based chapters before text heuristic splitting.
+- [x] If outline is missing/invalid, pipeline deterministically falls back to `ChapterSplitter.split(clean_text)`.
+- [x] Chapter ordering and indices remain stable for the same input.
+- [x] Tests cover both paths: outline-present and fallback-to-text.
 
 ## Notes
 

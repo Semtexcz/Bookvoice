@@ -5,7 +5,13 @@ interfaces used by the pipeline.
 """
 
 from .chapter_splitter import ChapterSplitter
+from .pdf_outline_extractor import PdfOutlineChapterExtractor
 from .pdf_text_extractor import PdfTextExtractor
 from .storage import ArtifactStore
 
-__all__ = ["PdfTextExtractor", "ChapterSplitter", "ArtifactStore"]
+__all__ = [
+    "PdfTextExtractor",
+    "PdfOutlineChapterExtractor",
+    "ChapterSplitter",
+    "ArtifactStore",
+]
