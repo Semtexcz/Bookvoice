@@ -22,7 +22,7 @@ Current configuration assumptions also rely too heavily on environment files, wh
 
 ## Subtasks
 
-- [ ] `TASK-014A`: Provider-ready abstraction and runtime config model for LLM/TTS stages.
+- [x] `TASK-014A`: Provider-ready abstraction and runtime config model for LLM/TTS stages.
 - [ ] `TASK-014B`: CLI credential/model UX with interactive prompts and secure API key persistence.
 - [ ] `TASK-014C`: Real OpenAI LLM integration for translation and rewrite/bypass behavior.
 - [ ] `TASK-014D`: Real OpenAI TTS integration with chunk artifact audio persistence.

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.20] - 2026-02-21
+
+- Marked `TASK-014A` as completed and moved its task card from `project/backlog/` to `project/done/`.
+- Updated `TASK-014` epic subtask checklist to reflect `TASK-014A` completion.
+
 ## [0.1.19] - 2026-02-21
 
 - Reorganized test suite into explicit `tests/unit/` and `tests/integration/` directories.
