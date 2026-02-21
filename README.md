@@ -23,7 +23,16 @@ Still intentionally limited:
 
 - `translate-only` and `tts-only` are placeholders.
 - Audio postprocessing/tagging are minimal scaffolds.
-- Sentence-complete chunk boundary enforcement is tracked separately and not guaranteed yet.
+
+## Chunk Boundary Guarantees
+
+- Fallback chapter chunking now targets sentence-complete boundaries and prefers `.` before `!`/`?`.
+- If no boundary exists near the target size, the chunker extends forward to the next sentence boundary within a bounded safety margin.
+- If no sentence boundary exists within that margin (for example very long punctuation-free text), the chunker performs a deterministic forced split and marks the chunk with `boundary_strategy = "forced_split_no_sentence_boundary"`.
+
+Current limitation:
+
+- Structure-driven segment planning (`TextBudgetSegmentPlanner`) is paragraph-first; sentence-boundary enforcement applies to chunker fallback path.
 
 ## Pipeline Overview
 

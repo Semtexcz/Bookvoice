@@ -63,6 +63,8 @@ class Chunk:
         part_title: Optional chapter/part title used for deterministic filenames.
         part_id: Optional stable part identifier.
         source_order_indices: Ordered structure-unit order indices that produced this chunk.
+        boundary_strategy: Boundary classification (`sentence_complete`, `chapter_end`,
+            or `forced_split_no_sentence_boundary`).
     """
 
     chapter_index: int
@@ -74,6 +76,7 @@ class Chunk:
     part_title: str | None = None
     part_id: str | None = None
     source_order_indices: tuple[int, ...] = field(default_factory=tuple)
+    boundary_strategy: str = "sentence_complete"
 
 
 @dataclass(frozen=True, slots=True)

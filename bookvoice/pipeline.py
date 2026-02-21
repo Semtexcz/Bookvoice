@@ -892,6 +892,7 @@ class BookvoicePipeline:
                     part_title=part_title,
                     part_id=f"{chunk.chapter_index:03d}_{part_index:02d}_{part_slug}",
                     source_order_indices=tuple(),
+                    boundary_strategy=chunk.boundary_strategy,
                 )
             )
         return decorated
@@ -1699,6 +1700,9 @@ class BookvoicePipeline:
                     source_order_indices=tuple(
                         int(index) for index in item.get("source_order_indices", [])
                     ),
+                    boundary_strategy=str(
+                        item.get("boundary_strategy", "sentence_complete")
+                    ),
                 )
             )
         return chunks
@@ -1752,6 +1756,9 @@ class BookvoicePipeline:
                 ),
                 source_order_indices=tuple(
                     int(index) for index in chunk_payload.get("source_order_indices", [])
+                ),
+                boundary_strategy=str(
+                    chunk_payload.get("boundary_strategy", "sentence_complete")
                 ),
             )
             translations.append(
@@ -1820,6 +1827,9 @@ class BookvoicePipeline:
                 ),
                 source_order_indices=tuple(
                     int(index) for index in chunk_payload.get("source_order_indices", [])
+                ),
+                boundary_strategy=str(
+                    chunk_payload.get("boundary_strategy", "sentence_complete")
                 ),
             )
             translation = TranslationResult(

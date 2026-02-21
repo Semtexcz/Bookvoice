@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.38] - 2026-02-21
+
+- Completed `TASK-023` by enforcing sentence-complete boundaries in fallback chapter chunking.
+- Implemented sentence boundary preference ordering (`.` first, then `!`/`?`) with decimal and common-abbreviation guards.
+- Added bounded forward extension when no valid sentence boundary exists near target chunk size.
+- Added deterministic pathological-text fallback with explicit chunk metadata marker `boundary_strategy = "forced_split_no_sentence_boundary"`.
+- Propagated new chunk boundary metadata through artifact serialization/resume loading paths.
+- Added unit coverage for period-priority boundaries, bounded extension, abbreviation and decimal handling, and no-punctuation fallback behavior.
+- Updated `README.md` with chunk-boundary guarantees and current limitation scope.
+- Marked `TASK-023` as done and moved it to `project/done/`.
+
 ## [0.1.37] - 2026-02-21
 
 - Completed `TASK-022` by standardizing part filenames to deterministic `<chapter>_<part>_<title-slug>.wav`.
