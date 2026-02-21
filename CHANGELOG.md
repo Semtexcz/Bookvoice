@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.9] - 2026-02-21
+
+- Added `TASK-016` to backlog for a CLI chapter-only mode that splits PDF into chapters without running downstream stages.
+
 ## [0.1.8] - 2026-02-21
 
 - Added `pytest-cov` to development test dependencies.
