@@ -1068,7 +1068,12 @@ class BookvoicePipeline:
         """Resolve runtime provider settings with deterministic source precedence."""
 
         try:
-            runtime_sources = RuntimeConfigSources(env=os.environ)
+            env_source = config.runtime_sources.env or os.environ
+            runtime_sources = RuntimeConfigSources(
+                cli=config.runtime_sources.cli,
+                secure=config.runtime_sources.secure,
+                env=env_source,
+            )
             return config.resolved_provider_runtime(runtime_sources)
         except ValueError as exc:
             raise PipelineStageError(

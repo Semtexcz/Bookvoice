@@ -61,6 +61,12 @@ These are planned and intentionally not implemented in this scaffold.
 
 ```bash
 bookvoice build input.pdf --out out/
+bookvoice build input.pdf --out out/ --interactive-provider-setup
+bookvoice build input.pdf --out out/ --model-translate gpt-4.1-mini --model-rewrite gpt-4.1-mini --model-tts gpt-4o-mini-tts
+bookvoice build input.pdf --out out/ --prompt-api-key
+bookvoice credentials
+bookvoice credentials --set-api-key
+bookvoice credentials --clear-api-key
 bookvoice build input.pdf --out out/ --chapters 5
 bookvoice build input.pdf --out out/ --chapters 1,3,7
 bookvoice build input.pdf --out out/ --chapters 2-4
@@ -86,6 +92,12 @@ the same scope for regenerated artifacts.
 Use `list-chapters` to print compact `index. title` output either directly from a PDF
 via extract/clean/split flow or from an existing `text/chapters.json` artifact.
 `translate-only` and `tts-only` remain placeholders.
+Provider runtime values resolve with deterministic precedence:
+`CLI explicit input > secure credential storage > environment > defaults`.
+The secure credential path is managed through `bookvoice credentials` and is used
+automatically by `build` when an API key is not explicitly provided.
+For hidden API-key entry during `build`, use `--prompt-api-key` or
+`--interactive-provider-setup`.
 
 For faster and cheaper integration testing, first inspect chapters with `list-chapters` and then run
 `build --chapters <small-scope>` (for example `--chapters 1` or `--chapters 1-2`).

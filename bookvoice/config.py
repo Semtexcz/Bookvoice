@@ -98,6 +98,7 @@ class BookvoiceConfig:
         chunk_size_chars: Target chunk size in characters.
         chapter_selection: Optional 1-based chapter selection expression.
         resume: Whether pipeline should attempt to resume from artifacts.
+        runtime_sources: Optional runtime source overrides injected by CLI.
         extra: Additional metadata for future extensions.
     """
 
@@ -115,6 +116,7 @@ class BookvoiceConfig:
     chunk_size_chars: int = 1800
     chapter_selection: str | None = None
     resume: bool = False
+    runtime_sources: RuntimeConfigSources = field(default_factory=RuntimeConfigSources)
     extra: dict[str, str] = field(default_factory=dict)
 
     def validate(self) -> None:

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.21] - 2026-02-21
+
+- Completed `TASK-014B` by adding `build` CLI provider/model runtime options and an interactive provider setup flow with hidden API-key prompt input.
+- Added secure credential management via OS keyring integration (`bookvoice credentials`, `--set-api-key`, `--clear-api-key`) and runtime loading from secure storage.
+- Wired deterministic runtime source precedence end-to-end in CLI and pipeline (`CLI explicit input > secure credential storage > environment > defaults`).
+- Added integration coverage for interactive prompt path, non-interactive option precedence path, and credential command set/clear/status behavior.
+- Added unit coverage for keyring-backed secure credential store operations.
+- Moved `TASK-014B` from `project/backlog/` to `project/done/` and marked acceptance criteria complete.
+
 ## [0.1.20] - 2026-02-21
 
 - Marked `TASK-014A` as completed and moved its task card from `project/backlog/` to `project/done/`.
