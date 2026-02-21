@@ -59,7 +59,12 @@ These are planned and intentionally not implemented in this scaffold.
 
 ```bash
 bookvoice build input.pdf --out out/
+bookvoice build input.pdf --out out/ --chapters 5
+bookvoice build input.pdf --out out/ --chapters 1,3,7
+bookvoice build input.pdf --out out/ --chapters 2-4
+bookvoice build input.pdf --out out/ --chapters 1,3-5
 bookvoice chapters-only input.pdf --out out/
+bookvoice chapters-only input.pdf --out out/ --chapters 1-3
 bookvoice list-chapters input.pdf
 bookvoice list-chapters --chapters-artifact out/run-*/text/chapters.json
 bookvoice translate-only input.pdf
@@ -71,9 +76,17 @@ CLI currently supports full `build` and basic manifest-driven `resume` flows.
 Use `chapters-only` to run only extract/clean/split and inspect chapter boundaries quickly.
 The command writes `text/raw.txt`, `text/clean.txt`, `text/chapters.json`, and `run_manifest.json`,
 including chapter source metadata (`pdf_outline` or `text_heuristic`) and fallback reason.
+Use `--chapters` on `build` and `chapters-only` to select a subset of 1-based chapter indices.
+Accepted syntax: single (`5`), comma list (`1,3,7`), closed range (`2-4`), and mixed (`1,3-5`).
+Selection is validated (malformed syntax, overlap/duplicates, and out-of-bound indices fail fast).
+Runs with selected scope persist chapter-scope metadata in artifacts and manifest, and `resume` keeps
+the same scope for regenerated artifacts.
 Use `list-chapters` to print compact `index. title` output either directly from a PDF
 via extract/clean/split flow or from an existing `text/chapters.json` artifact.
 `translate-only` and `tts-only` remain placeholders.
+
+For faster and cheaper integration testing, first inspect chapters with `list-chapters` and then run
+`build --chapters <small-scope>` (for example `--chapters 1` or `--chapters 1-2`).
 
 ## Troubleshooting
 

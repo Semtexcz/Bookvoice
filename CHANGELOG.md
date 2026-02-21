@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.13] - 2026-02-21
+
+- Completed `TASK-018` by adding `--chapters` chapter-scope selection support to `bookvoice build` and `bookvoice chapters-only`.
+- Added canonical chapter selection parsing and validation for single/list/range/mixed syntax with actionable overlap and bounds errors.
+- Updated pipeline orchestration and resume flow to process only selected chapters downstream and persist deterministic chapter scope metadata across artifacts and manifest.
+- Added coverage for parser validation, selected-scope build behavior, invalid CLI selection failures, and resume regeneration with preserved selected scope.
+- Updated README chapter-selection syntax, examples, and testing-focused partial-run usage guidance.
+
 ## [0.1.12] - 2026-02-21
 
 - Completed `TASK-017` by adding a dedicated `bookvoice list-chapters` CLI command.

@@ -60,6 +60,9 @@ def _echo_chapter_summary(manifest: RunManifest) -> None:
     typer.echo(f"Chapter source: {source}")
     if fallback_reason:
         typer.echo(f"Chapter fallback reason: {fallback_reason}")
+    selection_label = manifest.extra.get("chapter_scope_label", "all")
+    selection_mode = manifest.extra.get("chapter_scope_mode", "all")
+    typer.echo(f"Chapter scope: {selection_mode} ({selection_label})")
 
 
 def _echo_chapter_list(chapters: list[Chapter]) -> None:
@@ -77,12 +80,25 @@ def _echo_chapter_list(chapters: list[Chapter]) -> None:
 def build_command(
     input_pdf: Annotated[Path, typer.Argument(help="Path to source PDF.")],
     out: Annotated[Path, typer.Option("--out", help="Output directory.")] = Path("out"),
+    chapters: Annotated[
+        str | None,
+        typer.Option(
+            "--chapters",
+            help=(
+                "1-based chapter selection: `5`, `1,3,7`, `2-4`, or mixed `1,3-5`."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Run the full pipeline."""
 
     try:
         pipeline = BookvoicePipeline()
-        config = BookvoiceConfig(input_pdf=input_pdf, output_dir=out)
+        config = BookvoiceConfig(
+            input_pdf=input_pdf,
+            output_dir=out,
+            chapter_selection=chapters,
+        )
         manifest = pipeline.run(config)
     except Exception as exc:
         _exit_with_command_error("build", exc)
@@ -98,12 +114,25 @@ def build_command(
 def chapters_only_command(
     input_pdf: Annotated[Path, typer.Argument(help="Path to source PDF.")],
     out: Annotated[Path, typer.Option("--out", help="Output directory.")] = Path("out"),
+    chapters: Annotated[
+        str | None,
+        typer.Option(
+            "--chapters",
+            help=(
+                "1-based chapter selection: `5`, `1,3,7`, `2-4`, or mixed `1,3-5`."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Run only extract, clean, and chapter split stages."""
 
     try:
         pipeline = BookvoicePipeline()
-        config = BookvoiceConfig(input_pdf=input_pdf, output_dir=out)
+        config = BookvoiceConfig(
+            input_pdf=input_pdf,
+            output_dir=out,
+            chapter_selection=chapters,
+        )
         manifest = pipeline.run_chapters_only(config)
     except Exception as exc:
         _exit_with_command_error("chapters-only", exc)

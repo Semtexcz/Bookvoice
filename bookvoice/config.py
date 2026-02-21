@@ -27,6 +27,7 @@ class BookvoiceConfig:
         provider_translator: Planned translator provider identifier.
         provider_tts: Planned TTS provider identifier.
         chunk_size_chars: Target chunk size in characters.
+        chapter_selection: Optional 1-based chapter selection expression.
         resume: Whether pipeline should attempt to resume from artifacts.
     """
 
@@ -36,6 +37,7 @@ class BookvoiceConfig:
     provider_translator: str = "openai"
     provider_tts: str = "openai"
     chunk_size_chars: int = 1800
+    chapter_selection: str | None = None
     resume: bool = False
     extra: dict[str, str] = field(default_factory=dict)
 

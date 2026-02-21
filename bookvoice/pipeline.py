@@ -35,6 +35,11 @@ from .models.datatypes import (
     RunManifest,
     TranslationResult,
 )
+from .text.chapter_selection import (
+    format_chapter_selection,
+    parse_chapter_indices_csv,
+    parse_chapter_selection,
+)
 from .text.chunking import Chunker
 from .text.cleaners import TextCleaner
 from .telemetry.cost_tracker import CostTracker
@@ -122,17 +127,23 @@ class BookvoicePipeline:
         chapters, chapter_source, chapter_fallback_reason = self._split_chapters(
             clean_text, config.input_pdf
         )
+        selected_chapters, chapter_scope = self._resolve_chapter_scope(
+            chapters, config.chapter_selection
+        )
         chapters_path = store.save_json(
             Path("text/chapters.json"),
             self._chapter_artifact_payload(
-                chapters, chapter_source, chapter_fallback_reason
+                chapters, chapter_source, chapter_fallback_reason, chapter_scope
             ),
         )
 
-        chunks = self._chunk(chapters, config)
+        chunks = self._chunk(selected_chapters, config)
         chunks_path = store.save_json(
             Path("text/chunks.json"),
-            {"chunks": [asdict(chunk) for chunk in chunks]},
+            {
+                "chunks": [asdict(chunk) for chunk in chunks],
+                "metadata": {"chapter_scope": chapter_scope},
+            },
         )
 
         translations = self._translate(chunks, config)
@@ -148,7 +159,8 @@ class BookvoicePipeline:
                         "model": item.model,
                     }
                     for item in translations
-                ]
+                ],
+                "metadata": {"chapter_scope": chapter_scope},
             },
         )
 
@@ -170,7 +182,8 @@ class BookvoicePipeline:
                         "model": item.model,
                     }
                     for item in rewrites
-                ]
+                ],
+                "metadata": {"chapter_scope": chapter_scope},
             },
         )
 
@@ -187,12 +200,18 @@ class BookvoicePipeline:
                         "duration_seconds": item.duration_seconds,
                     }
                     for item in audio_parts
-                ]
+                ],
+                "metadata": {"chapter_scope": chapter_scope},
             },
         )
 
         processed = self._postprocess(audio_parts, config)
-        merged_path = self._merge(processed, config, store)
+        merged_path = self._merge(
+            processed,
+            config,
+            store,
+            output_path=self._merged_output_path_for_scope(store, chapter_scope),
+        )
         manifest = self._write_manifest(
             config=config,
             run_id=run_id,
@@ -209,6 +228,7 @@ class BookvoicePipeline:
                 "audio_parts": str(audio_parts_path),
                 "chapter_source": chapter_source,
                 "chapter_fallback_reason": chapter_fallback_reason,
+                **chapter_scope,
             },
             cost_summary=self._rounded_cost_summary(cost_tracker),
             store=store,
@@ -229,10 +249,11 @@ class BookvoicePipeline:
         chapters, chapter_source, chapter_fallback_reason = self._split_chapters(
             clean_text, config.input_pdf
         )
+        _, chapter_scope = self._resolve_chapter_scope(chapters, config.chapter_selection)
         chapters_path = store.save_json(
             Path("text/chapters.json"),
             self._chapter_artifact_payload(
-                chapters, chapter_source, chapter_fallback_reason
+                chapters, chapter_source, chapter_fallback_reason, chapter_scope
             ),
         )
 
@@ -240,7 +261,7 @@ class BookvoicePipeline:
             config=config,
             run_id=run_id,
             config_hash=config_hash,
-            merged_audio_path=store.root / "audio/bookvoice_merged.wav",
+            merged_audio_path=self._merged_output_path_for_scope(store, chapter_scope),
             artifact_paths={
                 "run_root": str(store.root),
                 "raw_text": str(raw_text_path),
@@ -249,6 +270,7 @@ class BookvoicePipeline:
                 "chapter_source": chapter_source,
                 "chapter_fallback_reason": chapter_fallback_reason,
                 "pipeline_mode": "chapters_only",
+                **chapter_scope,
             },
             cost_summary={"llm_cost_usd": 0.0, "tts_cost_usd": 0.0, "total_cost_usd": 0.0},
             store=store,
@@ -358,20 +380,25 @@ class BookvoicePipeline:
             chapters, chapter_source, chapter_fallback_reason = self._split_chapters(
                 clean_text, config.input_pdf
             )
+            _, chapter_scope = self._resolve_resume_chapter_scope(chapters, extra)
             chapters_path = store.save_json(
                 Path("text/chapters.json"),
                 self._chapter_artifact_payload(
-                    chapters, chapter_source, chapter_fallback_reason
+                    chapters, chapter_source, chapter_fallback_reason, chapter_scope
                 ),
             )
+        selected_chapters, chapter_scope = self._resolve_resume_chapter_scope(chapters, extra)
 
         if chunks_path.exists():
             chunks = self._load_chunks(chunks_path)
         else:
-            chunks = self._chunk(chapters, config)
+            chunks = self._chunk(selected_chapters, config)
             chunks_path = store.save_json(
                 Path("text/chunks.json"),
-                {"chunks": [asdict(chunk) for chunk in chunks]},
+                {
+                    "chunks": [asdict(chunk) for chunk in chunks],
+                    "metadata": {"chapter_scope": chapter_scope},
+                },
             )
 
         if translations_path.exists():
@@ -389,7 +416,8 @@ class BookvoicePipeline:
                             "model": item.model,
                         }
                         for item in translations
-                    ]
+                    ],
+                    "metadata": {"chapter_scope": chapter_scope},
                 },
             )
         self._add_translation_costs(translations, cost_tracker)
@@ -414,7 +442,8 @@ class BookvoicePipeline:
                             "model": item.model,
                         }
                         for item in rewrites
-                    ]
+                    ],
+                    "metadata": {"chapter_scope": chapter_scope},
                 },
             )
         self._add_rewrite_costs(rewrites, cost_tracker)
@@ -438,7 +467,8 @@ class BookvoicePipeline:
                                 "duration_seconds": item.duration_seconds,
                             }
                             for item in audio_parts
-                        ]
+                        ],
+                        "metadata": {"chapter_scope": chapter_scope},
                     },
                 )
         else:
@@ -452,18 +482,24 @@ class BookvoicePipeline:
                             "chunk_index": item.chunk_index,
                             "path": str(item.path),
                             "duration_seconds": item.duration_seconds,
-                        }
-                        for item in audio_parts
-                    ]
-                },
-            )
+                            }
+                            for item in audio_parts
+                        ],
+                        "metadata": {"chapter_scope": chapter_scope},
+                    },
+                )
         self._add_tts_costs(rewrites, cost_tracker)
 
         if merged_path.exists() and reuse_audio_parts:
             final_merged_path = merged_path
         else:
             processed = self._postprocess(audio_parts, config)
-            final_merged_path = self._merge(processed, config, store)
+            final_merged_path = self._merge(
+                processed,
+                config,
+                store,
+                output_path=merged_path,
+            )
 
         return self._write_manifest(
             config=config,
@@ -482,6 +518,7 @@ class BookvoicePipeline:
                 "resume_next_stage": next_stage,
                 "chapter_source": chapter_source,
                 "chapter_fallback_reason": chapter_fallback_reason,
+                **chapter_scope,
             },
             cost_summary=self._rounded_cost_summary(cost_tracker),
             store=store,
@@ -545,7 +582,11 @@ class BookvoicePipeline:
             ) from exc
 
     def _chapter_artifact_payload(
-        self, chapters: list[Chapter], source: str, fallback_reason: str
+        self,
+        chapters: list[Chapter],
+        source: str,
+        fallback_reason: str,
+        chapter_scope: dict[str, str],
     ) -> dict[str, object]:
         """Serialize chapter artifacts with extraction metadata for resume and diagnostics."""
 
@@ -554,7 +595,118 @@ class BookvoicePipeline:
             "metadata": {
                 "source": source,
                 "fallback_reason": fallback_reason,
+                "chapter_scope": chapter_scope,
             },
+        }
+
+    def _resolve_chapter_scope(
+        self, chapters: list[Chapter], chapter_selection: str | None
+    ) -> tuple[list[Chapter], dict[str, str]]:
+        """Resolve selected chapters for a run from user chapter selection expression."""
+
+        available_indices = [chapter.index for chapter in chapters]
+        try:
+            selected_indices = parse_chapter_selection(chapter_selection, available_indices)
+        except ValueError as exc:
+            raise PipelineStageError(
+                stage="chapter-selection",
+                detail=str(exc),
+                hint=(
+                    "Use `--chapters` syntax like `5`, `1,3,7`, `2-4`, or mixed `1,3-5`."
+                ),
+            ) from exc
+
+        chapter_scope = self._build_chapter_scope_metadata(
+            available_indices=available_indices,
+            selected_indices=selected_indices,
+            selection_input=chapter_selection,
+        )
+        selected_set = set(selected_indices)
+        selected_chapters = sorted(
+            (chapter for chapter in chapters if chapter.index in selected_set),
+            key=lambda chapter: chapter.index,
+        )
+        return selected_chapters, chapter_scope
+
+    def _resolve_resume_chapter_scope(
+        self, chapters: list[Chapter], extra: dict[str, object]
+    ) -> tuple[list[Chapter], dict[str, str]]:
+        """Resolve selected chapters for resume from persisted manifest metadata."""
+
+        available_indices = [chapter.index for chapter in chapters]
+        selected_indices = available_indices
+        selection_input = ""
+
+        raw_indices_csv = extra.get("chapter_scope_indices_csv")
+        if isinstance(raw_indices_csv, str) and raw_indices_csv.strip():
+            try:
+                selected_indices = parse_chapter_indices_csv(
+                    raw_indices_csv, available_indices
+                )
+            except ValueError as exc:
+                raise PipelineStageError(
+                    stage="resume-artifacts",
+                    detail=f"Invalid chapter scope metadata in manifest: {exc}",
+                    hint="Regenerate run artifacts or rerun `bookvoice build`.",
+                ) from exc
+            selection_input = format_chapter_selection(selected_indices)
+        else:
+            raw_selection_input = extra.get("chapter_scope_selection_input")
+            if (
+                isinstance(raw_selection_input, str)
+                and raw_selection_input.strip()
+                and raw_selection_input.strip().lower() != "all"
+            ):
+                selection_input = raw_selection_input.strip()
+                try:
+                    selected_indices = parse_chapter_selection(
+                        selection_input, available_indices
+                    )
+                except ValueError as exc:
+                    raise PipelineStageError(
+                        stage="resume-artifacts",
+                        detail=f"Invalid chapter scope metadata in manifest: {exc}",
+                        hint="Regenerate run artifacts or rerun `bookvoice build`.",
+                    ) from exc
+
+        chapter_scope = self._build_chapter_scope_metadata(
+            available_indices=available_indices,
+            selected_indices=selected_indices,
+            selection_input=selection_input or None,
+        )
+        selected_set = set(selected_indices)
+        selected_chapters = sorted(
+            (chapter for chapter in chapters if chapter.index in selected_set),
+            key=lambda chapter: chapter.index,
+        )
+        return selected_chapters, chapter_scope
+
+    def _build_chapter_scope_metadata(
+        self,
+        available_indices: list[int],
+        selected_indices: list[int],
+        selection_input: str | None,
+    ) -> dict[str, str]:
+        """Build string metadata describing selected chapter scope for artifacts."""
+
+        available_unique = sorted(set(int(index) for index in available_indices))
+        selected_unique = sorted(set(int(index) for index in selected_indices))
+        is_all_scope = selected_unique == available_unique
+        selection_label = "all" if is_all_scope else format_chapter_selection(selected_unique)
+        return {
+            "chapter_scope_mode": "all" if is_all_scope else "selected",
+            "chapter_scope_label": selection_label,
+            "chapter_scope_selection_input": (
+                "all"
+                if is_all_scope
+                else (selection_input.strip() if isinstance(selection_input, str) else "")
+            ),
+            "chapter_scope_indices_csv": ",".join(str(index) for index in selected_unique),
+            "chapter_scope_available_indices_csv": ",".join(
+                str(index) for index in available_unique
+            ),
+            "chapter_scope_selected_count": str(len(selected_unique)),
+            "chapter_scope_available_count": str(len(available_unique)),
         }
 
     def _chunk(self, chapters: list[Chapter], config: BookvoiceConfig) -> list[Chunk]:
@@ -663,14 +815,25 @@ class BookvoicePipeline:
                 hint="Verify generated chunk WAV files are readable.",
             ) from exc
 
-    def _merge(self, audio_parts: list[AudioPart], config: BookvoiceConfig, store: ArtifactStore) -> Path:
+    def _merge(
+        self,
+        audio_parts: list[AudioPart],
+        config: BookvoiceConfig,
+        store: ArtifactStore,
+        output_path: Path | None = None,
+    ) -> Path:
         """Merge chapter or book-level audio outputs."""
 
         try:
             _ = config
             merger = AudioMerger()
             return merger.merge(
-                audio_parts, output_path=store.root / "audio/bookvoice_merged.wav"
+                audio_parts,
+                output_path=(
+                    output_path
+                    if output_path is not None
+                    else store.root / "audio/bookvoice_merged.wav"
+                ),
             )
         except PipelineStageError:
             raise
@@ -680,6 +843,22 @@ class BookvoicePipeline:
                 detail=f"Failed to merge audio outputs: {exc}",
                 hint="Check synthesized part files and output directory permissions.",
             ) from exc
+
+    def _merged_output_path_for_scope(
+        self, store: ArtifactStore, chapter_scope: dict[str, str]
+    ) -> Path:
+        """Compute deterministic merged output path for full or selected chapter scope."""
+
+        scope_mode = chapter_scope.get("chapter_scope_mode", "all")
+        if scope_mode == "all":
+            return store.root / "audio/bookvoice_merged.wav"
+        indices_csv = chapter_scope.get("chapter_scope_indices_csv", "")
+        suffix = (
+            indices_csv.replace(",", "_")
+            if indices_csv
+            else chapter_scope.get("chapter_scope_label", "selected").replace(",", "_")
+        )
+        return store.root / f"audio/bookvoice_merged.chapters_{suffix}.wav"
 
     def _write_manifest(
         self,
@@ -1152,6 +1331,7 @@ class BookvoicePipeline:
             "provider_translator": config.provider_translator,
             "provider_tts": config.provider_tts,
             "chunk_size_chars": config.chunk_size_chars,
+            "chapter_selection": config.chapter_selection,
             "resume": config.resume,
             "extra": dict(config.extra),
         }
