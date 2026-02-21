@@ -1,18 +1,27 @@
 # bookvoice
 
-`bookvoice` is a Python project scaffold for a deterministic, pay-as-you-go pipeline that converts text-based PDF books into Czech audiobook outputs.
+`bookvoice` is a deterministic, pay-as-you-go pipeline for converting text-based PDF books into Czech audiobook outputs.
 
 What it is not:
 
 - It is not a DRM bypass tool.
 - It is not intended for copyrighted material without proper rights.
 
-## Design Principles
+## Current Status
 
-- No subscriptions: provider integrations are intended to be pay-per-use.
-- Deterministic pipeline: reproducible outputs from explicit config + input artifacts.
-- Chapter-level reproducibility: each stage should be resumable and auditable.
-- Minimal abstraction: straightforward modules with clear responsibilities.
+Implemented today:
+
+- Real OpenAI translation (`chat/completions`).
+- Real OpenAI rewrite-for-audio (`chat/completions`), plus `--rewrite-bypass`.
+- Real OpenAI TTS per chunk (`audio/speech`) with deterministic chunk file naming.
+- Resumable artifact-driven pipeline with run manifest and cost summary.
+- Chapter listing and chapter-scope processing (`--chapters`).
+- Secure API-key storage via `keyring` (`bookvoice credentials`).
+
+Still intentionally limited:
+
+- `translate-only` and `tts-only` are placeholders.
+- Audio postprocessing/tagging are minimal scaffolds.
 
 ## Pipeline Overview
 
@@ -38,96 +47,135 @@ Artifacts + Cache <-------------------------------- [TTS Synthesis]
                                                Run Manifest + Outputs
 ```
 
-Stage summary:
+## Quickstart
 
-- Extract text: pull raw text (and optionally page-wise text) from a PDF backend.
-- Clean/normalize: apply deterministic text rules.
-- Split chapters/chunk: segment text for translation and synthesis boundaries.
-- Translate/rewrite: prepare Czech narration text.
-- TTS/postprocess/merge: synthesize, polish, and combine audio outputs.
-- Manifest: persist run metadata, costs, and reproducibility details.
-
-## Future Work (Planned Integrations)
-
-- PDF text extraction backends (for scanned and text-native PDFs).
-- TTS providers for Czech voices.
-- `ffmpeg` integration for robust audio postprocessing/merging.
-
-These are planned and intentionally not implemented in this scaffold.
-
-## CLI Examples
+### 1. Install
 
 ```bash
-bookvoice build input.pdf --out out/
-bookvoice build input.pdf --out out/ --interactive-provider-setup
-bookvoice build input.pdf --out out/ --model-translate gpt-4.1-mini --model-rewrite gpt-4.1-mini --model-tts gpt-4o-mini-tts
-bookvoice build input.pdf --out out/ --prompt-api-key
-bookvoice build input.pdf --out out/ --rewrite-bypass
-bookvoice credentials
-bookvoice credentials --set-api-key
-bookvoice credentials --clear-api-key
-bookvoice build input.pdf --out out/ --chapters 5
-bookvoice build input.pdf --out out/ --chapters 1,3,7
-bookvoice build input.pdf --out out/ --chapters 2-4
-bookvoice build input.pdf --out out/ --chapters 1,3-5
-bookvoice chapters-only input.pdf --out out/
-bookvoice chapters-only input.pdf --out out/ --chapters 1-3
-bookvoice list-chapters input.pdf
-bookvoice list-chapters --chapters-artifact out/run-*/text/chapters.json
-bookvoice translate-only input.pdf
-bookvoice tts-only out/run_manifest.json
-bookvoice resume out/run_manifest.json
+poetry install
 ```
 
-CLI currently supports full `build` and basic manifest-driven `resume` flows.
-Use `chapters-only` to run only extract/clean/split and inspect chapter boundaries quickly.
-The command writes `text/raw.txt`, `text/clean.txt`, `text/chapters.json`, and `run_manifest.json`,
-including chapter source metadata (`pdf_outline` or `text_heuristic`) and fallback reason.
-Use `--chapters` on `build` and `chapters-only` to select a subset of 1-based chapter indices.
-Accepted syntax: single (`5`), comma list (`1,3,7`), closed range (`2-4`), and mixed (`1,3-5`).
-Selection is validated (malformed syntax, overlap/duplicates, and out-of-bound indices fail fast).
-Runs with selected scope persist chapter-scope metadata in artifacts and manifest, and `resume` keeps
-the same scope for regenerated artifacts.
-Use `list-chapters` to print compact `index. title` output either directly from a PDF
-via extract/clean/split flow or from an existing `text/chapters.json` artifact.
-`translate-only` and `tts-only` remain placeholders.
-Provider runtime values resolve with deterministic precedence:
-`CLI explicit input > secure credential storage > environment > defaults`.
-The secure credential path is managed through `bookvoice credentials` and is used
-automatically by `build` when an API key is not explicitly provided.
-For hidden API-key entry during `build`, use `--prompt-api-key` or
-`--interactive-provider-setup`.
-Use `--rewrite-bypass` to skip rewrite provider calls and keep translated text unchanged
-with deterministic pass-through metadata in rewrite artifacts.
+### 2. Verify CLI
 
-For faster and cheaper integration testing, first inspect chapters with `list-chapters` and then run
-`build --chapters <small-scope>` (for example `--chapters 1` or `--chapters 1-2`).
+```bash
+poetry run bookvoice --help
+```
+
+### 3. Provide API key (recommended)
+
+```bash
+poetry run bookvoice credentials --set-api-key
+```
+
+### 4. Run build
+
+```bash
+poetry run bookvoice build input.pdf --out out/
+```
+
+## Core Commands
+
+### Build (full pipeline)
+
+```bash
+poetry run bookvoice build input.pdf --out out/
+```
+
+Common options:
+
+- `--chapters`: process only selected 1-based chapters (`5`, `1,3,7`, `2-4`, `1,3-5`).
+- `--model-translate`, `--model-rewrite`, `--model-tts`, `--tts-voice`.
+- `--provider-translator`, `--provider-rewriter`, `--provider-tts` (currently `openai`).
+- `--prompt-api-key`: hidden API-key prompt for this run.
+- `--interactive-provider-setup`: prompts provider/model/voice values.
+- `--store-api-key/--no-store-api-key`.
+- `--rewrite-bypass/--no-rewrite-bypass`.
+
+### Chapters-only (fast boundary inspection)
+
+```bash
+poetry run bookvoice chapters-only input.pdf --out out/
+poetry run bookvoice chapters-only input.pdf --out out/ --chapters 1-3
+```
+
+### List chapters
+
+```bash
+poetry run bookvoice list-chapters input.pdf
+poetry run bookvoice list-chapters --chapters-artifact out/run-*/text/chapters.json
+```
+
+### Resume interrupted run
+
+```bash
+poetry run bookvoice resume out/run-<id>/run_manifest.json
+```
+
+### Credentials
+
+```bash
+poetry run bookvoice credentials
+poetry run bookvoice credentials --set-api-key
+poetry run bookvoice credentials --clear-api-key
+```
+
+## Runtime Defaults and Precedence
+
+Default models/voice:
+
+- Translate model: `gpt-4.1-mini`
+- Rewrite model: `gpt-4.1-mini`
+- TTS model: `gpt-4o-mini-tts`
+- TTS voice: `alloy`
+
+Resolution precedence:
+
+- `CLI explicit input > secure credential storage > environment > defaults`
+
+Environment keys:
+
+- `OPENAI_API_KEY`
+- `BOOKVOICE_PROVIDER_TRANSLATOR`
+- `BOOKVOICE_PROVIDER_REWRITER`
+- `BOOKVOICE_PROVIDER_TTS`
+- `BOOKVOICE_MODEL_TRANSLATE`
+- `BOOKVOICE_MODEL_REWRITE`
+- `BOOKVOICE_MODEL_TTS`
+- `BOOKVOICE_TTS_VOICE`
+- `BOOKVOICE_REWRITE_BYPASS`
+
+## Artifacts You Can Expect
+
+Each build creates a deterministic run directory:
+
+- `out/run-<hash>/text/raw.txt`
+- `out/run-<hash>/text/clean.txt`
+- `out/run-<hash>/text/chapters.json`
+- `out/run-<hash>/text/chunks.json`
+- `out/run-<hash>/text/translations.json`
+- `out/run-<hash>/text/rewrites.json`
+- `out/run-<hash>/audio/chunks/chapter_XXX_chunk_YYY.wav`
+- `out/run-<hash>/audio/parts.json`
+- `out/run-<hash>/audio/bookvoice_merged.wav` (or chapter-scope variant)
+- `out/run-<hash>/run_manifest.json`
+
+`audio/parts.json` includes per-chunk `provider`, `model`, and `voice` metadata.
 
 ## Troubleshooting
 
-- `build failed at stage extract`: ensure the input PDF path exists and the `pdftotext` tool is installed.
-- `resume failed at stage resume-manifest`: check that the manifest file exists and contains valid JSON.
-- `resume failed at stage resume-artifacts`: one or more artifact JSON files are corrupted; delete the broken artifact and rerun `bookvoice resume`.
-- `list-chapters failed at stage chapters-artifact`: verify `--chapters-artifact` points to a valid `text/chapters.json` file.
-- `build failed at stage tts` or `merge`: verify output directories are writable and intermediate audio files are present.
+- `build failed at stage extract`: verify input PDF path and `pdftotext` availability.
+- `build failed at stage translate`/`rewrite`/`tts`: verify API key and model/provider config.
+- `build failed at stage credentials`: configure a working keyring backend or use `--no-store-api-key`.
+- `list-chapters failed at stage chapters-artifact`: verify artifact path points to valid `text/chapters.json`.
+- `resume failed at stage resume-manifest`: manifest missing or malformed JSON.
+- `resume failed at stage resume-artifacts`: artifact JSON is missing/corrupted; remove broken artifact and rerun `resume`.
 
 ## Development
 
-### Local setup
+### Test suite
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .
-```
-
-### Quality checks (placeholders)
-
-```bash
-# Planned tools (future)
-# ruff check .
-# mypy bookvoice
-# pytest
+poetry run pytest
 ```
 
 ### Project layout

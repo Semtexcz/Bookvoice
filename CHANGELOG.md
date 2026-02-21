@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.24] - 2026-02-21
+
+- Revised `README.md` to reflect currently implemented OpenAI translation/rewrite/TTS behavior instead of planned-only wording.
+- Added a practical usage guide with `poetry`-based setup, quickstart, command recipes, runtime precedence, environment keys, and artifact expectations.
+- Expanded troubleshooting guidance with stage-specific diagnostics aligned to current CLI output.
+
 ## [0.1.23] - 2026-02-21
 
 - Completed `TASK-014D` by replacing deterministic local TTS stub output with real OpenAI `/audio/speech` synthesis per rewrite chunk.
