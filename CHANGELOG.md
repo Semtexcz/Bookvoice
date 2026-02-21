@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.42] - 2026-02-21
+
+- Further split `bookvoice/pipeline/orchestrator.py` into focused mixin modules.
+- Added `bookvoice/pipeline/execution.py` for stage execution helpers (`extract`..`merge`).
+- Added `bookvoice/pipeline/chapter_scope.py` for chapter scope/selection resolution.
+- Added `bookvoice/pipeline/runtime.py` for config validation/runtime resolution and run identity hashing.
+- Added `bookvoice/pipeline/telemetry.py` for stage progress and telemetry hooks.
+- Added `bookvoice/pipeline/manifesting.py` for manifest persistence logic.
+- Reduced `bookvoice/pipeline/orchestrator.py` to orchestration flow methods (`run`, `run_chapters_only`, `resume`, listing).
+
 ## [0.1.41] - 2026-02-21
 
 - Reorganized pipeline internals into a dedicated `bookvoice/pipeline/` package.
