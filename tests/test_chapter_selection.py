@@ -32,7 +32,7 @@ def test_parse_chapter_selection_rejects_out_of_bounds_indices() -> None:
     """Parser should reject out-of-bound chapter indices with clear diagnostics."""
 
     available = [1, 2, 3, 4, 5]
-    with pytest.raises(ValueError, match="out of available bounds"):
+    with pytest.raises(ValueError, match="positive and 1-based"):
         parse_chapter_selection("0", available)
     with pytest.raises(ValueError, match="out of available bounds"):
         parse_chapter_selection("6", available)
