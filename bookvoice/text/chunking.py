@@ -13,6 +13,8 @@ from ..models.datatypes import Chapter, Chunk
 class Chunker:
     """Create fixed-size character chunks from chapters."""
 
+    _MIN_BOUNDARY_RATIO = 0.60
+
     def to_chunks(self, chapters: list[Chapter], target_size: int) -> list[Chunk]:
         """Split chapter texts into chunk records.
 
@@ -31,8 +33,11 @@ class Chunker:
         for chapter in chapters:
             text = chapter.text
             chunk_index = 0
-            for start in range(0, len(text), target_size):
-                end = min(start + target_size, len(text))
+            start = 0
+            text_length = len(text)
+            while start < text_length:
+                end = min(start + target_size, text_length)
+                end = self._prefer_boundary(text, start, end, target_size)
                 chunks.append(
                     Chunk(
                         chapter_index=chapter.index,
@@ -43,4 +48,21 @@ class Chunker:
                     )
                 )
                 chunk_index += 1
+                start = end
         return chunks
+
+    def _prefer_boundary(self, text: str, start: int, end: int, target_size: int) -> int:
+        """Shift split left to a natural delimiter when close to target size."""
+
+        if end >= len(text):
+            return end
+
+        window = text[start:end]
+        min_boundary = int(target_size * self._MIN_BOUNDARY_RATIO)
+        for delimiter in ("\n\n", "\n", " "):
+            boundary_pos = window.rfind(delimiter)
+            if boundary_pos >= min_boundary:
+                adjusted = start + boundary_pos + len(delimiter)
+                if adjusted > start:
+                    return adjusted
+        return end
