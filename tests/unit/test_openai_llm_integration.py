@@ -249,6 +249,60 @@ def test_openai_tts_happy_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     assert part.voice == "alloy"
 
 
+def test_openai_tts_slugifies_non_ascii_part_titles(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """TTS synthesizer should emit deterministic ASCII slug filenames for non-ASCII titles."""
+
+    def _mock_urlopen(_request, timeout: float = 0.0) -> _MockBinaryHTTPResponse:
+        """Return a mocked OpenAI speech binary WAV response payload."""
+
+        _ = timeout
+        return _MockBinaryHTTPResponse(_mock_wav_bytes())
+
+    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+
+    chunk = Chunk(
+        chapter_index=1,
+        chunk_index=0,
+        text="Hello world.",
+        char_start=0,
+        char_end=12,
+        part_index=1,
+        part_title="Český název: Úvod!",
+    )
+    rewrite = RewriteResult(
+        translation=TranslationResult(
+            chunk=chunk,
+            translated_text="Ahoj svete.",
+            provider="openai",
+            model="gpt-4.1-mini",
+        ),
+        rewritten_text="Ahoj svete.",
+        provider="openai",
+        model="gpt-4.1-mini",
+    )
+    synthesizer = OpenAITTSSynthesizer(
+        output_root=tmp_path,
+        model="gpt-4o-mini-tts",
+        provider_id="openai",
+        api_key="key",
+    )
+
+    part = synthesizer.synthesize(
+        rewrite,
+        VoiceProfile(
+            name="alloy",
+            provider_voice_id="alloy",
+            language="cs",
+            speaking_rate=1.0,
+        ),
+    )
+
+    assert part.path == tmp_path / "001_01_cesky-nazev-uvod.wav"
+    assert part.part_id == "001_01_cesky-nazev-uvod"
+
+
 def test_openai_tts_provider_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     """TTS synthesizer should raise provider error when OpenAI request fails."""
 

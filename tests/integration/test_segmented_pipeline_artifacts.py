@@ -113,13 +113,40 @@ def test_build_command_emits_segmented_part_artifacts(
         [3],
     ]
     assert parts_payload["metadata"]["chapter_part_map"] == [
-        {"chapter_index": 1, "part_index": 1, "part_id": "001_01_chapter-one", "source_order_indices": [1]},
-        {"chapter_index": 1, "part_index": 2, "part_id": "001_02_chapter-one", "source_order_indices": [2]},
-        {"chapter_index": 2, "part_index": 1, "part_id": "002_01_chapter-two", "source_order_indices": [3]},
+        {
+            "chapter_index": 1,
+            "part_index": 1,
+            "part_id": "001_01_chapter-one",
+            "source_order_indices": [1],
+            "filename": "001_01_chapter-one.wav",
+        },
+        {
+            "chapter_index": 1,
+            "part_index": 2,
+            "part_id": "001_02_chapter-one",
+            "source_order_indices": [2],
+            "filename": "001_02_chapter-one.wav",
+        },
+        {
+            "chapter_index": 2,
+            "part_index": 1,
+            "part_id": "002_01_chapter-two",
+            "source_order_indices": [3],
+            "filename": "002_01_chapter-two.wav",
+        },
+    ]
+    assert [item["filename"] for item in parts_payload["audio_parts"]] == [
+        "001_01_chapter-one.wav",
+        "001_02_chapter-one.wav",
+        "002_01_chapter-two.wav",
     ]
 
     assert payload["extra"]["part_count"] == "3"
     assert payload["extra"]["chapter_part_map_csv"] == "1:1,1:2,2:1"
+    assert (
+        payload["extra"]["part_filenames_csv"]
+        == "001_01_chapter-one.wav,001_02_chapter-one.wav,002_01_chapter-two.wav"
+    )
     assert payload["extra"]["part_source_structure_indices_csv"] == "1,2,3"
 
 
@@ -165,4 +192,8 @@ def test_resume_command_keeps_segmented_part_identifiers_stable(
 
     assert resumed_part_ids == before_part_ids
     assert resumed_payload["extra"]["chapter_part_map_csv"] == "1:1,1:2,2:1"
+    assert (
+        resumed_payload["extra"]["part_filenames_csv"]
+        == "001_01_chapter-one.wav,001_02_chapter-one.wav,002_01_chapter-two.wav"
+    )
     assert resumed_payload["extra"]["part_source_structure_indices_csv"] == "1,2,3"

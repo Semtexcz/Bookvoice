@@ -119,3 +119,26 @@ def test_planner_is_stable_across_repeated_runs_and_clamps_budget_ceiling() -> N
     assert first.budget_chars == planner.TEN_MINUTE_BUDGET_CEILING_CHARS
     assert [segment.text for segment in first.segments] == ["First.\n\nSecond."]
     assert planner.to_chunks(first)[0].chunk_index == 0
+
+
+def test_planner_to_chunks_uses_ascii_slug_for_part_ids() -> None:
+    """Planner chunk identifiers should use deterministic ASCII slugs from chapter titles."""
+
+    planner = TextBudgetSegmentPlanner()
+    units = [
+        ChapterStructureUnit(
+            order_index=1,
+            chapter_index=1,
+            chapter_title="Český název: Úvod!",
+            subchapter_index=None,
+            subchapter_title=None,
+            text="Text.",
+            char_start=0,
+            char_end=5,
+            source="text_heuristic",
+        ),
+    ]
+
+    chunks = planner.to_chunks(planner.plan(units, budget_chars=100))
+
+    assert chunks[0].part_id == "001_01_cesky-nazev-uvod"

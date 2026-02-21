@@ -8,14 +8,13 @@ Responsibilities:
 from __future__ import annotations
 
 import io
-import re
-import unicodedata
 import wave
 from pathlib import Path
 from typing import Protocol
 
 from ..llm.openai_client import OpenAIProviderError, OpenAISpeechClient
 from ..models.datatypes import AudioPart, RewriteResult
+from ..text.slug import slugify_audio_title
 from .voices import VoiceProfile
 
 
@@ -49,7 +48,7 @@ class OpenAITTSSynthesizer:
         chunk = rewrite.translation.chunk
         part_index = chunk.part_index if chunk.part_index is not None else chunk.chunk_index + 1
         part_title = chunk.part_title if chunk.part_title else f"chapter-{chunk.chapter_index:03d}"
-        slug = self._slugify(part_title)
+        slug = slugify_audio_title(part_title)
         relative = Path(f"{chunk.chapter_index:03d}_{part_index:02d}_{slug}.wav")
         output_path = relative if self.output_root is None else self.output_root / relative
         audio_bytes = self.client.synthesize_speech(
@@ -94,13 +93,3 @@ class OpenAITTSSynthesizer:
         if sample_rate <= 0:
             raise OpenAIProviderError("OpenAI speech response has invalid WAV sample rate.")
         return frame_count / float(sample_rate)
-
-    def _slugify(self, value: str) -> str:
-        """Create deterministic filesystem-safe ASCII slug from a title string."""
-
-        normalized = unicodedata.normalize("NFKD", value)
-        ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
-        lowered = ascii_only.lower().strip()
-        collapsed = re.sub(r"[^a-z0-9]+", "-", lowered)
-        slug = collapsed.strip("-")
-        return slug or "part"

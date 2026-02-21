@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.37] - 2026-02-21
+
+- Completed `TASK-022` by standardizing part filenames to deterministic `<chapter>_<part>_<title-slug>.wav`.
+- Unified slug generation through shared locale-independent ASCII normalization used by both segment planning and TTS synthesis.
+- Updated fallback chunk metadata to emit title-based part IDs instead of generic `_part` suffixes.
+- Extended `audio/parts.json` and manifest `extra` metadata with explicit emitted filename fields for produced audio files.
+- Added unit and integration tests for deterministic non-ASCII slug handling, filename pattern coverage, and resume stability of emitted filenames.
+- Updated `README.md` naming examples and moved `TASK-022` from `project/backlog/` to `project/done/`.
+
 ## [0.1.35] - 2026-02-21
 
 - Completed `TASK-026` by integrating structure-based segmented part planning into the pipeline `chunk` stage before TTS generation.

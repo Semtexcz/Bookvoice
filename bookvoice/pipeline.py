@@ -48,6 +48,7 @@ from .text.chapter_selection import (
 from .text.chunking import Chunker
 from .text.cleaners import TextCleaner
 from .text.segment_planner import TextBudgetSegmentPlanner
+from .text.slug import slugify_audio_title
 from .text.structure import ChapterStructureNormalizer
 from .telemetry.cost_tracker import CostTracker
 from .telemetry.logger import RunLogger
@@ -277,6 +278,7 @@ class BookvoicePipeline:
                     "translations": str(translations_path),
                     "rewrites": str(rewrites_path),
                     "audio_parts": str(audio_parts_path),
+                    "merged_audio_filename": merged_path.name,
                     "chapter_source": chapter_source,
                     "chapter_fallback_reason": chapter_fallback_reason,
                     **part_mapping_metadata,
@@ -582,6 +584,7 @@ class BookvoicePipeline:
                 "translations": str(translations_path),
                 "rewrites": str(rewrites_path),
                 "audio_parts": str(audio_parts_path),
+                "merged_audio_filename": final_merged_path.name,
                 "resume_next_stage": next_stage,
                 "chapter_source": chapter_source,
                 "chapter_fallback_reason": chapter_fallback_reason,
@@ -877,6 +880,7 @@ class BookvoicePipeline:
         for chunk in chunks:
             part_title = chapter_titles.get(chunk.chapter_index, f"Chapter {chunk.chapter_index}")
             part_index = chunk.chunk_index + 1
+            part_slug = slugify_audio_title(part_title)
             decorated.append(
                 Chunk(
                     chapter_index=chunk.chapter_index,
@@ -886,7 +890,7 @@ class BookvoicePipeline:
                     char_end=chunk.char_end,
                     part_index=part_index,
                     part_title=part_title,
-                    part_id=f"{chunk.chapter_index:03d}_{part_index:02d}_part",
+                    part_id=f"{chunk.chapter_index:03d}_{part_index:02d}_{part_slug}",
                     source_order_indices=tuple(),
                 )
             )
@@ -1022,6 +1026,7 @@ class BookvoicePipeline:
                     "part_title": item.part_title,
                     "part_id": item.part_id,
                     "source_order_indices": list(item.source_order_indices),
+                    "filename": item.path.name,
                     "path": str(item.path),
                     "duration_seconds": item.duration_seconds,
                     "provider": item.provider,
@@ -1041,6 +1046,7 @@ class BookvoicePipeline:
                         "part_index": part.part_index,
                         "part_id": part.part_id,
                         "source_order_indices": list(part.source_order_indices),
+                        "filename": part.path.name,
                     }
                     for part in audio_parts
                 ],
@@ -1057,6 +1063,10 @@ class BookvoicePipeline:
             f"{item.chapter_index}:{item.part_index if item.part_index is not None else item.chunk_index + 1}"
             for item in sorted(audio_parts, key=lambda part: (part.chapter_index, part.chunk_index))
         ]
+        part_filename_entries = [
+            item.path.name
+            for item in sorted(audio_parts, key=lambda part: (part.chapter_index, part.chunk_index))
+        ]
         referenced_unit_indices: list[int] = sorted(
             {
                 index
@@ -1067,6 +1077,7 @@ class BookvoicePipeline:
         return {
             "part_count": str(len(audio_parts)),
             "chapter_part_map_csv": ",".join(chapter_part_map_entries),
+            "part_filenames_csv": ",".join(part_filename_entries),
             "part_source_structure_indices_csv": ",".join(
                 str(index) for index in referenced_unit_indices
             ),

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 import re
 
 from ..models.datatypes import ChapterStructureUnit, Chunk, PlannedSegment, SegmentPlan
+from .slug import slugify_audio_title
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,20 +90,12 @@ class TextBudgetSegmentPlanner:
                 part_id=(
                     f"{segment.chapter_index:03d}_"
                     f"{segment.segment_index + 1:02d}_"
-                    f"{self._slugify_title(segment.chapter_title)}"
+                    f"{slugify_audio_title(segment.chapter_title)}"
                 ),
                 source_order_indices=segment.source_order_indices,
             )
             for segment in plan.segments
         ]
-
-    def _slugify_title(self, value: str) -> str:
-        """Create a deterministic ASCII slug for part-title identifiers."""
-
-        stripped = value.strip().lower()
-        normalized = re.sub(r"[^a-z0-9]+", "-", stripped)
-        slug = normalized.strip("-")
-        return slug or "part"
 
     def _group_units_by_chapter(
         self,

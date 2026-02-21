@@ -179,9 +179,15 @@ Each build creates a deterministic run directory:
 - `out/run-<hash>/run_manifest.json`
 
 `audio/parts.json` includes deterministic `chapter_index`, `part_index`, `part_id`,
-source `source_order_indices`, and per-part `provider`/`model`/`voice` metadata.
+final emitted `filename`, source `source_order_indices`, and per-part
+`provider`/`model`/`voice` metadata.
 `run_manifest.json` `extra` includes compact chapter/part mapping and referenced
-structure indices for resume/rebuild stability.
+structure indices for resume/rebuild stability, plus emitted audio filename fields.
+
+Filename examples:
+
+- `001_01_chapter-one.wav`
+- `007_03_cesky-nazev-uvod.wav` (non-ASCII title normalized to ASCII slug)
 
 ## Troubleshooting
 

@@ -91,3 +91,19 @@ def test_pipeline_translation_and_tts_keep_chunk_identity(
 
     assert translations[0].chunk is chunk
     assert rewrites[0].translation.chunk is chunk
+
+
+def test_pipeline_fallback_chunk_part_id_uses_title_slug() -> None:
+    """Fallback chunk decoration should use chapter-part-title deterministic identifiers."""
+
+    pipeline = BookvoicePipeline()
+    chunks = [
+        Chunk(chapter_index=1, chunk_index=0, text="Alpha", char_start=0, char_end=5),
+    ]
+    chapters = [
+        Chapter(index=1, title="Český název: Úvod!", text="Alpha"),
+    ]
+
+    decorated = pipeline._decorate_chunks_with_part_metadata(chunks, chapters)
+
+    assert decorated[0].part_id == "001_01_cesky-nazev-uvod"
