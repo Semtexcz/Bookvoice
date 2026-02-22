@@ -83,6 +83,60 @@ def rewrite_artifact_metadata(
     }
 
 
+def translation_artifact_payload(
+    translations: list[TranslationResult],
+    chapter_scope: dict[str, str],
+    runtime_config: ProviderRuntimeConfig,
+) -> dict[str, object]:
+    """Build deterministic translation artifact payload with runtime metadata."""
+
+    return {
+        "translations": [
+            {
+                "chunk": asdict(item.chunk),
+                "translated_text": item.translated_text,
+                "provider": item.provider,
+                "model": item.model,
+            }
+            for item in translations
+        ],
+        "metadata": {
+            "chapter_scope": chapter_scope,
+            "provider": runtime_config.translator_provider,
+            "model": runtime_config.translate_model,
+        },
+    }
+
+
+def rewrite_artifact_payload(
+    rewrites: list[RewriteResult],
+    chapter_scope: dict[str, str],
+    runtime_config: ProviderRuntimeConfig,
+) -> dict[str, object]:
+    """Build deterministic rewrite artifact payload with runtime metadata."""
+
+    return {
+        "rewrites": [
+            {
+                "translation": {
+                    "chunk": asdict(item.translation.chunk),
+                    "translated_text": item.translation.translated_text,
+                    "provider": item.translation.provider,
+                    "model": item.translation.model,
+                },
+                "rewritten_text": item.rewritten_text,
+                "provider": item.provider,
+                "model": item.model,
+            }
+            for item in rewrites
+        ],
+        "metadata": {
+            "chapter_scope": chapter_scope,
+            **rewrite_artifact_metadata(rewrites, runtime_config),
+        },
+    }
+
+
 def audio_parts_artifact_payload(
     audio_parts: list[AudioPart],
     chapter_scope: dict[str, str],

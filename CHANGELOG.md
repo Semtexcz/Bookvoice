@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.49] - 2026-02-22
+
+### Changed
+
+- Completed `TASK-027` by extracting shared translation and rewrite artifact payload builders into `bookvoice/pipeline/artifacts.py`.
+- Replaced duplicated inline payload construction in both `run` and `resume` orchestration flows with the shared artifact helpers.
+- Preserved persisted payload schema and field names for `text/translations.json` and `text/rewrites.json`.
+- Added coverage for artifact payload shape consistency with a new unit test and a resume integration assertion comparing build vs resume schemas.
+- Marked `TASK-027` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.1.49`.
+
 ## [0.1.48] - 2026-02-22
 
 - Completed `TASK-014F` by adding a dedicated provider integration test matrix for mocked translate/rewrite/TTS happy and failure paths with stage-specific assertions.

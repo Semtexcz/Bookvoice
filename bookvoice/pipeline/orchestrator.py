@@ -12,7 +12,6 @@ Key types:
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import asdict
 from pathlib import Path
 
 from ..config import BookvoiceConfig
@@ -33,7 +32,8 @@ from .artifacts import (
     load_rewrites,
     load_translations,
     part_mapping_manifest_metadata,
-    rewrite_artifact_metadata,
+    rewrite_artifact_payload,
+    translation_artifact_payload,
 )
 from .chapter_scope import PipelineChapterScopeMixin
 from .costs import (
@@ -172,22 +172,7 @@ class BookvoicePipeline(
         add_translation_costs(translations, cost_tracker)
         translations_path = store.save_json(
             Path("text/translations.json"),
-            {
-                "translations": [
-                    {
-                        "chunk": asdict(item.chunk),
-                        "translated_text": item.translated_text,
-                        "provider": item.provider,
-                        "model": item.model,
-                    }
-                    for item in translations
-                ],
-                "metadata": {
-                    "chapter_scope": chapter_scope,
-                    "provider": runtime_config.translator_provider,
-                    "model": runtime_config.translate_model,
-                },
-            },
+            translation_artifact_payload(translations, chapter_scope, runtime_config),
         )
 
         rewrites = self._run_stage(
@@ -197,26 +182,7 @@ class BookvoicePipeline(
         add_rewrite_costs(rewrites, cost_tracker)
         rewrites_path = store.save_json(
             Path("text/rewrites.json"),
-            {
-                "rewrites": [
-                    {
-                        "translation": {
-                            "chunk": asdict(item.translation.chunk),
-                            "translated_text": item.translation.translated_text,
-                            "provider": item.translation.provider,
-                            "model": item.translation.model,
-                        },
-                        "rewritten_text": item.rewritten_text,
-                        "provider": item.provider,
-                        "model": item.model,
-                    }
-                    for item in rewrites
-                ],
-                "metadata": {
-                    "chapter_scope": chapter_scope,
-                    **rewrite_artifact_metadata(rewrites, runtime_config),
-                },
-            },
+            rewrite_artifact_payload(rewrites, chapter_scope, runtime_config),
         )
 
         audio_parts = self._run_stage(
@@ -468,22 +434,7 @@ class BookvoicePipeline(
             translations = self._translate(chunks, config)
             translations_path = store.save_json(
                 Path("text/translations.json"),
-                {
-                    "translations": [
-                        {
-                            "chunk": asdict(item.chunk),
-                            "translated_text": item.translated_text,
-                            "provider": item.provider,
-                            "model": item.model,
-                        }
-                        for item in translations
-                    ],
-                    "metadata": {
-                        "chapter_scope": chapter_scope,
-                        "provider": runtime_config.translator_provider,
-                        "model": runtime_config.translate_model,
-                    },
-                },
+                translation_artifact_payload(translations, chapter_scope, runtime_config),
             )
         add_translation_costs(translations, cost_tracker)
 
@@ -493,26 +444,7 @@ class BookvoicePipeline(
             rewrites = self._rewrite_for_audio(translations, config, runtime_config)
             rewrites_path = store.save_json(
                 Path("text/rewrites.json"),
-                {
-                    "rewrites": [
-                        {
-                            "translation": {
-                                "chunk": asdict(item.translation.chunk),
-                                "translated_text": item.translation.translated_text,
-                                "provider": item.translation.provider,
-                                "model": item.translation.model,
-                            },
-                            "rewritten_text": item.rewritten_text,
-                            "provider": item.provider,
-                            "model": item.model,
-                        }
-                        for item in rewrites
-                    ],
-                    "metadata": {
-                        "chapter_scope": chapter_scope,
-                        **rewrite_artifact_metadata(rewrites, runtime_config),
-                    },
-                },
+                rewrite_artifact_payload(rewrites, chapter_scope, runtime_config),
             )
         add_rewrite_costs(rewrites, cost_tracker)
 

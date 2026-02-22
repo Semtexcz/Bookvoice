@@ -1,6 +1,6 @@
 ---
 task: TASK-027
-status: "backlog"
+status: "done"
 priority: P2
 type: refactor
 ---
@@ -8,7 +8,7 @@ type: refactor
 # Deduplicate translation and rewrite artifact payload builders
 
 Task: TASK-027
-Status: backlog
+Status: done
 Priority: P2
 Type: refactor
 Author:
@@ -21,10 +21,10 @@ Related: TASK-026, TASK-014F
 
 ## Definition of Done
 
-- [ ] Introduce shared payload builder helpers in `bookvoice/pipeline/artifacts.py` for translation and rewrite artifact bodies.
-- [ ] Replace duplicated inline payload construction in `bookvoice/pipeline/orchestrator.py` with those helpers.
-- [ ] Preserve output schema and field names in `text/translations.json` and `text/rewrites.json`.
-- [ ] Add/adjust unit tests that assert identical payload shape for full run and resume paths.
+- [x] Introduce shared payload builder helpers in `bookvoice/pipeline/artifacts.py` for translation and rewrite artifact bodies.
+- [x] Replace duplicated inline payload construction in `bookvoice/pipeline/orchestrator.py` with those helpers.
+- [x] Preserve output schema and field names in `text/translations.json` and `text/rewrites.json`.
+- [x] Add/adjust unit tests that assert identical payload shape for full run and resume paths.
 
 ## Notes
 
