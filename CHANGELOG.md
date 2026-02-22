@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.46] - 2026-02-22
+
+- Added a new agent rule in `AGENTS.md` requiring `CHANGELOG.md` updates after every code change.
+- Bumped project version to `0.1.46`.
+
 ## [0.1.42] - 2026-02-21
 
 - Further split `bookvoice/pipeline/orchestrator.py` into focused mixin modules.
