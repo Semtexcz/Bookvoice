@@ -28,5 +28,4 @@ Related: TASK-014E, TASK-012
 
 ## Notes
 
-- Do not introduce external HTTP libraries.
-- Keep standard library `urllib` implementation.
+ You can use `requests` library.
