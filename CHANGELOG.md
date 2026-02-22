@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2026-02-22
+
+### Changed
+
+- Added sanitized `.env.example` generated from root `.env` with `OPENAI_API_KEY` value removed.
+- Added local YAML runtime config file `bookvoice.local.yaml` containing API-key-based runtime settings.
+- Updated `.gitignore` to ignore `bookvoice.local.yaml` so local secrets stay untracked.
+- Bumped project version to `0.4.1`.
+
 ## [0.4.0] - 2026-02-22
 
 ### Added

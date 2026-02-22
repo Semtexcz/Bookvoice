@@ -25,4 +25,5 @@ venv/
 .vscode/
 
 .env
+bookvoice.local.yaml
 out/
