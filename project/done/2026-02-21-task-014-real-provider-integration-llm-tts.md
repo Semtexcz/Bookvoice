@@ -1,6 +1,6 @@
 ---
 task: TASK-014
-status: "backlog"
+status: "done"
 priority: P1
 type: epic
 ---
@@ -8,7 +8,7 @@ type: epic
 # Integrate real LLM and TTS provider APIs for production path
 
 Task: TASK-014
-Status: backlog
+Status: done
 Priority: P1
 Type: epic
 Author:
@@ -26,15 +26,15 @@ Current configuration assumptions also rely too heavily on environment files, wh
 - [x] `TASK-014B`: CLI credential/model UX with interactive prompts and secure API key persistence.
 - [x] `TASK-014C`: Real OpenAI LLM integration for translation and rewrite/bypass behavior.
 - [x] `TASK-014D`: Real OpenAI TTS integration with chunk artifact audio persistence.
-- [ ] `TASK-014E`: Stage-specific provider error mapping and actionable CLI diagnostics.
-- [ ] `TASK-014F`: Integration and unit tests for mocked provider happy/failure paths and config resolution modes.
+- [x] `TASK-014E`: Stage-specific provider error mapping and actionable CLI diagnostics.
+- [x] `TASK-014F`: Integration and unit tests for mocked provider happy/failure paths and config resolution modes.
 
 ## Definition of Done
 
-- [ ] All subtasks `TASK-014A` through `TASK-014F` are completed and merged.
-- [ ] End-to-end `bookvoice build` uses real OpenAI provider calls in translation and TTS by default.
-- [ ] CLI-first credential/model flow works for users without `.env` files.
-- [ ] Provider-ready architecture remains extensible for additional providers without pipeline rewrites.
+- [x] All subtasks `TASK-014A` through `TASK-014F` are completed and merged.
+- [x] End-to-end `bookvoice build` uses real OpenAI provider calls in translation and TTS by default.
+- [x] CLI-first credential/model flow works for users without `.env` files.
+- [x] Provider-ready architecture remains extensible for additional providers without pipeline rewrites.
 
 ## Notes
 

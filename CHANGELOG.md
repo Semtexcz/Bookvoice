@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.56] - 2026-02-22
+
+### Changed
+
+- Reviewed current implementation against `docs/ROADMAP.md` and current backlog/done task inventory.
+- Added `TASK-034` for real `translate-only` command execution through the translation stage with deterministic artifacts and integration tests.
+- Added `TASK-035` for real `tts-only` command execution from manifest artifacts with constrained stage replay and validation.
+- Added `TASK-036` for completing `ConfigLoader.from_yaml` and `ConfigLoader.from_env`.
+- Added `TASK-037` for resume artifact consistency hardening and recoverable/non-recoverable resume-state handling.
+- Added `TASK-038` for roadmap Phase 3 audio postprocessing and deterministic metadata tagging improvements.
+- Added `TASK-039` for optional output packaging formats beyond merged WAV.
+- Bumped project version to `0.1.56`.
+
 ## [0.1.55] - 2026-02-22
 
 ### Changed
