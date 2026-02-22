@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.1] - 2026-02-22
+
+### Changed
+
+- Updated `TASK-043` backlog scope to require explicit CLI/config output-language control for per-run target language selection.
+- Added `TASK-043` acceptance criteria to persist resolved output-language metadata in manifest `extra` for replay and audit visibility.
+- Bumped project version to `0.8.1`.
+
 ## [0.8.0] - 2026-02-22
 
 ### Added
