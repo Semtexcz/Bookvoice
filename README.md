@@ -21,7 +21,7 @@ Implemented today:
 
 Still intentionally limited:
 
-- `translate-only` and `tts-only` are placeholders.
+- `tts-only` is still a placeholder.
 - Audio postprocessing/tagging are minimal scaffolds.
 
 ## Chunk Boundary Guarantees
@@ -125,6 +125,20 @@ Example output excerpt:
 poetry run bookvoice chapters-only input.pdf --out out/
 poetry run bookvoice chapters-only input.pdf --out out/ --chapters 1-3
 ```
+
+### Translate-only (through translation artifacts)
+
+```bash
+poetry run bookvoice translate-only input.pdf --out out/
+poetry run bookvoice translate-only input.pdf --out out/ --chapters 2-4
+```
+
+Behavior:
+
+- Runs stages `extract`, `clean`, `split`, `chunk`, `translate`, `manifest`.
+- Persists deterministic text artifacts (`raw`, `clean`, `chapters`, `chunks`, `translations`) and `run_manifest.json`.
+- Does not execute `rewrite`, `tts`, or `merge`.
+- Supports the same provider/model/runtime precedence and secure credential flow as `build`.
 
 ### List chapters
 

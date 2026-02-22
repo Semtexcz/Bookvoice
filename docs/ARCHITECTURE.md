@@ -38,6 +38,9 @@ Primary flow in `BookvoicePipeline.run`:
 8. `merge`
 9. `manifest`
 
+`BookvoicePipeline.run_translate_only` executes the same deterministic text stages
+through `translate`, then writes manifest metadata for continuation workflows.
+
 `resume` reuses available artifacts and executes only missing stages.
 
 ## Runtime Configuration
@@ -64,6 +67,6 @@ Resolved non-secret runtime metadata is persisted in manifest `extra`.
 
 ## Current Constraints
 
-- `translate-only` and `tts-only` commands are placeholders.
+- `tts-only` command is still a placeholder.
 - Audio postprocessing and metadata tagging are intentionally minimal.
 - YAML/environment config loader helpers are present but still placeholder implementations.

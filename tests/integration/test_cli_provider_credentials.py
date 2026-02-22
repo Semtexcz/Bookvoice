@@ -215,6 +215,58 @@ def test_build_non_interactive_runtime_falls_back_to_env_when_cli_and_secure_mis
     assert observed_runtime["api_key"] == "env-api-key"
 
 
+def test_translate_only_non_interactive_runtime_precedence_cli_over_secure_over_env(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Translate-only should resolve runtime values with the same precedence as build."""
+
+    observed_runtime: dict[str, str] = {}
+
+    def _fake_translate_only(self, config):  # type: ignore[no-untyped-def]
+        """Resolve runtime values and capture deterministic translate-only selections."""
+
+        runtime = config.resolved_provider_runtime(config.runtime_sources)
+        observed_runtime["translate_model"] = runtime.translate_model
+        observed_runtime["rewrite_model"] = runtime.rewrite_model
+        observed_runtime["tts_model"] = runtime.tts_model
+        observed_runtime["api_key"] = runtime.api_key or ""
+        return _manifest_stub()
+
+    monkeypatch.setattr(
+        "bookvoice.cli.BookvoicePipeline.run_translate_only",
+        _fake_translate_only,
+    )
+    monkeypatch.setattr(
+        "bookvoice.cli.create_credential_store",
+        lambda: InMemoryCredentialStore(initial_api_key="secure-api-key"),
+    )
+    monkeypatch.setenv("OPENAI_API_KEY", "env-api-key")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "translate-only",
+            str(Path("tests/files/zero_to_one.pdf")),
+            "--out",
+            str(tmp_path / "out"),
+            "--model-translate",
+            "cli-model-t",
+            "--model-rewrite",
+            "cli-model-r",
+            "--model-tts",
+            "cli-model-tts",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert observed_runtime["translate_model"] == "cli-model-t"
+    assert observed_runtime["rewrite_model"] == "cli-model-r"
+    assert observed_runtime["tts_model"] == "cli-model-tts"
+    assert observed_runtime["api_key"] == "secure-api-key"
+
+
 def test_credentials_command_supports_set_clear_and_status(
     monkeypatch: MonkeyPatch,
 ) -> None:

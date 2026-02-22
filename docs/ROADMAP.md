@@ -23,7 +23,7 @@ Implemented:
 
 Still limited:
 
-- `translate-only` and `tts-only` commands are placeholders.
+- `tts-only` command is still a placeholder.
 - Postprocessing and metadata tagging are minimal.
 - `ConfigLoader.from_yaml` and `ConfigLoader.from_env` remain placeholders.
 
@@ -37,9 +37,8 @@ Goal:
 
 Scope:
 
-- Implement real `translate-only`.
 - Implement real `tts-only` from manifest/artifacts.
-- Add integration tests for both command paths.
+- Add integration tests for `tts-only` command path.
 
 ## Phase 2: Reliability Hardening
 

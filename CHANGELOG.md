@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-02-22
+
+### Added
+
+- Completed `TASK-034` by implementing a real `bookvoice translate-only` command path that executes stages through `translate` and writes deterministic `text/raw.txt`, `text/clean.txt`, `text/chapters.json`, `text/chunks.json`, and `text/translations.json` artifacts.
+- Added pipeline orchestration entrypoint `BookvoicePipeline.run_translate_only` to keep translate-stage execution explicit and reusable from CLI wiring.
+- Added integration coverage for `translate-only` artifact behavior and command diagnostics, including explicit assertions that `rewrite`, `tts`, and `merge` outputs are not produced.
+- Added runtime precedence coverage proving `translate-only` resolves provider/model/API key values with the same `CLI > secure > env > defaults` behavior as `build`.
+
+### Changed
+
+- Updated `bookvoice translate-only` CLI wiring to use runtime source resolution, chapter selection support, stage progress/phase logs, and concise manifest/cost output consistent with existing command rendering.
+- Updated docs (`README.md`, `docs/ARCHITECTURE.md`, `docs/MODULES.md`, `docs/ROADMAP.md`) to remove placeholder wording for `translate-only` and document real command behavior.
+- Marked `TASK-034` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.2.0`.
+
 ## [0.1.56] - 2026-02-22
 
 ### Changed

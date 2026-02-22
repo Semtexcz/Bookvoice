@@ -5,11 +5,11 @@
 | Module | Responsibility | Key public APIs |
 |---|---|---|
 | `bookvoice.__init__` | Package exports and versioning | `__version__`, `BookvoicePipeline` |
-| `bookvoice.cli` | CLI entrypoint and command wiring | `app`, `main`, `build_command`, `chapters_only_command`, `list_chapters_command`, `resume_command`, `credentials_command` |
+| `bookvoice.cli` | CLI entrypoint and command wiring | `app`, `main`, `build_command`, `chapters_only_command`, `list_chapters_command`, `translate_only_command`, `resume_command`, `credentials_command` |
 | `bookvoice.config` | Runtime config model and precedence resolution | `BookvoiceConfig`, `ProviderRuntimeConfig`, `RuntimeConfigSources`, `ConfigLoader` |
 | `bookvoice.credentials` | Secure API-key persistence via keyring | `CredentialStore`, `KeyringCredentialStore`, `create_credential_store` |
 | `bookvoice.provider_factory` | Provider to implementation mapping | `ProviderFactory.create_translator`, `create_rewriter`, `create_tts_synthesizer` |
-| `bookvoice.pipeline.orchestrator` | Top-level run/chapters-only/resume orchestration | `BookvoicePipeline.run`, `run_chapters_only`, `resume`, `list_chapters_from_pdf`, `list_chapters_from_artifact` |
+| `bookvoice.pipeline.orchestrator` | Top-level run/chapters-only/translate-only/resume orchestration | `BookvoicePipeline.run`, `run_chapters_only`, `run_translate_only`, `resume`, `list_chapters_from_pdf`, `list_chapters_from_artifact` |
 | `bookvoice.pipeline.artifacts` | Artifact payload serialization and loading | `chapter_artifact_payload`, `chunk_artifact_payload`, `audio_parts_artifact_payload`, `manifest_payload`, `load_*` helpers |
 | `bookvoice.pipeline.resume` | Resume manifest validation and stage detection | `load_manifest_payload`, `detect_next_stage`, `resolve_artifact_path` |
 | `bookvoice.io.*` | PDF extraction, chapter splitting, filesystem artifacts | `PdfTextExtractor`, `PdfOutlineChapterExtractor`, `ChapterSplitter`, `ArtifactStore` |

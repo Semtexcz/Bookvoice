@@ -335,6 +335,81 @@ class BookvoicePipeline(
             store=store,
         )
 
+    def run_translate_only(self, config: BookvoiceConfig) -> RunManifest:
+        """Run stages through translation and persist deterministic text artifacts."""
+
+        run_id, config_hash, store = self._prepare_run(config)
+        runtime_config = self._resolve_runtime_config(config)
+        cost_tracker = CostTracker()
+
+        raw_text = self._run_stage("extract", lambda: self._extract(config))
+        raw_text_path = store.save_text(Path("text/raw.txt"), raw_text)
+
+        clean_text = self._run_stage("clean", lambda: self._clean(raw_text))
+        clean_text_path = store.save_text(Path("text/clean.txt"), clean_text)
+
+        chapters, chapter_source, chapter_fallback_reason = self._run_stage(
+            "split",
+            lambda: self._split_chapters(clean_text, config.input_pdf),
+        )
+        normalized_structure = self._extract_normalized_structure(
+            chapters, chapter_source, config.input_pdf
+        )
+        selected_chapters, chapter_scope = self._resolve_chapter_scope(
+            chapters, config.chapter_selection
+        )
+        chapters_path = store.save_json(
+            Path("text/chapters.json"),
+            chapter_artifact_payload(
+                chapters,
+                chapter_source,
+                chapter_fallback_reason,
+                chapter_scope,
+                normalized_structure,
+            ),
+        )
+
+        chunks, chunk_metadata = self._run_stage(
+            "chunk",
+            lambda: self._chunk(selected_chapters, normalized_structure, config),
+        )
+        chunks_path = store.save_json(
+            Path("text/chunks.json"),
+            chunk_artifact_payload(chunks, chapter_scope, chunk_metadata),
+        )
+
+        translations = self._run_stage("translate", lambda: self._translate(chunks, config))
+        add_translation_costs(translations, cost_tracker)
+        translations_path = store.save_json(
+            Path("text/translations.json"),
+            translation_artifact_payload(translations, chapter_scope, runtime_config),
+        )
+
+        return self._run_stage(
+            "manifest",
+            lambda: self._write_manifest(
+                config=config,
+                run_id=run_id,
+                config_hash=config_hash,
+                merged_audio_path=self._merged_output_path_for_scope(store, chapter_scope),
+                artifact_paths={
+                    "run_root": str(store.root),
+                    "raw_text": str(raw_text_path),
+                    "clean_text": str(clean_text_path),
+                    "chapters": str(chapters_path),
+                    "chunks": str(chunks_path),
+                    "translations": str(translations_path),
+                    "chapter_source": chapter_source,
+                    "chapter_fallback_reason": chapter_fallback_reason,
+                    "pipeline_mode": "translate_only",
+                    **runtime_config.as_manifest_metadata(),
+                    **chapter_scope,
+                },
+                cost_summary=rounded_cost_summary(cost_tracker),
+                store=store,
+            ),
+        )
+
     def resume(self, manifest_path: Path) -> RunManifest:
         """Resume a run from an existing manifest and artifacts."""
 

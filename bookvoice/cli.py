@@ -270,19 +270,121 @@ def list_chapters_command(
 def translate_only_command(
     input_pdf: Annotated[Path, typer.Argument(help="Path to source PDF.")],
     out: Annotated[Path, typer.Option("--out", help="Output directory.")] = Path("out"),
+    chapters: Annotated[
+        str | None,
+        typer.Option(
+            "--chapters",
+            help=(
+                "1-based chapter selection: `5`, `1,3,7`, `2-4`, or mixed `1,3-5`."
+            ),
+        ),
+    ] = None,
+    provider_translator: Annotated[
+        str | None, typer.Option("--provider-translator", help="Translator provider id.")
+    ] = None,
+    provider_rewriter: Annotated[
+        str | None, typer.Option("--provider-rewriter", help="Rewriter provider id.")
+    ] = None,
+    provider_tts: Annotated[
+        str | None, typer.Option("--provider-tts", help="TTS provider id.")
+    ] = None,
+    model_translate: Annotated[
+        str | None,
+        typer.Option("--model-translate", help="Translation model id override."),
+    ] = None,
+    model_rewrite: Annotated[
+        str | None,
+        typer.Option("--model-rewrite", help="Rewrite model id override."),
+    ] = None,
+    model_tts: Annotated[
+        str | None,
+        typer.Option("--model-tts", help="TTS model id override."),
+    ] = None,
+    tts_voice: Annotated[
+        str | None,
+        typer.Option("--tts-voice", help="TTS voice id override."),
+    ] = None,
+    api_key: Annotated[
+        str | None,
+        typer.Option(
+            "--api-key",
+            help="Provider API key override. Prefer `--prompt-api-key` to avoid shell history.",
+        ),
+    ] = None,
+    prompt_api_key: Annotated[
+        bool,
+        typer.Option(
+            "--prompt-api-key",
+            help="Prompt for API key with hidden input (never echoed).",
+        ),
+    ] = False,
+    interactive_provider_setup: Annotated[
+        bool,
+        typer.Option(
+            "--interactive-provider-setup",
+            help="Prompt interactively for provider/model values and optional API key.",
+        ),
+    ] = False,
+    store_api_key: Annotated[
+        bool,
+        typer.Option(
+            "--store-api-key/--no-store-api-key",
+            help="Persist CLI-entered API key to secure credential storage.",
+        ),
+    ] = True,
+    rewrite_bypass: Annotated[
+        bool,
+        typer.Option(
+            "--rewrite-bypass/--no-rewrite-bypass",
+            help=(
+                "Set rewrite bypass preference metadata using deterministic pass-through mode "
+                "for downstream commands."
+            ),
+        ),
+    ] = False,
 ) -> None:
-    """Run translation stages only (stub currently runs full pipeline)."""
+    """Run pipeline stages through translation and persist text artifacts."""
 
     try:
-        pipeline = BookvoicePipeline()
-        config = BookvoiceConfig(input_pdf=input_pdf, output_dir=out)
-        manifest = pipeline.run(config)
+        runtime_cli_values, runtime_secure_values = resolve_provider_runtime_sources(
+            provider_translator=provider_translator,
+            provider_rewriter=provider_rewriter,
+            provider_tts=provider_tts,
+            model_translate=model_translate,
+            model_rewrite=model_rewrite,
+            model_tts=model_tts,
+            tts_voice=tts_voice,
+            api_key=api_key,
+            interactive_provider_setup=interactive_provider_setup,
+            prompt_api_key=prompt_api_key,
+            store_api_key=store_api_key,
+            credential_store_factory=create_credential_store,
+        )
+        progress = BuildProgressIndicator(command_name="translate-only")
+        pipeline = BookvoicePipeline(
+            run_logger=RunLogger(),
+            stage_progress_callback=progress.on_stage_start,
+        )
+        config = BookvoiceConfig(
+            input_pdf=input_pdf,
+            output_dir=out,
+            chapter_selection=chapters,
+            rewrite_bypass=rewrite_bypass,
+            runtime_sources=RuntimeConfigSources(
+                cli=runtime_cli_values,
+                secure=runtime_secure_values,
+                env=os.environ,
+            ),
+        )
+        manifest = pipeline.run_translate_only(config)
     except Exception as exc:
         exit_with_command_error("translate-only", exc)
 
-    typer.echo(f"[translate-only] Would process: {config.input_pdf}")
-    typer.echo(f"[translate-only] Output dir: {config.output_dir}")
-    typer.echo(f"[translate-only] Stub run id: {manifest.run_id}")
+    typer.echo(f"Run id: {manifest.run_id}")
+    typer.echo(f"Translations artifact: {manifest.extra.get('translations', '(not written)')}")
+    typer.echo(f"Manifest: {manifest.extra.get('manifest_path', '(not written)')}")
+    echo_chapter_summary(manifest)
+    echo_cost_summary(manifest)
 
 
 @app.command("credentials")
