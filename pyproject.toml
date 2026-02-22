@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bookvoice"
-version = "0.1.54"
+version = "0.1.55"
 description = "Deterministic pipeline scaffold for converting PDF books into Czech audiobook outputs."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -26,7 +26,8 @@ dependencies = [
   "typer>=0.12,<1.0",
   "pypdf (>=6.7.1,<7.0.0)",
   "keyring>=25.6.0,<26.0.0",
-  "loguru>=0.7.2,<1.0.0"
+  "loguru>=0.7.2,<1.0.0",
+  "requests>=2.32.0,<3.0.0"
 ]
 
 [project.optional-dependencies]

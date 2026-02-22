@@ -1,6 +1,6 @@
 ---
 task: TASK-033
-status: "backlog"
+status: "done"
 priority: P2
 type: refactor
 ---
@@ -8,7 +8,7 @@ type: refactor
 # Standardize provider HTTP transport on requests
 
 Task: TASK-033
-Status: backlog
+Status: done
 Priority: P2
 Type: refactor
 Author:
@@ -21,11 +21,11 @@ Related: TASK-032, TASK-014E, TASK-012
 
 ## Definition of Done
 
-- [ ] Replace `urllib` transport usage in `bookvoice/llm/openai_client.py` with `requests` while preserving current public client APIs.
-- [ ] Keep current OpenAI endpoint behavior for chat completions and speech synthesis.
-- [ ] Preserve stage-facing `OpenAIProviderError` semantics and actionable diagnostics.
-- [ ] Add/adjust tests for mapped transport failures (`HTTP` errors, timeouts, connection errors, malformed/empty payloads).
-- [ ] Add `requests` as an explicit project dependency and keep lockfile synchronized.
+- [x] Replace `urllib` transport usage in `bookvoice/llm/openai_client.py` with `requests` while preserving current public client APIs.
+- [x] Keep current OpenAI endpoint behavior for chat completions and speech synthesis.
+- [x] Preserve stage-facing `OpenAIProviderError` semantics and actionable diagnostics.
+- [x] Add/adjust tests for mapped transport failures (`HTTP` errors, timeouts, connection errors, malformed/empty payloads).
+- [x] Add `requests` as an explicit project dependency and keep lockfile synchronized.
 
 ## Notes
 

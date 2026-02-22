@@ -12,7 +12,8 @@ import json
 import re
 import socket
 from typing import Any
-from urllib import error, request
+
+import requests
 
 
 class OpenAIProviderError(RuntimeError):
@@ -62,48 +63,40 @@ class _OpenAIBaseClient:
                 failure_kind="invalid_api_key",
             )
 
-    def _build_json_post_request(
+    def _execute_json_post_bytes(
         self,
+        *,
         endpoint_path: str,
         payload: dict[str, Any],
-    ) -> request.Request:
-        """Build a JSON POST request for an OpenAI API endpoint path."""
-
-        body = json.dumps(payload).encode("utf-8")
-        endpoint = f"{self.base_url}{endpoint_path}"
-        return request.Request(
-            endpoint,
-            data=body,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-            method="POST",
-        )
-
-    def _execute_request_bytes(
-        self,
-        http_request: request.Request,
-        *,
         require_non_empty_response: bool = False,
         empty_response_message: str = "OpenAI response is empty.",
     ) -> bytes:
-        """Execute an HTTP request and map transport/provider failures consistently."""
+        """Execute an OpenAI JSON POST request and map failures consistently."""
 
+        endpoint = f"{self.base_url}{endpoint_path}"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
         try:
-            with request.urlopen(http_request, timeout=self.timeout_seconds) as response:
-                response_bytes = response.read()
-        except error.HTTPError as exc:
+            response = requests.post(
+                endpoint,
+                headers=headers,
+                json=payload,
+                timeout=self.timeout_seconds,
+            )
+            response.raise_for_status()
+            response_bytes = bytes(response.content)
+        except requests.HTTPError as exc:
             raise self._http_error_to_provider_error(exc) from exc
-        except error.URLError as exc:
-            reason = getattr(exc, "reason", exc)
-            failure_kind = self._classify_transport_failure(reason)
+        except requests.RequestException as exc:
+            failure_kind = self._classify_transport_failure(exc)
             if failure_kind == "timeout":
                 detail = "OpenAI request timed out."
             else:
                 detail = (
                     "OpenAI request transport error: "
-                    f"{self._short_message(str(reason))}"
+                    f"{self._short_message(str(exc))}"
                 )
             raise OpenAIProviderError(detail, failure_kind=failure_kind) from exc
         except TimeoutError as exc:
@@ -119,7 +112,7 @@ class _OpenAIBaseClient:
 
         if require_non_empty_response and not response_bytes:
             raise OpenAIProviderError(empty_response_message)
-        return bytes(response_bytes)
+        return response_bytes
 
     def _post_json_bytes(
         self,
@@ -131,22 +124,22 @@ class _OpenAIBaseClient:
     ) -> bytes:
         """POST JSON payload to OpenAI and return raw response bytes."""
 
-        http_request = self._build_json_post_request(
+        return self._execute_json_post_bytes(
             endpoint_path=endpoint_path,
             payload=payload,
-        )
-        return self._execute_request_bytes(
-            http_request,
             require_non_empty_response=require_non_empty_response,
             empty_response_message=empty_response_message,
         )
 
     @staticmethod
-    def _decode_error_body(exc: error.HTTPError) -> str:
+    def _decode_error_body(exc: requests.HTTPError) -> str:
         """Decode an HTTP error body into a best-effort UTF-8 payload string."""
 
+        response = exc.response
+        if response is None:
+            return ""
         try:
-            return exc.read().decode("utf-8", errors="replace").strip()
+            return bytes(response.content).decode("utf-8", errors="replace").strip()
         except Exception:
             return ""
 
@@ -230,17 +223,18 @@ class _OpenAIBaseClient:
     def _classify_transport_failure(reason: object) -> str:
         """Classify network-layer failures into deterministic diagnostic kinds."""
 
-        if isinstance(reason, TimeoutError | socket.timeout):
+        if isinstance(reason, TimeoutError | socket.timeout | requests.Timeout):
             return "timeout"
         return "transport"
 
     @classmethod
-    def _http_error_to_provider_error(cls, exc: error.HTTPError) -> OpenAIProviderError:
+    def _http_error_to_provider_error(cls, exc: requests.HTTPError) -> OpenAIProviderError:
         """Convert HTTP errors into normalized provider exceptions with metadata."""
 
+        status_code = exc.response.status_code if exc.response is not None else 0
         body = cls._decode_error_body(exc)
         provider_message, provider_code = cls._extract_provider_message(body)
-        failure_kind = cls._classify_http_failure(exc.code, provider_message, provider_code)
+        failure_kind = cls._classify_http_failure(status_code, provider_message, provider_code)
 
         headline = {
             "invalid_api_key": "OpenAI authentication failed",
@@ -250,20 +244,20 @@ class _OpenAIBaseClient:
         }.get(failure_kind, "OpenAI request failed")
 
         if provider_message:
-            detail = f"{headline} (HTTP {exc.code}): {provider_message}"
+            detail = f"{headline} (HTTP {status_code}): {provider_message}"
         else:
-            detail = f"{headline} (HTTP {exc.code})."
+            detail = f"{headline} (HTTP {status_code})."
 
         return OpenAIProviderError(
             detail,
             failure_kind=failure_kind,
-            status_code=exc.code,
+            status_code=status_code,
             provider_code=provider_code,
         )
 
 
 class OpenAIChatClient(_OpenAIBaseClient):
-    """Minimal stdlib-based OpenAI chat-completions HTTP client."""
+    """Minimal requests-based OpenAI chat-completions HTTP client."""
 
     def chat_completion_text(
         self,
@@ -337,7 +331,7 @@ class OpenAIChatClient(_OpenAIBaseClient):
 
 
 class OpenAISpeechClient(_OpenAIBaseClient):
-    """Minimal stdlib-based OpenAI speech HTTP client for TTS synthesis."""
+    """Minimal requests-based OpenAI speech HTTP client for TTS synthesis."""
 
     def synthesize_speech(
         self,

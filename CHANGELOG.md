@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.55] - 2026-02-22
+
+### Changed
+
+- Completed `TASK-033` by replacing `urllib` transport calls in `bookvoice/llm/openai_client.py` with `requests.post` while preserving existing `OpenAIChatClient` and `OpenAISpeechClient` public APIs.
+- Preserved OpenAI endpoint behavior for `/chat/completions` and `/audio/speech` requests, including shared response-byte handling and empty speech payload validation.
+- Kept stage-facing `OpenAIProviderError` semantics and actionable diagnostics for invalid key, quota, model, timeout, and transport failure mapping.
+- Updated OpenAI integration unit tests to use `requests`-style mocked responses/exceptions and added explicit coverage for mapped HTTP failures, timeout/connection transport failures, and malformed or empty payload handling.
+- Added `requests` as an explicit project dependency and synchronized `poetry.lock`.
+- Marked `TASK-033` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.1.55`.
+
 ## [0.1.54] - 2026-02-22
 
 ### Changed

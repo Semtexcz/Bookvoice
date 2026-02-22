@@ -5,11 +5,10 @@ from __future__ import annotations
 import io
 import json
 from pathlib import Path
-import socket
-from urllib import error
 import wave
 
 import pytest
+import requests
 
 from bookvoice.config import BookvoiceConfig
 from bookvoice.errors import PipelineStageError
@@ -23,58 +22,49 @@ from bookvoice.tts.synthesizer import OpenAITTSSynthesizer
 from bookvoice.tts.voices import VoiceProfile
 
 
-class _MockHTTPResponse:
-    """Minimal context-managed HTTP response mock for urlopen patching."""
+class _MockRequestsResponse:
+    """Minimal requests response mock for HTTP transport patching."""
 
-    def __init__(self, payload: dict[str, object]) -> None:
-        """Initialize response with JSON payload."""
+    def __init__(self, *, payload: bytes, status_code: int = 200) -> None:
+        """Initialize response with raw payload bytes and HTTP status."""
 
-        self._payload = json.dumps(payload).encode("utf-8")
+        self.content = payload
+        self.status_code = status_code
 
-    def __enter__(self) -> _MockHTTPResponse:
-        """Return self for context manager entry."""
+    def raise_for_status(self) -> None:
+        """Raise HTTPError when the response status represents a failure."""
 
-        return self
-
-    def __exit__(self, exc_type, exc, tb) -> bool:
-        """Propagate exceptions raised inside context manager block."""
-
-        _ = exc_type
-        _ = exc
-        _ = tb
-        return False
-
-    def read(self) -> bytes:
-        """Return serialized JSON bytes."""
-
-        return self._payload
+        if self.status_code >= 400:
+            raise requests.HTTPError(
+                f"HTTP {self.status_code} error",
+                response=self,
+            )
 
 
 class _MockBinaryHTTPResponse:
-    """Minimal context-managed binary HTTP response mock for TTS payloads."""
+    """Minimal requests response mock for binary TTS payloads."""
 
     def __init__(self, payload: bytes) -> None:
         """Initialize response with binary payload bytes."""
 
         self._payload = payload
 
-    def __enter__(self) -> _MockBinaryHTTPResponse:
-        """Return self for context manager entry."""
-
-        return self
-
-    def __exit__(self, exc_type, exc, tb) -> bool:
-        """Propagate exceptions raised inside context manager block."""
-
-        _ = exc_type
-        _ = exc
-        _ = tb
-        return False
-
-    def read(self) -> bytes:
+    @property
+    def content(self) -> bytes:
         """Return serialized binary payload bytes."""
 
         return self._payload
+
+    @property
+    def status_code(self) -> int:
+        """Expose successful HTTP status for compatibility with requests API."""
+
+        return 200
+
+    def raise_for_status(self) -> None:
+        """No-op for successful mocked binary responses."""
+
+        return None
 
 
 def _mock_wav_bytes(duration_seconds: float = 0.25, sample_rate: int = 24000) -> bytes:
@@ -93,19 +83,20 @@ def _mock_wav_bytes(duration_seconds: float = 0.25, sample_rate: int = 24000) ->
 def test_openai_translator_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
     """Translator should return OpenAI text output and preserve provider/model metadata."""
 
-    def _mock_urlopen(_request, timeout: float = 0.0) -> _MockHTTPResponse:
+    def _mock_post(_url: str, **_kwargs: object) -> _MockRequestsResponse:
         """Return a mocked OpenAI chat-completions response."""
 
-        _ = timeout
-        return _MockHTTPResponse(
-            {
-                "choices": [
-                    {"message": {"content": "Ahoj svete."}},
-                ]
-            }
+        return _MockRequestsResponse(
+            payload=json.dumps(
+                {
+                    "choices": [
+                        {"message": {"content": "Ahoj svete."}},
+                    ]
+                }
+            ).encode("utf-8")
         )
 
-    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    monkeypatch.setattr("bookvoice.llm.openai_client.requests.post", _mock_post)
 
     translator = OpenAITranslator(model="gpt-4.1-mini", provider_id="openai", api_key="key")
     chunk = Chunk(chapter_index=1, chunk_index=0, text="Hello world.", char_start=0, char_end=12)
@@ -120,13 +111,12 @@ def test_openai_translator_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_openai_translator_provider_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     """Translator should raise provider error when OpenAI request fails."""
 
-    def _mock_urlopen(_request, timeout: float = 0.0):
+    def _mock_post(_url: str, **_kwargs: object) -> _MockRequestsResponse:
         """Raise transport error for provider-failure path."""
 
-        _ = timeout
-        raise error.URLError("network down")
+        raise requests.ConnectionError("network down")
 
-    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    monkeypatch.setattr("bookvoice.llm.openai_client.requests.post", _mock_post)
 
     translator = OpenAITranslator(model="gpt-4.1-mini", provider_id="openai", api_key="key")
     chunk = Chunk(chapter_index=1, chunk_index=0, text="Hello world.", char_start=0, char_end=12)
@@ -138,19 +128,20 @@ def test_openai_translator_provider_failure(monkeypatch: pytest.MonkeyPatch) -> 
 def test_openai_rewriter_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
     """Rewriter should return OpenAI text output and preserve provider/model metadata."""
 
-    def _mock_urlopen(_request, timeout: float = 0.0) -> _MockHTTPResponse:
+    def _mock_post(_url: str, **_kwargs: object) -> _MockRequestsResponse:
         """Return a mocked OpenAI rewrite response payload."""
 
-        _ = timeout
-        return _MockHTTPResponse(
-            {
-                "choices": [
-                    {"message": {"content": "Ahoj svete, vitejte u poslechu."}},
-                ]
-            }
+        return _MockRequestsResponse(
+            payload=json.dumps(
+                {
+                    "choices": [
+                        {"message": {"content": "Ahoj svete, vitejte u poslechu."}},
+                    ]
+                }
+            ).encode("utf-8")
         )
 
-    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    monkeypatch.setattr("bookvoice.llm.openai_client.requests.post", _mock_post)
 
     chunk = Chunk(chapter_index=1, chunk_index=0, text="Hello world.", char_start=0, char_end=12)
     translation = TranslationResult(
@@ -171,19 +162,15 @@ def test_openai_rewriter_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_openai_rewriter_provider_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     """Rewriter should raise provider error when OpenAI request fails."""
 
-    def _mock_urlopen(_request, timeout: float = 0.0):
+    def _mock_post(_url: str, **_kwargs: object) -> _MockRequestsResponse:
         """Raise HTTP error for provider-failure path."""
 
-        _ = timeout
-        raise error.HTTPError(
-            url="https://api.openai.com/v1/chat/completions",
-            code=401,
-            msg="Unauthorized",
-            hdrs=None,
-            fp=io.BytesIO(b'{"error":{"message":"invalid api key"}}'),
+        return _MockRequestsResponse(
+            status_code=401,
+            payload=b'{"error":{"message":"invalid api key"}}',
         )
 
-    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    monkeypatch.setattr("bookvoice.llm.openai_client.requests.post", _mock_post)
 
     chunk = Chunk(chapter_index=1, chunk_index=0, text="Hello world.", char_start=0, char_end=12)
     translation = TranslationResult(
@@ -202,13 +189,12 @@ def test_openai_rewriter_provider_failure(monkeypatch: pytest.MonkeyPatch) -> No
 def test_openai_tts_happy_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """TTS synthesizer should write OpenAI WAV bytes and preserve provider metadata."""
 
-    def _mock_urlopen(_request, timeout: float = 0.0) -> _MockBinaryHTTPResponse:
+    def _mock_post(_url: str, **_kwargs: object) -> _MockBinaryHTTPResponse:
         """Return a mocked OpenAI speech binary WAV response payload."""
 
-        _ = timeout
         return _MockBinaryHTTPResponse(_mock_wav_bytes())
 
-    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    monkeypatch.setattr("bookvoice.llm.openai_client.requests.post", _mock_post)
 
     chunk = Chunk(chapter_index=2, chunk_index=3, text="Hello world.", char_start=0, char_end=12)
     rewrite = RewriteResult(
@@ -256,13 +242,12 @@ def test_openai_tts_slugifies_non_ascii_part_titles(
 ) -> None:
     """TTS synthesizer should emit deterministic ASCII slug filenames for non-ASCII titles."""
 
-    def _mock_urlopen(_request, timeout: float = 0.0) -> _MockBinaryHTTPResponse:
+    def _mock_post(_url: str, **_kwargs: object) -> _MockBinaryHTTPResponse:
         """Return a mocked OpenAI speech binary WAV response payload."""
 
-        _ = timeout
         return _MockBinaryHTTPResponse(_mock_wav_bytes())
 
-    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    monkeypatch.setattr("bookvoice.llm.openai_client.requests.post", _mock_post)
 
     chunk = Chunk(
         chapter_index=1,
@@ -308,19 +293,15 @@ def test_openai_tts_slugifies_non_ascii_part_titles(
 def test_openai_tts_provider_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     """TTS synthesizer should raise provider error when OpenAI request fails."""
 
-    def _mock_urlopen(_request, timeout: float = 0.0):
+    def _mock_post(_url: str, **_kwargs: object) -> _MockRequestsResponse:
         """Raise HTTP error for provider-failure path."""
 
-        _ = timeout
-        raise error.HTTPError(
-            url="https://api.openai.com/v1/audio/speech",
-            code=401,
-            msg="Unauthorized",
-            hdrs=None,
-            fp=io.BytesIO(b'{"error":{"message":"invalid api key"}}'),
+        return _MockRequestsResponse(
+            status_code=401,
+            payload=b'{"error":{"message":"invalid api key"}}',
         )
 
-    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    monkeypatch.setattr("bookvoice.llm.openai_client.requests.post", _mock_post)
 
     with pytest.raises(OpenAIProviderError, match="authentication failed") as exc_info:
         OpenAISpeechClient(api_key="key").synthesize_speech(
@@ -336,21 +317,18 @@ def test_openai_client_classifies_quota_failures(
 ) -> None:
     """OpenAI client should classify HTTP 429 quota responses for diagnostics."""
 
-    def _mock_urlopen(_request, timeout: float = 0.0):
+    def _mock_post(_url: str, **_kwargs: object) -> _MockRequestsResponse:
         """Raise deterministic insufficient quota response."""
 
-        _ = timeout
-        raise error.HTTPError(
-            url="https://api.openai.com/v1/chat/completions",
-            code=429,
-            msg="Too Many Requests",
-            hdrs=None,
-            fp=io.BytesIO(
-                b'{\"error\":{\"message\":\"You exceeded your current quota.\",\"code\":\"insufficient_quota\"}}'
+        return _MockRequestsResponse(
+            status_code=429,
+            payload=(
+                b'{\"error\":{\"message\":\"You exceeded your current quota.\",'
+                b'\"code\":\"insufficient_quota\"}}'
             ),
         )
 
-    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    monkeypatch.setattr("bookvoice.llm.openai_client.requests.post", _mock_post)
     client = OpenAIChatClient(api_key="key")
 
     with pytest.raises(OpenAIProviderError, match="quota is insufficient") as exc_info:
@@ -367,19 +345,15 @@ def test_openai_client_handles_http_error_with_undecodable_body(
 ) -> None:
     """OpenAI client should map HTTP errors even when body bytes cannot be decoded."""
 
-    def _mock_urlopen(_request, timeout: float = 0.0):
+    def _mock_post(_url: str, **_kwargs: object) -> _MockRequestsResponse:
         """Raise deterministic malformed HTTP error response."""
 
-        _ = timeout
-        raise error.HTTPError(
-            url="https://api.openai.com/v1/chat/completions",
-            code=500,
-            msg="Internal Server Error",
-            hdrs=None,
-            fp=io.BytesIO(b"\xff\xfe\xfd"),
+        return _MockRequestsResponse(
+            status_code=500,
+            payload=b"\xff\xfe\xfd",
         )
 
-    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    monkeypatch.setattr("bookvoice.llm.openai_client.requests.post", _mock_post)
     client = OpenAIChatClient(api_key="key")
 
     with pytest.raises(
@@ -395,18 +369,17 @@ def test_openai_client_handles_http_error_with_undecodable_body(
     assert exc_info.value.status_code == 500
 
 
-def test_openai_client_classifies_url_error_as_timeout(
+def test_openai_client_classifies_transport_error_as_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """OpenAI client should classify URL errors backed by timeout reasons."""
+    """OpenAI client should classify requests timeout transport failures."""
 
-    def _mock_urlopen(_request, timeout: float = 0.0):
+    def _mock_post(_url: str, **_kwargs: object) -> _MockRequestsResponse:
         """Raise deterministic timeout transport error."""
 
-        _ = timeout
-        raise error.URLError(socket.timeout("socket timed out"))
+        raise requests.Timeout("socket timed out")
 
-    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    monkeypatch.setattr("bookvoice.llm.openai_client.requests.post", _mock_post)
     client = OpenAIChatClient(api_key="key")
 
     with pytest.raises(OpenAIProviderError, match="timed out") as exc_info:
@@ -418,18 +391,17 @@ def test_openai_client_classifies_url_error_as_timeout(
     assert exc_info.value.failure_kind == "timeout"
 
 
-def test_openai_client_classifies_url_error_as_transport(
+def test_openai_client_classifies_transport_error_as_transport(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """OpenAI client should classify non-timeout URL errors as transport failures."""
+    """OpenAI client should classify non-timeout transport failures as transport."""
 
-    def _mock_urlopen(_request, timeout: float = 0.0):
+    def _mock_post(_url: str, **_kwargs: object) -> _MockRequestsResponse:
         """Raise deterministic non-timeout transport error."""
 
-        _ = timeout
-        raise error.URLError("temporary DNS failure")
+        raise requests.ConnectionError("temporary DNS failure")
 
-    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    monkeypatch.setattr("bookvoice.llm.openai_client.requests.post", _mock_post)
     client = OpenAISpeechClient(api_key="key")
 
     with pytest.raises(OpenAIProviderError, match="transport error") as exc_info:
@@ -446,13 +418,12 @@ def test_openai_speech_rejects_empty_response_payload(
 ) -> None:
     """OpenAI speech client should reject empty responses from shared transport helper."""
 
-    def _mock_urlopen(_request, timeout: float = 0.0) -> _MockBinaryHTTPResponse:
+    def _mock_post(_url: str, **_kwargs: object) -> _MockBinaryHTTPResponse:
         """Return an empty binary payload."""
 
-        _ = timeout
         return _MockBinaryHTTPResponse(b"")
 
-    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    monkeypatch.setattr("bookvoice.llm.openai_client.requests.post", _mock_post)
     client = OpenAISpeechClient(api_key="key")
 
     with pytest.raises(OpenAIProviderError, match="OpenAI speech response is empty."):
