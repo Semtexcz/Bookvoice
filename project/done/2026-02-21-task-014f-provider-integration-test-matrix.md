@@ -1,6 +1,6 @@
 ---
 task: TASK-014F
-status: "backlog"
+status: "done"
 priority: P1
 type: test
 ---
@@ -8,7 +8,7 @@ type: test
 # Provider integration test matrix for real LLM and TTS path
 
 Task: TASK-014F
-Status: backlog
+Status: done
 Priority: P1
 Type: test
 Author:
@@ -21,11 +21,11 @@ Provider integrations need reliable tests for success and failure flows without 
 
 ## Definition of Done
 
-- [ ] Add mocked happy-path tests for translation, rewrite, and TTS real-provider code paths.
-- [ ] Add mocked provider-failure tests for translation, rewrite, and TTS with stage-specific assertions.
-- [ ] Add tests for credential/model config resolution across interactive CLI, non-interactive CLI, secure storage, and env fallback.
-- [ ] Ensure tests remain deterministic and offline-friendly.
-- [ ] Document test strategy for provider mocks and fixture patterns.
+- [x] Add mocked happy-path tests for translation, rewrite, and TTS real-provider code paths.
+- [x] Add mocked provider-failure tests for translation, rewrite, and TTS with stage-specific assertions.
+- [x] Add tests for credential/model config resolution across interactive CLI, non-interactive CLI, secure storage, and env fallback.
+- [x] Ensure tests remain deterministic and offline-friendly.
+- [x] Document test strategy for provider mocks and fixture patterns.
 
 ## Notes
 

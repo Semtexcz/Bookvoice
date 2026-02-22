@@ -157,6 +157,64 @@ def test_build_non_interactive_runtime_precedence_cli_over_secure_over_env(
     assert observed_runtime["api_key"] == "secure-api-key"
 
 
+def test_build_non_interactive_runtime_falls_back_to_env_when_cli_and_secure_missing(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Build should resolve provider/model/runtime values from env fallback when needed."""
+
+    observed_runtime: dict[str, str] = {}
+
+    def _fake_run(self, config):  # type: ignore[no-untyped-def]
+        """Resolve runtime values and capture environment-sourced selections."""
+
+        runtime = config.resolved_provider_runtime(config.runtime_sources)
+        observed_runtime["translator_provider"] = runtime.translator_provider
+        observed_runtime["rewriter_provider"] = runtime.rewriter_provider
+        observed_runtime["tts_provider"] = runtime.tts_provider
+        observed_runtime["translate_model"] = runtime.translate_model
+        observed_runtime["rewrite_model"] = runtime.rewrite_model
+        observed_runtime["tts_model"] = runtime.tts_model
+        observed_runtime["tts_voice"] = runtime.tts_voice
+        observed_runtime["api_key"] = runtime.api_key or ""
+        return _manifest_stub()
+
+    monkeypatch.setattr("bookvoice.cli.BookvoicePipeline.run", _fake_run)
+    monkeypatch.setattr(
+        "bookvoice.cli.create_credential_store",
+        lambda: InMemoryCredentialStore(),
+    )
+    monkeypatch.setenv("BOOKVOICE_PROVIDER_TRANSLATOR", "openai")
+    monkeypatch.setenv("BOOKVOICE_PROVIDER_REWRITER", "openai")
+    monkeypatch.setenv("BOOKVOICE_PROVIDER_TTS", "openai")
+    monkeypatch.setenv("BOOKVOICE_MODEL_TRANSLATE", "env-model-t")
+    monkeypatch.setenv("BOOKVOICE_MODEL_REWRITE", "env-model-r")
+    monkeypatch.setenv("BOOKVOICE_MODEL_TTS", "env-model-tts")
+    monkeypatch.setenv("BOOKVOICE_TTS_VOICE", "alloy")
+    monkeypatch.setenv("OPENAI_API_KEY", "env-api-key")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "build",
+            str(Path("tests/files/zero_to_one.pdf")),
+            "--out",
+            str(tmp_path / "out"),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert observed_runtime["translator_provider"] == "openai"
+    assert observed_runtime["rewriter_provider"] == "openai"
+    assert observed_runtime["tts_provider"] == "openai"
+    assert observed_runtime["translate_model"] == "env-model-t"
+    assert observed_runtime["rewrite_model"] == "env-model-r"
+    assert observed_runtime["tts_model"] == "env-model-tts"
+    assert observed_runtime["tts_voice"] == "alloy"
+    assert observed_runtime["api_key"] == "env-api-key"
+
+
 def test_credentials_command_supports_set_clear_and_status(
     monkeypatch: MonkeyPatch,
 ) -> None:

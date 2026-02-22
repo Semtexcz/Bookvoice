@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.48] - 2026-02-22
+
+- Completed `TASK-014F` by adding a dedicated provider integration test matrix for mocked translate/rewrite/TTS happy and failure paths with stage-specific assertions.
+- Added CLI integration coverage for runtime provider/model/API-key environment fallback when CLI and secure-storage values are not provided.
+- Documented provider mock strategy and fixture patterns for deterministic offline execution in `tests/README.md`.
+- Bumped project version to `0.1.48`.
+
 ## [0.1.47] - 2026-02-22
 
 - Added an agent rule in `AGENTS.md` requiring completed tasks from `project/backlog` to be marked `done` and moved to `project/done`.

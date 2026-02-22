@@ -1,6 +1,6 @@
 ---
 task: TASK-014E
-status: "backlog"
+status: "done"
 priority: P1
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Provider error surface and actionable CLI diagnostics
 
 Task: TASK-014E
-Status: backlog
+Status: done
 Priority: P1
 Type: feature
 Author:
@@ -21,10 +21,10 @@ Real provider integrations introduce authentication, quota, request validation, 
 
 ## Definition of Done
 
-- [ ] Define stage-specific provider error mapping for `translate`, `rewrite`, and `tts`.
-- [ ] Ensure CLI messages expose actionable user hints for common cases (invalid key, insufficient quota, invalid model, timeout).
-- [ ] Keep error messages concise and avoid leaking secrets.
-- [ ] Add deterministic tests asserting stage, detail, and hint behavior for representative provider failures.
+- [x] Define stage-specific provider error mapping for `translate`, `rewrite`, and `tts`.
+- [x] Ensure CLI messages expose actionable user hints for common cases (invalid key, insufficient quota, invalid model, timeout).
+- [x] Keep error messages concise and avoid leaking secrets.
+- [x] Add deterministic tests asserting stage, detail, and hint behavior for representative provider failures.
 
 ## Notes
 
