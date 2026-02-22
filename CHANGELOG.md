@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2026-02-22
+
+### Changed
+
+- Updated packaging backlog scope to reflect confirmed product decisions for audiobook deliverables:
+  - chapter-split final outputs (one chapter = one file),
+  - primary packaged target `m4a` (AAC) with secondary `mp3`,
+  - optional full merged deliverable preserved,
+  - user-selectable chapter numbering mode (`source` or `sequential`).
+- Refined task definitions:
+  - `TASK-039` now explicitly requires chapter-split packaging behavior and numbering-mode support.
+  - `TASK-041` now targets deterministic chapter-level export policy and naming strategy options.
+  - `TASK-042` now requires numbering-mode-aware track/tag metadata behavior.
+  - `TASK-043` now requires CLI/config controls for layout, numbering mode, and naming mode.
+- Bumped project version to `0.5.2`.
+
+## [0.5.1] - 2026-02-22
+
+### Changed
+
+- Refined `TASK-039` scope to explicitly target AAC/MP3 delivery packaging from deterministic merged WAV master output.
+- Added new backlog tasks for phased implementation of packaged audiobook delivery:
+  - `TASK-041`: deterministic AAC/MP3 export stage.
+  - `TASK-042`: format-aware metadata tagging for MP3/M4A.
+  - `TASK-043`: CLI/config output-format controls and manifest packaging metadata.
+- Updated `docs/ROADMAP.md` Phase 3 scope and milestones to include explicit WAV-master plus AAC/MP3 packaging strategy.
+- Updated roadmap backlog mapping section for `TASK-039`, `TASK-041`, `TASK-042`, and `TASK-043`.
+- Bumped project version to `0.5.1`.
+
 ## [0.5.0] - 2026-02-22
 
 ### Added

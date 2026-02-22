@@ -1,6 +1,6 @@
 # Roadmap
 
-Reference date: 2026-02-21.
+Reference date: 2026-02-22.
 
 ## Product Goal
 
@@ -23,8 +23,8 @@ Implemented:
 
 Still limited:
 
-- Postprocessing and metadata tagging are minimal.
-- `ConfigLoader.from_yaml` and `ConfigLoader.from_env` remain placeholders.
+- Final delivery packaging is still WAV-first; AAC/MP3 outputs are not yet implemented.
+- Format-aware metadata tagging for MP3/M4A is not yet implemented.
 
 ## Next Priorities
 
@@ -59,12 +59,24 @@ Goal:
 
 Scope:
 
-- Enhanced postprocessing pipeline.
+- Enhanced postprocessing pipeline for merged WAV master artifact.
 - Deterministic tagging metadata write path.
 - Optional output packaging formats beyond merged WAV.
+- Explicit AAC/MP3 delivery flow:
+  - Deterministic export stage (`WAV -> MP3/M4A`).
+  - Format-aware metadata tagging for packaged artifacts.
+  - CLI/config controls for output format and encoding settings.
 
 ## Milestones
 
 1. `v0.2.0`: fully functional command set (`build`, `chapters-only`, `list-chapters`, `resume`, `translate-only`, `tts-only`).
 2. `v0.3.0`: provider reliability hardening and stronger resume robustness.
-3. `v0.4.0`: audio quality and metadata improvements.
+3. `v0.5.x`: merged WAV postprocessing and deterministic baseline tagging.
+4. `v0.6.0`: AAC/MP3 packaging, format-aware tags, and CLI/config format controls.
+
+## Backlog Mapping (Audio Packaging)
+
+- `TASK-039`: Output packaging for AAC/MP3 deliverables (umbrella).
+- `TASK-041`: Deterministic audio export stage for AAC/MP3.
+- `TASK-042`: Format-aware metadata tagging for MP3 and M4A.
+- `TASK-043`: CLI output format controls and manifest packaging metadata.
