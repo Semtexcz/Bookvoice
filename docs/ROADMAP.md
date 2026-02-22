@@ -50,6 +50,9 @@ Scope:
 - Retry/backoff policy for provider calls.
 - Better distinction of recoverable vs non-recoverable provider errors.
 - Expanded resume validation around partially missing artifact sets.
+- Language-learning controls for output simplification:
+  - user-selectable target language proficiency (`A0` to `C2`),
+  - deterministic propagation to prompt strategy and manifest metadata.
 
 ## Phase 3: Audio Quality and Metadata
 
@@ -80,3 +83,4 @@ Scope:
 - `TASK-041`: Deterministic audio export stage for AAC/MP3.
 - `TASK-042`: Format-aware metadata tagging for MP3 and M4A.
 - `TASK-043`: CLI output format controls and manifest packaging metadata.
+- `TASK-044`: Language proficiency level control (`A0`-`C2`) for learning-friendly outputs.

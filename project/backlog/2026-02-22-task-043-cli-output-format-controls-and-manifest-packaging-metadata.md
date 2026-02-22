@@ -23,6 +23,7 @@ Users currently cannot request final audiobook format explicitly, and output-lan
 
 - [ ] Add explicit output-format controls (`wav`, `mp3`, `m4a`, or multi-target policy) to CLI and runtime config.
 - [ ] Add explicit output-language control in CLI/config (for example `--language`) so users can change target output language per run with deterministic precedence.
+- [ ] Add explicit output-language proficiency level control in CLI/config (for example `--language-level A0..C2`) for simplified-learning output variants.
 - [ ] Add explicit encoding controls (for example bitrate/profile) with deterministic defaults.
 - [ ] Add explicit packaging layout controls:
   - chapter-split deliverables (one chapter per output file),
@@ -31,6 +32,7 @@ Users currently cannot request final audiobook format explicitly, and output-lan
 - [ ] Add explicit naming mode control (`reader_friendly` vs `deterministic`) with clear defaults.
 - [ ] Integrate packaging options with existing config precedence model (`CLI > secure/env/file/default`).
 - [ ] Persist resolved output-language selection in manifest `extra` for replay/audit visibility.
+- [ ] Persist resolved output-language proficiency level in manifest `extra` for replay/audit visibility.
 - [ ] Persist packaging intent and emitted packaged artifact paths in manifest `extra`.
 - [ ] Keep backward compatibility: no format flag still produces deterministic WAV output.
 - [ ] Add integration coverage for CLI/config precedence and deterministic artifact references.

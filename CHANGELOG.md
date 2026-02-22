@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.2] - 2026-02-22
+
+### Changed
+
+- Updated `docs/ROADMAP.md` to include language-learning output simplification planning with target proficiency levels (`A0` to `C2`) and deterministic metadata propagation goals.
+- Extended `TASK-043` backlog acceptance criteria to include explicit CLI/config proficiency-level control (`--language-level A0..C2`) and manifest persistence requirements.
+- Added `TASK-044` to `project/backlog/` to track end-to-end implementation of CEFR proficiency-level control for learning-friendly outputs.
+- Bumped project version to `0.8.2`.
+
 ## [0.8.1] - 2026-02-22
 
 ### Changed
