@@ -1,6 +1,6 @@
 ---
 task: TASK-031
-status: "backlog"
+status: "done"
 priority: P1
 type: refactor
 ---
@@ -8,7 +8,7 @@ type: refactor
 # Split resume flow into stage-specific helpers with explicit state
 
 Task: TASK-031
-Status: backlog
+Status: done
 Priority: P1
 Type: refactor
 Author:
@@ -21,10 +21,10 @@ Related: TASK-027, TASK-028
 
 ## Definition of Done
 
-- [ ] Introduce a typed resume state/context object that holds resolved paths, loaded artifacts, chapter scope, and runtime config.
-- [ ] Break `resume` into stage-specific private helpers (for example: load-or-extract text, load-or-split chapters, load-or-chunk, load-or-translate, load-or-rewrite, load-or-tts, load-or-merge).
-- [ ] Preserve existing resume behavior, artifact paths, and manifest metadata keys.
-- [ ] Add targeted tests for at least three resume branches: full reuse, partial replay from `translate`, and replay when audio files are missing.
+- [x] Introduce a typed resume state/context object that holds resolved paths, loaded artifacts, chapter scope, and runtime config.
+- [x] Break `resume` into stage-specific private helpers (for example: load-or-extract text, load-or-split chapters, load-or-chunk, load-or-translate, load-or-rewrite, load-or-tts, load-or-merge).
+- [x] Preserve existing resume behavior, artifact paths, and manifest metadata keys.
+- [x] Add targeted tests for at least three resume branches: full reuse, partial replay from `translate`, and replay when audio files are missing.
 
 ## Notes
 

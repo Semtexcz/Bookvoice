@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.53] - 2026-02-22
+
+### Changed
+
+- Completed `TASK-031` by refactoring `BookvoicePipeline.resume` into typed state-driven, stage-specific `load-or-*` helper methods in `bookvoice/pipeline/orchestrator.py`.
+- Added explicit resume context dataclasses for resolved artifact paths and loaded stage state while preserving artifact locations and manifest metadata keys.
+- Kept resume behavior parity for chapter metadata recovery, chapter-scope reconstruction, deterministic cost tracking, and merged output reuse decisions.
+- Added targeted integration coverage for three resume branches: full reuse with no TTS/merge replay, partial replay from `translate`, and replay when audio chunk files are missing.
+- Marked `TASK-031` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.1.53`.
+
 ## [0.1.52] - 2026-02-22
 
 ### Changed
