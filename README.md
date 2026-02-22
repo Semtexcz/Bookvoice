@@ -89,10 +89,12 @@ poetry run bookvoice build input.pdf --out out/
 
 ```bash
 poetry run bookvoice build input.pdf --out out/
+poetry run bookvoice build --config bookvoice.yaml
 ```
 
 Common options:
 
+- `--config`: load command defaults from YAML (`input_pdf` and `output_dir` can come from file).
 - `--chapters`: process only selected 1-based chapters (`5`, `1,3,7`, `2-4`, `1,3-5`).
 - `--model-translate`, `--model-rewrite`, `--model-tts`, `--tts-voice`.
 - `--provider-translator`, `--provider-rewriter`, `--provider-tts` (currently `openai`).
@@ -130,6 +132,7 @@ poetry run bookvoice chapters-only input.pdf --out out/ --chapters 1-3
 ```bash
 poetry run bookvoice translate-only input.pdf --out out/
 poetry run bookvoice translate-only input.pdf --out out/ --chapters 2-4
+poetry run bookvoice translate-only --config bookvoice.yaml
 ```
 
 Behavior:
@@ -186,7 +189,10 @@ Default models/voice:
 
 Resolution precedence:
 
-- `CLI explicit input > secure credential storage > environment > defaults`
+- Runtime values (`provider_*`, `model_*`, `tts_voice`, `api_key`, `rewrite_bypass`):
+  `CLI explicit input > secure credential storage > environment > config/defaults`
+- Command fields (`input_pdf`, `output_dir`, `chapter_selection`):
+  explicit CLI option/argument overrides `--config` values.
 
 Environment keys:
 
@@ -218,6 +224,22 @@ Environment keys:
 - `chapter_selection`
 - `resume` (`true`/`false`, `1`/`0`, `yes`/`no`)
 - `extra` (string-to-string mapping)
+
+Example `bookvoice.yaml`:
+
+```yaml
+input_pdf: tests/files/zero_to_one.pdf
+output_dir: out
+provider_translator: openai
+provider_rewriter: openai
+provider_tts: openai
+model_translate: gpt-4.1-mini
+model_rewrite: gpt-4.1-mini
+model_tts: gpt-4o-mini-tts
+tts_voice: echo
+rewrite_bypass: false
+chapter_selection: 1-3
+```
 
 `ConfigLoader.from_env` supported keys:
 

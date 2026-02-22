@@ -24,7 +24,7 @@ from .cli_rendering import (
     echo_cost_summary,
     exit_with_command_error,
 )
-from .config import BookvoiceConfig, RuntimeConfigSources
+from .config import BookvoiceConfig, ConfigLoader, RuntimeConfigSources
 from .credentials import create_credential_store
 from .cli_runtime import resolve_provider_runtime_sources
 from .errors import PipelineStageError
@@ -59,10 +59,139 @@ class BuildProgressIndicator:
         )
 
 
+def _load_yaml_config(config_path: Path | None) -> BookvoiceConfig | None:
+    """Load a YAML config file when requested and map failures to stage errors."""
+
+    if config_path is None:
+        return None
+
+    try:
+        return ConfigLoader.from_yaml(config_path)
+    except FileNotFoundError as exc:
+        raise PipelineStageError(
+            stage="config",
+            detail=f"Config file not found: `{config_path}`.",
+            hint="Provide an existing path via `--config <path.yaml>`.",
+        ) from exc
+    except ValueError as exc:
+        raise PipelineStageError(
+            stage="config",
+            detail=f"Invalid config file `{config_path}`: {exc}",
+            hint="Fix config schema/values and rerun.",
+        ) from exc
+    except Exception as exc:
+        raise PipelineStageError(
+            stage="config",
+            detail=f"Failed to load config file `{config_path}`: {exc}",
+            hint="Verify YAML syntax and file permissions.",
+        ) from exc
+
+
+def _resolve_command_base_config(
+    config_file: Path | None,
+    input_pdf: Path | None,
+    out: Path | None,
+    chapters: str | None,
+    rewrite_bypass: bool | None,
+) -> BookvoiceConfig:
+    """Resolve effective command config from YAML defaults and explicit CLI overrides."""
+
+    loaded_config = _load_yaml_config(config_file)
+
+    if loaded_config is None:
+        if input_pdf is None:
+            raise PipelineStageError(
+                stage="config",
+                detail="Input PDF path is required when `--config` is not provided.",
+                hint="Pass `<input.pdf>` or use `--config <path.yaml>` with `input_pdf`.",
+            )
+        resolved_output_dir = out if out is not None else Path("out")
+        resolved_rewrite_bypass = rewrite_bypass if rewrite_bypass is not None else False
+        return BookvoiceConfig(
+            input_pdf=input_pdf,
+            output_dir=resolved_output_dir,
+            chapter_selection=chapters,
+            rewrite_bypass=resolved_rewrite_bypass,
+        )
+
+    resolved_input_pdf = input_pdf if input_pdf is not None else loaded_config.input_pdf
+    resolved_output_dir = out if out is not None else loaded_config.output_dir
+    resolved_chapters = chapters if chapters is not None else loaded_config.chapter_selection
+    resolved_rewrite_bypass = (
+        rewrite_bypass if rewrite_bypass is not None else loaded_config.rewrite_bypass
+    )
+
+    return BookvoiceConfig(
+        input_pdf=resolved_input_pdf,
+        output_dir=resolved_output_dir,
+        language=loaded_config.language,
+        provider_translator=loaded_config.provider_translator,
+        provider_rewriter=loaded_config.provider_rewriter,
+        provider_tts=loaded_config.provider_tts,
+        model_translate=loaded_config.model_translate,
+        model_rewrite=loaded_config.model_rewrite,
+        model_tts=loaded_config.model_tts,
+        tts_voice=loaded_config.tts_voice,
+        rewrite_bypass=resolved_rewrite_bypass,
+        api_key=loaded_config.api_key,
+        chunk_size_chars=loaded_config.chunk_size_chars,
+        chapter_selection=resolved_chapters,
+        resume=loaded_config.resume,
+        extra=dict(loaded_config.extra),
+    )
+
+
+def _apply_runtime_sources(
+    base_config: BookvoiceConfig,
+    runtime_cli_values: dict[str, str],
+    runtime_secure_values: dict[str, str],
+) -> BookvoiceConfig:
+    """Attach runtime source mappings while keeping base config defaults intact."""
+
+    return BookvoiceConfig(
+        input_pdf=base_config.input_pdf,
+        output_dir=base_config.output_dir,
+        language=base_config.language,
+        provider_translator=base_config.provider_translator,
+        provider_rewriter=base_config.provider_rewriter,
+        provider_tts=base_config.provider_tts,
+        model_translate=base_config.model_translate,
+        model_rewrite=base_config.model_rewrite,
+        model_tts=base_config.model_tts,
+        tts_voice=base_config.tts_voice,
+        rewrite_bypass=base_config.rewrite_bypass,
+        api_key=base_config.api_key,
+        chunk_size_chars=base_config.chunk_size_chars,
+        chapter_selection=base_config.chapter_selection,
+        resume=base_config.resume,
+        runtime_sources=RuntimeConfigSources(
+            cli=runtime_cli_values,
+            secure=runtime_secure_values,
+            env=os.environ,
+        ),
+        extra=dict(base_config.extra),
+    )
+
+
 @app.command("build")
 def build_command(
-    input_pdf: Annotated[Path, typer.Argument(help="Path to source PDF.")],
-    out: Annotated[Path, typer.Option("--out", help="Output directory.")] = Path("out"),
+    input_pdf: Annotated[
+        Path | None,
+        typer.Argument(
+            help="Path to source PDF. Required unless provided by `--config`.",
+        ),
+    ] = None,
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", help="Output directory (overrides config file value)."),
+    ] = None,
+    config_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            help="Path to YAML config file with command defaults.",
+        ),
+    ] = None,
     chapters: Annotated[
         str | None,
         typer.Option(
@@ -126,7 +255,7 @@ def build_command(
         ),
     ] = True,
     rewrite_bypass: Annotated[
-        bool,
+        bool | None,
         typer.Option(
             "--rewrite-bypass/--no-rewrite-bypass",
             help=(
@@ -134,7 +263,7 @@ def build_command(
                 "using deterministic pass-through mode."
             ),
         ),
-    ] = False,
+    ] = None,
 ) -> None:
     """Run the full pipeline."""
 
@@ -153,21 +282,22 @@ def build_command(
             store_api_key=store_api_key,
             credential_store_factory=create_credential_store,
         )
+        base_config = _resolve_command_base_config(
+            config_file=config_file,
+            input_pdf=input_pdf,
+            out=out,
+            chapters=chapters,
+            rewrite_bypass=rewrite_bypass,
+        )
+        config = _apply_runtime_sources(
+            base_config=base_config,
+            runtime_cli_values=runtime_cli_values,
+            runtime_secure_values=runtime_secure_values,
+        )
         progress = BuildProgressIndicator(command_name="build")
         pipeline = BookvoicePipeline(
             run_logger=RunLogger(),
             stage_progress_callback=progress.on_stage_start,
-        )
-        config = BookvoiceConfig(
-            input_pdf=input_pdf,
-            output_dir=out,
-            chapter_selection=chapters,
-            rewrite_bypass=rewrite_bypass,
-            runtime_sources=RuntimeConfigSources(
-                cli=runtime_cli_values,
-                secure=runtime_secure_values,
-                env=os.environ,
-            ),
         )
         manifest = pipeline.run(config)
     except Exception as exc:
@@ -268,8 +398,23 @@ def list_chapters_command(
 
 @app.command("translate-only")
 def translate_only_command(
-    input_pdf: Annotated[Path, typer.Argument(help="Path to source PDF.")],
-    out: Annotated[Path, typer.Option("--out", help="Output directory.")] = Path("out"),
+    input_pdf: Annotated[
+        Path | None,
+        typer.Argument(
+            help="Path to source PDF. Required unless provided by `--config`.",
+        ),
+    ] = None,
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", help="Output directory (overrides config file value)."),
+    ] = None,
+    config_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            help="Path to YAML config file with command defaults.",
+        ),
+    ] = None,
     chapters: Annotated[
         str | None,
         typer.Option(
@@ -333,7 +478,7 @@ def translate_only_command(
         ),
     ] = True,
     rewrite_bypass: Annotated[
-        bool,
+        bool | None,
         typer.Option(
             "--rewrite-bypass/--no-rewrite-bypass",
             help=(
@@ -341,7 +486,7 @@ def translate_only_command(
                 "for downstream commands."
             ),
         ),
-    ] = False,
+    ] = None,
 ) -> None:
     """Run pipeline stages through translation and persist text artifacts."""
 
@@ -360,21 +505,22 @@ def translate_only_command(
             store_api_key=store_api_key,
             credential_store_factory=create_credential_store,
         )
+        base_config = _resolve_command_base_config(
+            config_file=config_file,
+            input_pdf=input_pdf,
+            out=out,
+            chapters=chapters,
+            rewrite_bypass=rewrite_bypass,
+        )
+        config = _apply_runtime_sources(
+            base_config=base_config,
+            runtime_cli_values=runtime_cli_values,
+            runtime_secure_values=runtime_secure_values,
+        )
         progress = BuildProgressIndicator(command_name="translate-only")
         pipeline = BookvoicePipeline(
             run_logger=RunLogger(),
             stage_progress_callback=progress.on_stage_start,
-        )
-        config = BookvoiceConfig(
-            input_pdf=input_pdf,
-            output_dir=out,
-            chapter_selection=chapters,
-            rewrite_bypass=rewrite_bypass,
-            runtime_sources=RuntimeConfigSources(
-                cli=runtime_cli_values,
-                secure=runtime_secure_values,
-                env=os.environ,
-            ),
         )
         manifest = pipeline.run_translate_only(config)
     except Exception as exc:

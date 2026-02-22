@@ -1,6 +1,6 @@
 ---
 task: TASK-040
-status: "backlog"
+status: "done"
 priority: P2
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Add CLI config-file loading and precedence integration
 
 Task: TASK-040
-Status: backlog
+Status: done
 Priority: P2
 Type: feature
 Author:
@@ -21,11 +21,11 @@ Related: TASK-036, TASK-029
 
 ## Definition of Done
 
-- [ ] Add explicit CLI support for config file loading (for example `--config <path.yaml>`).
-- [ ] Wire loaded config values into runtime resolution without breaking deterministic precedence (`CLI explicit > secure > env > config defaults`).
-- [ ] Keep existing command behavior unchanged when `--config` is not provided.
-- [ ] Add focused tests for config file happy path, missing/invalid file diagnostics, and precedence interactions with CLI overrides.
-- [ ] Update `README.md` usage examples and configuration documentation for CLI config-file support.
+- [x] Add explicit CLI support for config file loading (for example `--config <path.yaml>`).
+- [x] Wire loaded config values into runtime resolution without breaking deterministic precedence (`CLI explicit > secure > env > config defaults`).
+- [x] Keep existing command behavior unchanged when `--config` is not provided.
+- [x] Add focused tests for config file happy path, missing/invalid file diagnostics, and precedence interactions with CLI overrides.
+- [x] Update `README.md` usage examples and configuration documentation for CLI config-file support.
 
 ## Notes
 

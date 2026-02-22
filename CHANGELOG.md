@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-02-22
+
+### Added
+
+- Completed `TASK-040` by adding explicit CLI config-file support (`--config <path.yaml>`) for `build` and `translate-only`.
+- Added integration coverage for config-file happy paths and runtime precedence interactions when config defaults, environment values, secure credentials, and CLI overrides are combined.
+- Added integration coverage for stage-aware diagnostics on missing or invalid CLI config files.
+
+### Changed
+
+- Wired command-level config resolution so `input_pdf`, `output_dir`, and `chapter_selection` can be sourced from YAML and overridden by explicit CLI arguments/options.
+- Preserved deterministic runtime precedence with config defaults as fallback:
+  `CLI explicit > secure > env > config/defaults`.
+- Updated `README.md` with `--config` command examples and precedence documentation.
+- Marked `TASK-040` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.6.0`.
+
 ## [0.5.2] - 2026-02-22
 
 ### Changed

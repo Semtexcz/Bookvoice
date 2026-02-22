@@ -51,3 +51,42 @@ def test_resume_command_reports_non_stage_error(monkeypatch: MonkeyPatch) -> Non
 
     assert result.exit_code == 1
     assert "resume failed: unexpected manifest error" in result.output
+
+
+def test_build_command_reports_missing_config_file() -> None:
+    """Build should fail with stage-aware diagnostics when `--config` path is missing."""
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "build",
+            "--config",
+            "missing-bookvoice.yaml",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "build failed at stage `config`" in result.output
+    assert "Config file not found: `missing-bookvoice.yaml`." in result.output
+
+
+def test_translate_only_reports_invalid_config_payload(tmp_path: Path) -> None:
+    """Translate-only should fail fast when YAML config schema/values are invalid."""
+
+    config_path = tmp_path / "invalid.yaml"
+    config_path.write_text("output_dir: out\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "translate-only",
+            "--config",
+            str(config_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "translate-only failed at stage `config`" in result.output
+    assert "is missing required key(s): input_pdf" in result.output

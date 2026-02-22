@@ -60,6 +60,32 @@ def _manifest_stub() -> RunManifest:
     )
 
 
+def _write_runtime_config_yaml(tmp_path: Path, output_dir: Path) -> Path:
+    """Write a deterministic runtime YAML config fixture for CLI integration tests."""
+
+    config_path = tmp_path / "bookvoice.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "input_pdf: tests/files/zero_to_one.pdf",
+                f"output_dir: {output_dir}",
+                "provider_translator: openai",
+                "provider_rewriter: openai",
+                "provider_tts: openai",
+                "model_translate: config-model-t",
+                "model_rewrite: config-model-r",
+                "model_tts: config-model-tts",
+                "tts_voice: config-voice",
+                "rewrite_bypass: true",
+                "api_key: config-api-key",
+                "chapter_selection: 2-4",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return config_path
+
+
 def test_build_interactive_provider_setup_hides_api_key_and_applies_models(
     monkeypatch: MonkeyPatch,
     tmp_path: Path,
@@ -215,6 +241,100 @@ def test_build_non_interactive_runtime_falls_back_to_env_when_cli_and_secure_mis
     assert observed_runtime["api_key"] == "env-api-key"
 
 
+def test_build_command_loads_yaml_config_defaults_and_allows_cli_field_overrides(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Build should load defaults from `--config` and apply explicit CLI field overrides."""
+
+    captured_config: dict[str, object] = {}
+    config_path = _write_runtime_config_yaml(tmp_path, tmp_path / "out-from-config")
+
+    def _fake_run(self, config):  # type: ignore[no-untyped-def]
+        """Capture resolved command-level config fields and return a deterministic manifest."""
+
+        captured_config["input_pdf"] = config.input_pdf
+        captured_config["output_dir"] = config.output_dir
+        captured_config["chapter_selection"] = config.chapter_selection
+        captured_config["rewrite_bypass"] = config.rewrite_bypass
+        return _manifest_stub()
+
+    monkeypatch.setattr("bookvoice.cli.BookvoicePipeline.run", _fake_run)
+    monkeypatch.setattr(
+        "bookvoice.cli.create_credential_store",
+        lambda: InMemoryCredentialStore(),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "build",
+            "--config",
+            str(config_path),
+            "--out",
+            str(tmp_path / "out-cli"),
+            "--chapters",
+            "1",
+            "--no-rewrite-bypass",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured_config["input_pdf"] == Path("tests/files/zero_to_one.pdf")
+    assert captured_config["output_dir"] == tmp_path / "out-cli"
+    assert captured_config["chapter_selection"] == "1"
+    assert captured_config["rewrite_bypass"] is False
+
+
+def test_build_runtime_precedence_with_config_defaults_cli_over_secure_over_env(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Build should preserve runtime precedence when YAML config provides defaults."""
+
+    observed_runtime: dict[str, str] = {}
+    config_path = _write_runtime_config_yaml(tmp_path, tmp_path / "out-from-config")
+
+    def _fake_run(self, config):  # type: ignore[no-untyped-def]
+        """Resolve runtime values from merged sources and capture their winners."""
+
+        runtime = config.resolved_provider_runtime(config.runtime_sources)
+        observed_runtime["translate_model"] = runtime.translate_model
+        observed_runtime["rewrite_model"] = runtime.rewrite_model
+        observed_runtime["tts_model"] = runtime.tts_model
+        observed_runtime["api_key"] = runtime.api_key or ""
+        return _manifest_stub()
+
+    monkeypatch.setattr("bookvoice.cli.BookvoicePipeline.run", _fake_run)
+    monkeypatch.setattr(
+        "bookvoice.cli.create_credential_store",
+        lambda: InMemoryCredentialStore(initial_api_key="secure-api-key"),
+    )
+    monkeypatch.setenv("BOOKVOICE_MODEL_TRANSLATE", "env-model-t")
+    monkeypatch.setenv("BOOKVOICE_MODEL_REWRITE", "env-model-r")
+    monkeypatch.setenv("BOOKVOICE_MODEL_TTS", "env-model-tts")
+    monkeypatch.setenv("OPENAI_API_KEY", "env-api-key")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "build",
+            "--config",
+            str(config_path),
+            "--model-translate",
+            "cli-model-t",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert observed_runtime["translate_model"] == "cli-model-t"
+    assert observed_runtime["rewrite_model"] == "env-model-r"
+    assert observed_runtime["tts_model"] == "env-model-tts"
+    assert observed_runtime["api_key"] == "secure-api-key"
+
+
 def test_translate_only_non_interactive_runtime_precedence_cli_over_secure_over_env(
     monkeypatch: MonkeyPatch,
     tmp_path: Path,
@@ -265,6 +385,50 @@ def test_translate_only_non_interactive_runtime_precedence_cli_over_secure_over_
     assert observed_runtime["rewrite_model"] == "cli-model-r"
     assert observed_runtime["tts_model"] == "cli-model-tts"
     assert observed_runtime["api_key"] == "secure-api-key"
+
+
+def test_translate_only_command_loads_yaml_config_defaults(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Translate-only should accept `--config` defaults when positional input is omitted."""
+
+    captured_config: dict[str, object] = {}
+    config_path = _write_runtime_config_yaml(tmp_path, tmp_path / "out-from-config")
+
+    def _fake_translate_only(self, config):  # type: ignore[no-untyped-def]
+        """Capture effective command-level config selections for assertions."""
+
+        captured_config["input_pdf"] = config.input_pdf
+        captured_config["output_dir"] = config.output_dir
+        captured_config["chapter_selection"] = config.chapter_selection
+        captured_config["rewrite_bypass"] = config.rewrite_bypass
+        return _manifest_stub()
+
+    monkeypatch.setattr(
+        "bookvoice.cli.BookvoicePipeline.run_translate_only",
+        _fake_translate_only,
+    )
+    monkeypatch.setattr(
+        "bookvoice.cli.create_credential_store",
+        lambda: InMemoryCredentialStore(),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "translate-only",
+            "--config",
+            str(config_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured_config["input_pdf"] == Path("tests/files/zero_to_one.pdf")
+    assert captured_config["output_dir"] == tmp_path / "out-from-config"
+    assert captured_config["chapter_selection"] == "2-4"
+    assert captured_config["rewrite_bypass"] is True
 
 
 def test_credentials_command_supports_set_clear_and_status(
