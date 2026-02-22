@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.3] - 2026-02-22
+
+### Changed
+
+- Completed `TASK-037` by adding resume preflight consistency validation for critical artifact chains (`chapters`, `chunks`, `translations`, `rewrites`, `audio_parts`) before stage replay starts.
+- Classified resume states into recoverable and non-recoverable modes using deterministic rules for mixed missing/stale artifacts and cross-artifact payload alignment.
+- Added actionable `resume-validation` diagnostics that include concrete artifact paths and explicit manual-cleanup remediation guidance.
+- Persisted lightweight resume validation metadata in manifest `extra` (`resume_validation_*`) for post-run debugging.
+- Added integration coverage for non-recoverable mixed artifact topology and cross-artifact payload mismatch failures, and assertions for recoverable validation metadata.
+- Marked `TASK-037` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.4.3`.
+
 ## [0.4.2] - 2026-02-22
 
 ### Changed

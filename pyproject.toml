@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bookvoice"
-version = "0.4.2"
+version = "0.4.3"
 description = "Deterministic pipeline scaffold for converting PDF books into Czech audiobook outputs."
 readme = "README.md"
 requires-python = ">=3.11"

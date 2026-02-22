@@ -55,7 +55,7 @@ from .costs import (
 from .execution import PipelineExecutionMixin
 from .manifesting import PipelineManifestMixin
 from .resume import (
-    detect_next_stage,
+    ensure_recoverable_resume_state,
     load_manifest_payload,
     manifest_bool,
     manifest_string,
@@ -63,6 +63,8 @@ from .resume import (
     resolve_artifact_path,
     resolve_merged_path,
     resolve_run_root,
+    ResumeArtifactConsistencyReport,
+    validate_resume_artifact_consistency,
 )
 from .runtime import PipelineRuntimeMixin
 from .telemetry import PipelineTelemetryMixin
@@ -95,6 +97,7 @@ class ResumeState:
     store: ArtifactStore
     paths: ResumeArtifactPaths
     next_stage: str
+    validation_report: ResumeArtifactConsistencyReport
     cost_tracker: CostTracker = field(default_factory=CostTracker)
     chapter_source: str = "unknown"
     chapter_fallback_reason: str = ""
@@ -700,7 +703,7 @@ class BookvoicePipeline(
             ),
             merged=resolve_merged_path(manifest_path, run_root, payload),
         )
-        next_stage = detect_next_stage(
+        validation_report = validate_resume_artifact_consistency(
             raw_text_path=paths.raw_text,
             clean_text_path=paths.clean_text,
             chapters_path=paths.chapters,
@@ -710,6 +713,7 @@ class BookvoicePipeline(
             audio_parts_path=paths.audio_parts,
             merged_path=paths.merged,
         )
+        ensure_recoverable_resume_state(validation_report)
 
         return ResumeState(
             manifest_path=manifest_path,
@@ -720,7 +724,8 @@ class BookvoicePipeline(
             runtime_config=runtime_config,
             store=store,
             paths=paths,
-            next_stage=next_stage,
+            next_stage=validation_report.next_stage,
+            validation_report=validation_report,
             chapter_source=chapter_source,
             chapter_fallback_reason=chapter_fallback_reason,
         )
@@ -930,6 +935,7 @@ class BookvoicePipeline(
                 "audio_parts": str(state.paths.audio_parts),
                 "merged_audio_filename": state.final_merged_path.name,
                 "resume_next_stage": state.next_stage,
+                **state.validation_report.as_manifest_metadata(),
                 "chapter_source": state.chapter_source,
                 "chapter_fallback_reason": state.chapter_fallback_reason,
                 **part_mapping_metadata,

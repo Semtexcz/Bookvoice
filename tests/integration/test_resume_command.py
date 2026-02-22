@@ -55,6 +55,10 @@ def test_resume_command_recovers_from_interrupted_run(tmp_path: Path) -> None:
     assert raw_text_path.read_text(encoding="utf-8") == raw_before
     assert resumed_payload["extra"]["chapter_source"] in {"pdf_outline", "text_heuristic", "unknown"}
     assert isinstance(resumed_payload["extra"]["chapter_fallback_reason"], str)
+    assert resumed_payload["extra"]["resume_validation_status"] == "recoverable"
+    assert resumed_payload["extra"]["resume_validation_next_stage"] == "translate"
+    assert resumed_payload["extra"]["resume_validation_issue_count"] == "0"
+    assert isinstance(resumed_payload["extra"]["resume_validation_diagnostics"], str)
     assert resumed_payload["total_llm_cost_usd"] > 0.0
     assert resumed_payload["total_tts_cost_usd"] > 0.0
     assert resumed_payload["total_cost_usd"] == pytest.approx(
@@ -177,3 +181,55 @@ def test_resume_replays_tts_and_merge_when_audio_files_are_missing(
     assert tts_calls["count"] == 1
     assert merge_calls["count"] == 1
     assert missing_audio_path.exists()
+
+
+def test_resume_fails_for_mixed_missing_and_stale_critical_artifacts(tmp_path: Path) -> None:
+    """Resume should fail fast when an upstream critical artifact is missing but downstream exists."""
+
+    runner = CliRunner()
+    out_dir = tmp_path / "out"
+    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+
+    build_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
+    assert build_result.exit_code == 0, build_result.output
+
+    manifest_path = next(out_dir.glob("run-*/run_manifest.json"))
+    manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    chunks_path = Path(manifest_payload["extra"]["chunks"])
+    translations_path = Path(manifest_payload["extra"]["translations"])
+    chunks_path.unlink()
+    assert translations_path.exists()
+
+    resume_result = runner.invoke(app, ["resume", str(manifest_path)])
+    assert resume_result.exit_code == 1
+    assert "resume failed at stage `resume-validation`" in resume_result.output
+    assert str(chunks_path) in resume_result.output
+    assert str(translations_path) in resume_result.output
+    assert "Manual cleanup required" in resume_result.output
+
+
+def test_resume_fails_for_cross_artifact_payload_mismatch(tmp_path: Path) -> None:
+    """Resume should fail for mismatched chunk/translation payload signatures."""
+
+    runner = CliRunner()
+    out_dir = tmp_path / "out"
+    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+
+    build_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
+    assert build_result.exit_code == 0, build_result.output
+
+    manifest_path = next(out_dir.glob("run-*/run_manifest.json"))
+    manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    translations_path = Path(manifest_payload["extra"]["translations"])
+    translations_payload = json.loads(translations_path.read_text(encoding="utf-8"))
+    assert isinstance(translations_payload["translations"], list)
+    assert len(translations_payload["translations"]) > 1
+    translations_payload["translations"] = translations_payload["translations"][:-1]
+    translations_path.write_text(json.dumps(translations_payload), encoding="utf-8")
+
+    resume_result = runner.invoke(app, ["resume", str(manifest_path)])
+    assert resume_result.exit_code == 1
+    assert "resume failed at stage `resume-validation`" in resume_result.output
+    assert str(Path(manifest_payload["extra"]["chunks"])) in resume_result.output
+    assert str(translations_path) in resume_result.output
+    assert "count/order mismatch" in resume_result.output
