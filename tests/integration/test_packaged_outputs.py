@@ -170,3 +170,48 @@ def test_tts_only_replays_with_packaging_metadata_and_outputs(
     ]
     assert chapter_entries
     assert {item["format"] for item in chapter_entries} == {"mp3"}
+
+
+def test_build_source_numbering_preserves_selected_chapter_indices(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Build should keep source chapter indices in packaged outputs by default."""
+
+    monkeypatch.setattr(AudioPackager, "_encode_chapter", _fake_encode_chapter)
+
+    runner = CliRunner()
+    out_dir = tmp_path / "out"
+    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    result = runner.invoke(
+        app,
+        [
+            "build",
+            str(fixture_pdf),
+            "--out",
+            str(out_dir),
+            "--chapters",
+            "2-3",
+            "--package-mode",
+            "aac",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    manifest_path = next(out_dir.glob("run-*/run_manifest.json"))
+    manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    packaged_payload = json.loads(
+        Path(manifest_payload["extra"]["packaged_audio"]).read_text(encoding="utf-8")
+    )
+    chapter_entries = [
+        item
+        for item in packaged_payload["packaged_audio"]
+        if item["output_kind"] == "chapter" and item["format"] == "m4a"
+    ]
+
+    assert [int(item["chapter_index"]) for item in chapter_entries] == [2, 3]
+    assert [int(item["chapter_number"]) for item in chapter_entries] == [2, 3]
+    filenames = [item["filename"] for item in chapter_entries]
+    assert filenames[0].startswith("chapter_002_")
+    assert filenames[1].startswith("chapter_003_")
+    assert all(name.endswith(".m4a") for name in filenames)

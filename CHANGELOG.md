@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.1] - 2026-02-22
+
+### Fixed
+
+- Completed `TASK-041` by hardening deterministic packaging behavior so `packaging_mode=none` no longer emits packaged merged WAV outputs.
+- Preserved additive packaging semantics after merge while keeping merged WAV as source-of-truth and allowing optional packaged merged WAV only when chapter packaging is enabled.
+- Added stage-level unit coverage for packaging determinism:
+  - source numbering keeps source chapter indices in filenames,
+  - sequential numbering renumbers selected chapters from 1,
+  - disabled packaging mode skips chapter encoding and merged packaged output emission.
+- Added deterministic diagnostics coverage for missing local encoder runtime (`ffmpeg`) in the `package` stage.
+- Added integration coverage asserting chapter packaging determinism in `source` numbering mode for selected chapter ranges.
+- Marked `TASK-041` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.7.1`.
+
 ## [0.7.0] - 2026-02-22
 
 ### Added

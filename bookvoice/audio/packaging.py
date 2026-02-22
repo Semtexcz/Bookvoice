@@ -132,7 +132,7 @@ class AudioPackager:
                     )
                 )
 
-        if options.keep_merged_deliverable and merged_path.exists():
+        if options.formats and options.keep_merged_deliverable and merged_path.exists():
             merged_output_path = output_root / "bookvoice_merged.wav"
             shutil.copyfile(merged_path, merged_output_path)
             packaged_outputs.append(
