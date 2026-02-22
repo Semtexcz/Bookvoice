@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..audio.merger import AudioMerger
+from ..audio.packaging import AudioPackager, PackagingOptions
 from ..audio.postprocess import AudioPostProcessor
 from ..audio.tags import AudioTagContext, MetadataWriter
 from ..config import BookvoiceConfig, ProviderRuntimeConfig
@@ -26,6 +27,7 @@ from ..models.datatypes import (
     Chapter,
     ChapterStructureUnit,
     Chunk,
+    PackagedAudio,
     RewriteResult,
     TranslationResult,
 )
@@ -484,3 +486,53 @@ class PipelineExecutionMixin:
             else chapter_scope.get("chapter_scope_label", "selected").replace(",", "_")
         )
         return store.root / f"audio/bookvoice_merged.chapters_{suffix}.wav"
+
+    def _packaging_options(self, config: BookvoiceConfig) -> PackagingOptions:
+        """Resolve and validate packaging options for the run."""
+
+        return AudioPackager().resolve_options(dict(config.extra))
+
+    def _packaging_manifest_metadata(self, options: PackagingOptions) -> dict[str, str]:
+        """Serialize packaging options for manifest persistence."""
+
+        if not options.formats:
+            mode = "none"
+        elif options.formats == ("m4a",):
+            mode = "aac"
+        elif options.formats == ("mp3",):
+            mode = "mp3"
+        else:
+            mode = "both"
+        return {
+            "packaging_mode": mode,
+            "packaging_chapter_numbering": options.chapter_numbering_mode,
+            "packaging_keep_merged": "true" if options.keep_merged_deliverable else "false",
+        }
+
+    def _package(
+        self,
+        *,
+        audio_parts: list[AudioPart],
+        merged_path: Path,
+        config: BookvoiceConfig,
+        store: ArtifactStore,
+    ) -> list[PackagedAudio]:
+        """Export chapter-split packaged outputs as an additive stage after merge."""
+
+        try:
+            options = self._packaging_options(config)
+            packager = AudioPackager()
+            return packager.package(
+                audio_parts=audio_parts,
+                merged_path=merged_path,
+                output_root=store.root / "audio/package",
+                options=options,
+            )
+        except PipelineStageError:
+            raise
+        except Exception as exc:
+            raise PipelineStageError(
+                stage="package",
+                detail=f"Failed to package chapter outputs: {exc}",
+                hint="Check packaging settings, source WAV artifacts, and ffmpeg installation.",
+            ) from exc

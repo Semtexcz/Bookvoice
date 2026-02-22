@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-02-22
+
+### Added
+
+- Completed `TASK-039` by adding a dedicated deterministic `package` stage after merge.
+- Added chapter-split packaged output generation for AAC (`.m4a`) and MP3 (`.mp3`) using explicit deterministic encoding profiles.
+- Added packaging artifact persistence (`audio/packaged.json`) with deterministic file references and manifest metadata (`packaging_mode`, chapter numbering mode, keep-merged flag).
+- Added CLI controls for packaging intent on `build`:
+  `--package-mode`, `--package-chapter-numbering`, and
+  `--package-keep-merged/--no-package-keep-merged`.
+- Added integration coverage for packaged output generation, manifest references, resume-safe package reuse, and `tts-only` packaging replay behavior.
+
+### Changed
+
+- Kept merged WAV as deterministic master artifact while making packaging an additive optional stage.
+- Wired packaging behavior consistently across `build`, `resume`, and `tts-only` replay flows.
+- Extended progress telemetry stage order with explicit `package` stage before `manifest`.
+- Updated `README.md`, `docs/ARTIFACTS.md`, and `docs/ARCHITECTURE.md` for packaging usage, artifact layout, and runtime limitation notes.
+- Marked `TASK-039` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.7.0`.
+
 ## [0.6.0] - 2026-02-22
 
 ### Added

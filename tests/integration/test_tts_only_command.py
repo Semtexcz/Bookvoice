@@ -42,9 +42,10 @@ def test_tts_only_command_replays_tts_merge_without_upstream_stages(
     result = runner.invoke(app, ["tts-only", str(manifest_path)])
     assert result.exit_code == 0, result.output
     assert "command=tts-only" in result.output
-    assert "7/9 stage=tts" in result.output
-    assert "8/9 stage=merge" in result.output
-    assert "9/9 stage=manifest" in result.output
+    assert "7/10 stage=tts" in result.output
+    assert "8/10 stage=merge" in result.output
+    assert "9/10 stage=package" in result.output
+    assert "10/10 stage=manifest" in result.output
     assert "stage=extract" not in result.output
     assert "Audio parts artifact:" in result.output
 

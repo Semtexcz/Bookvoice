@@ -26,6 +26,7 @@ class PipelineTelemetryMixin:
         "rewrite",
         "tts",
         "merge",
+        "package",
         "manifest",
     )
 

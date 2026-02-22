@@ -21,7 +21,7 @@ Implemented today:
 
 Still intentionally limited:
 
-- Postprocessing/tagging are currently WAV-only and do not transcode to other tagged formats.
+- Packaging uses local `ffmpeg` runtime and currently applies metadata tags only to merged WAV.
 
 ## Chunk Boundary Guarantees
 
@@ -52,6 +52,9 @@ Artifacts + Cache <-------------------------------- [TTS Synthesis]
                                                         |
                                                         v
                                            [Postprocess + Merge + Tags]
+                                                        |
+                                                        v
+                                      [Optional Chapter Packaging: M4A/MP3]
                                                         |
                                                         v
                                                Run Manifest + Outputs
@@ -102,21 +105,24 @@ Common options:
 - `--interactive-provider-setup`: prompts provider/model/voice values.
 - `--store-api-key/--no-store-api-key`.
 - `--rewrite-bypass/--no-rewrite-bypass`.
+- `--package-mode`: `none`, `aac`, `mp3`, `both`.
+- `--package-chapter-numbering`: `source` or `sequential`.
+- `--package-keep-merged/--no-package-keep-merged`.
 
 Runtime feedback during `build`:
 
-- Deterministic progress lines per stage (`extract`, `clean`, `split`, `chunk`, `translate`, `rewrite`, `tts`, `merge`, `manifest`).
+- Deterministic progress lines per stage (`extract`, `clean`, `split`, `chunk`, `translate`, `rewrite`, `tts`, `merge`, `package`, `manifest`).
 - Structured phase logs (`[phase]`) for stage start/complete/failure.
 - Output is concise and CI-friendly, with no credential material in logs.
 
 Example output excerpt:
 
 ```text
-[progress] command=build | 1/9 stage=extract
+[progress] command=build | 1/10 stage=extract
 [phase] level=INFO stage=extract event=start
 [phase] level=INFO stage=extract event=complete
 ...
-[progress] command=build | 9/9 stage=manifest
+[progress] command=build / 10/10 stage=manifest
 [phase] level=INFO stage=manifest event=complete
 ```
 
@@ -150,7 +156,7 @@ poetry run bookvoice tts-only out/run-<id>/run_manifest.json
 
 Behavior:
 
-- Runs only `tts`, `merge`, and `manifest`.
+- Runs only `tts`, `merge`, `package`, and `manifest`.
 - Requires valid `text/rewrites.json` and `text/chunks.json` artifacts from a prior run.
 - Preserves deterministic part naming and artifact schemas used by full `build`/`resume`.
 - Reapplies deterministic merged-output postprocessing (silence trim + peak normalization)
@@ -272,6 +278,8 @@ Each build creates a deterministic run directory:
 - `out/run-<hash>/audio/chunks/001_01_<title-slug>.wav`
 - `out/run-<hash>/audio/parts.json`
 - `out/run-<hash>/audio/bookvoice_merged.wav` (or chapter-scope variant)
+- `out/run-<hash>/audio/package/chapter_<NNN>_<title-slug>.m4a|.mp3` (when enabled)
+- `out/run-<hash>/audio/packaged.json`
 - `out/run-<hash>/run_manifest.json`
 
 `audio/parts.json` includes deterministic `chapter_index`, `part_index`, `part_id`,
@@ -281,8 +289,12 @@ final emitted `filename`, source `source_order_indices`, and per-part
 leading/trailing silence trimming followed by peak normalization to `95%`.
 Merged WAV outputs include RIFF `LIST/INFO` tags: `INAM` (title), `ISBJ`
 (chapter/part context), and `ICMT` (source identifier).
+When packaging is enabled, chapter-split AAC (`.m4a`) and/or MP3 outputs are emitted
+under `audio/package/` with deterministic `chapter_<NNN>_<slug>.<ext>` naming.
+Chapter numbering can follow source indices or sequential ordering.
 `run_manifest.json` `extra` includes compact chapter/part mapping and referenced
-structure indices for resume/rebuild stability, plus emitted audio filename fields.
+structure indices for resume/rebuild stability, packaging intent metadata, and
+packaged artifact references.
 `text/chunks.json` includes planner metadata under `metadata.planner` and chunk-level
 `boundary_strategy` metadata.
 

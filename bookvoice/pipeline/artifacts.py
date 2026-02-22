@@ -19,6 +19,7 @@ from ..models.datatypes import (
     Chapter,
     ChapterStructureUnit,
     Chunk,
+    PackagedAudio,
     RewriteResult,
     RunManifest,
     TranslationResult,
@@ -206,6 +207,34 @@ def part_mapping_manifest_metadata(audio_parts: list[AudioPart]) -> dict[str, st
         "part_source_structure_indices_csv": ",".join(
             str(index) for index in referenced_unit_indices
         ),
+    }
+
+
+def packaged_audio_artifact_payload(
+    packaged_outputs: list[PackagedAudio],
+    chapter_scope: dict[str, str],
+    packaging_metadata: dict[str, str],
+) -> dict[str, object]:
+    """Build deterministic packaged-audio artifact payload."""
+
+    return {
+        "packaged_audio": [
+            {
+                "output_kind": item.output_kind,
+                "format": item.format,
+                "chapter_index": item.chapter_index,
+                "chapter_number": item.chapter_number,
+                "chapter_title": item.chapter_title,
+                "filename": item.path.name,
+                "path": str(item.path),
+                "source_part_filenames": list(item.source_part_filenames),
+            }
+            for item in packaged_outputs
+        ],
+        "metadata": {
+            "chapter_scope": chapter_scope,
+            **packaging_metadata,
+        },
     }
 
 
@@ -502,3 +531,51 @@ def load_audio_parts(path: Path) -> list[AudioPart]:
             )
         )
     return audio_parts
+
+
+def load_packaged_audio(path: Path) -> list[PackagedAudio]:
+    """Load packaged-audio artifact entries from JSON."""
+
+    payload = load_json_object(path)
+    items = payload.get("packaged_audio")
+    if not isinstance(items, list):
+        raise PipelineStageError(
+            stage="resume-artifacts",
+            detail=f"Artifact missing `packaged_audio` list: {path}",
+            hint="Delete packaged artifact and rerun `bookvoice resume`.",
+        )
+
+    packaged_outputs: list[PackagedAudio] = []
+    for item in items:
+        if not isinstance(item, dict):
+            raise PipelineStageError(
+                stage="resume-artifacts",
+                detail=f"Malformed packaged-audio item in {path}",
+                hint="Delete packaged artifact and rerun `bookvoice resume`.",
+            )
+        packaged_outputs.append(
+            PackagedAudio(
+                output_kind=str(item["output_kind"]),
+                format=str(item["format"]),
+                chapter_index=(
+                    int(item["chapter_index"])
+                    if item.get("chapter_index") is not None
+                    else None
+                ),
+                chapter_number=(
+                    int(item["chapter_number"])
+                    if item.get("chapter_number") is not None
+                    else None
+                ),
+                chapter_title=(
+                    str(item["chapter_title"])
+                    if item.get("chapter_title") is not None
+                    else None
+                ),
+                path=Path(str(item["path"])),
+                source_part_filenames=tuple(
+                    str(entry) for entry in item.get("source_part_filenames", [])
+                ),
+            )
+        )
+    return packaged_outputs

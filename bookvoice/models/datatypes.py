@@ -117,6 +117,29 @@ class AudioPart:
 
 
 @dataclass(frozen=True, slots=True)
+class PackagedAudio:
+    """Metadata for one packaged chapter or merged deliverable.
+
+    Attributes:
+        output_kind: Package output kind (`chapter` or `merged`).
+        format: Output format identifier (`m4a`, `mp3`, or `wav`).
+        chapter_index: Source chapter index for chapter outputs.
+        chapter_number: Exported chapter number used in deterministic filename.
+        chapter_title: Chapter title used for slug derivation.
+        path: Filesystem path to packaged output file.
+        source_part_filenames: Ordered source chunk filenames used to produce output.
+    """
+
+    output_kind: str
+    format: str
+    chapter_index: int | None
+    chapter_number: int | None
+    chapter_title: str | None
+    path: Path
+    source_part_filenames: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True, slots=True)
 class ChapterStructureUnit:
     """Normalized chapter/subchapter structure unit for downstream audio planning.
 

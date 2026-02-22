@@ -132,8 +132,9 @@ def test_build_command_emits_progress_and_phase_logs(tmp_path: Path) -> None:
     result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
 
     assert result.exit_code == 0, result.output
-    assert "[progress] command=build | 1/9 stage=extract" in result.output
-    assert "[progress] command=build | 9/9 stage=manifest" in result.output
+    assert "[progress] command=build | 1/10 stage=extract" in result.output
+    assert "stage=package" in result.output
+    assert "10/10 stage=manifest" in result.output
     assert "[phase] level=INFO stage=extract event=start" in result.output
     assert "[phase] level=INFO stage=extract event=complete" in result.output
     assert "[phase] level=INFO stage=translate event=start" in result.output

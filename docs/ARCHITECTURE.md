@@ -11,6 +11,7 @@ Bookvoice is centered around typed dataclasses shared across stages:
 - `TranslationResult`: translation output per chunk.
 - `RewriteResult`: rewrite output per translation.
 - `AudioPart`: synthesized audio metadata per emitted WAV.
+- `PackagedAudio`: metadata for chapter-split packaged outputs.
 - `SegmentPlan` and `PlannedSegment`: structure-aware segmentation output.
 - `RunManifest`: deterministic run record (config hash, outputs, costs, metadata).
 
@@ -21,7 +22,7 @@ These models live in `bookvoice/models/datatypes.py`.
 `BookvoicePipeline` is composed from focused mixins:
 
 - `PipelineRuntimeMixin`: config validation, runtime provider resolution, run hashing.
-- `PipelineExecutionMixin`: extract/clean/split/chunk/translate/rewrite/tts/merge execution.
+- `PipelineExecutionMixin`: extract/clean/split/chunk/translate/rewrite/tts/merge/package execution.
 - `PipelineChapterScopeMixin`: chapter-selection parsing and scope metadata.
 - `PipelineManifestMixin`: `RunManifest` construction and persistence.
 - `PipelineTelemetryMixin`: deterministic stage progress and structured stage events.
@@ -36,13 +37,14 @@ Primary flow in `BookvoicePipeline.run`:
 6. `rewrite`
 7. `tts`
 8. `merge`
-9. `manifest`
+9. `package`
+10. `manifest`
 
 `BookvoicePipeline.run_translate_only` executes the same deterministic text stages
 through `translate`, then writes manifest metadata for continuation workflows.
 
 `BookvoicePipeline.run_tts_only_from_manifest` executes a constrained replay path
-from existing artifacts and runs only `tts`, `merge`, and manifest persistence.
+from existing artifacts and runs only `tts`, `merge`, `package`, and manifest persistence.
 
 `resume` reuses available artifacts and executes only missing stages.
 
@@ -60,7 +62,8 @@ Resolved non-secret runtime metadata is persisted in manifest `extra`.
 - Run ID and run directory are derived from a canonical config hash.
 - Stage outputs are written to deterministic paths under `<out>/run-<hash-prefix>/`.
 - Resume logic infers the next stage by checking expected artifact existence.
-- Manifest includes cost summary, chapter scope metadata, and part-mapping metadata.
+- Manifest includes cost summary, chapter scope metadata, part-mapping metadata,
+  and packaging metadata/artifact references.
 
 ## Error Handling
 
@@ -70,5 +73,5 @@ Resolved non-secret runtime metadata is persisted in manifest `extra`.
 
 ## Current Constraints
 
-- Audio postprocessing and metadata tagging are intentionally minimal.
-- YAML/environment config loader helpers are present but still placeholder implementations.
+- Packaging depends on local `ffmpeg` runtime and codec availability.
+- Metadata tags are currently written only for merged WAV outputs.

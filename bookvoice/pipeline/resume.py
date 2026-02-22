@@ -165,6 +165,8 @@ def detect_next_stage(
     rewrites_path: Path,
     audio_parts_path: Path,
     merged_path: Path,
+    packaged_path: Path,
+    packaging_enabled: bool,
 ) -> str:
     """Detect the first missing artifact stage for resume messaging."""
 
@@ -184,6 +186,8 @@ def detect_next_stage(
         return "tts"
     if not merged_path.exists():
         return "merge"
+    if packaging_enabled and not packaged_path.exists():
+        return "package"
     return "done"
 
 
@@ -366,6 +370,8 @@ def validate_resume_artifact_consistency(
     rewrites_path: Path,
     audio_parts_path: Path,
     merged_path: Path,
+    packaged_path: Path,
+    packaging_enabled: bool,
 ) -> ResumeArtifactConsistencyReport:
     """Validate resume-critical artifact consistency before replay begins."""
 
@@ -378,6 +384,8 @@ def validate_resume_artifact_consistency(
         rewrites_path=rewrites_path,
         audio_parts_path=audio_parts_path,
         merged_path=merged_path,
+        packaged_path=packaged_path,
+        packaging_enabled=packaging_enabled,
     )
 
     statuses = _critical_artifact_statuses(

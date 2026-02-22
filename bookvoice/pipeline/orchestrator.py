@@ -23,6 +23,7 @@ from ..models.datatypes import (
     Chapter,
     ChapterStructureUnit,
     Chunk,
+    PackagedAudio,
     RewriteResult,
     RunManifest,
     TranslationResult,
@@ -39,8 +40,10 @@ from .artifacts import (
     load_chapters,
     load_chunks,
     load_normalized_structure,
+    load_packaged_audio,
     load_rewrites,
     load_translations,
+    packaged_audio_artifact_payload,
     part_mapping_manifest_metadata,
     rewrite_artifact_payload,
     translation_artifact_payload,
@@ -82,6 +85,7 @@ class ResumeArtifactPaths:
     rewrites: Path
     audio_parts: Path
     merged: Path
+    packaged: Path
 
 
 @dataclass(slots=True)
@@ -113,6 +117,8 @@ class ResumeState:
     audio_parts: list[AudioPart] = field(default_factory=list)
     reuse_audio_parts: bool = False
     final_merged_path: Path | None = None
+    packaged_outputs: list[PackagedAudio] = field(default_factory=list)
+    reuse_packaged_outputs: bool = False
 
 
 class BookvoicePipeline(
@@ -262,6 +268,20 @@ class BookvoicePipeline(
                 output_path=self._merged_output_path_for_scope(store, chapter_scope),
             ),
         )
+        packaged_outputs = self._run_stage(
+            "package",
+            lambda: self._package(
+                audio_parts=audio_parts,
+                merged_path=merged_path,
+                config=config,
+                store=store,
+            ),
+        )
+        packaging_metadata = self._packaging_manifest_metadata(self._packaging_options(config))
+        packaged_path = store.save_json(
+            Path("audio/packaged.json"),
+            packaged_audio_artifact_payload(packaged_outputs, chapter_scope, packaging_metadata),
+        )
 
         manifest = self._run_stage(
             "manifest",
@@ -280,9 +300,11 @@ class BookvoicePipeline(
                     "rewrites": str(rewrites_path),
                     "audio_parts": str(audio_parts_path),
                     "merged_audio_filename": merged_path.name,
+                    "packaged_audio": str(packaged_path),
                     "chapter_source": chapter_source,
                     "chapter_fallback_reason": chapter_fallback_reason,
                     **part_mapping_metadata,
+                    **packaging_metadata,
                     **runtime_config.as_manifest_metadata(),
                     **chapter_scope,
                 },
@@ -450,6 +472,24 @@ class BookvoicePipeline(
                 output_path=state.paths.merged,
             ),
         )
+        packaged_outputs = self._run_stage(
+            "package",
+            lambda: self._package(
+                audio_parts=state.audio_parts,
+                merged_path=merged_path,
+                config=state.config,
+                store=state.store,
+            ),
+        )
+        packaging_metadata = self._packaging_manifest_metadata(self._packaging_options(state.config))
+        state.paths.packaged = state.store.save_json(
+            Path("audio/packaged.json"),
+            packaged_audio_artifact_payload(
+                packaged_outputs,
+                state.chapter_scope,
+                packaging_metadata,
+            ),
+        )
 
         return self._run_stage(
             "manifest",
@@ -468,10 +508,12 @@ class BookvoicePipeline(
                     "rewrites": str(state.paths.rewrites),
                     "audio_parts": str(state.paths.audio_parts),
                     "merged_audio_filename": merged_path.name,
+                    "packaged_audio": str(state.paths.packaged),
                     "pipeline_mode": "tts_only",
                     "chapter_source": state.chapter_source,
                     "chapter_fallback_reason": state.chapter_fallback_reason,
                     **part_mapping_metadata,
+                    **packaging_metadata,
                     **state.runtime_config.as_manifest_metadata(),
                     **state.chapter_scope,
                 },
@@ -626,6 +668,7 @@ class BookvoicePipeline(
         self._load_or_rewrite_resume_artifact(state)
         self._load_or_tts_resume_artifact(state)
         self._load_or_merge_resume_artifact(state)
+        self._load_or_package_resume_artifact(state)
         return self._write_resume_manifest(state)
 
     def _build_resume_state(self, manifest_path: Path) -> ResumeState:
@@ -671,6 +714,19 @@ class BookvoicePipeline(
             model_tts=manifest_string(normalized_extra, "model_tts", "gpt-4o-mini-tts"),
             tts_voice=manifest_string(normalized_extra, "tts_voice", "echo"),
             rewrite_bypass=manifest_bool(normalized_extra, "rewrite_bypass", False),
+            extra={
+                "packaging_mode": manifest_string(normalized_extra, "packaging_mode", "none"),
+                "packaging_chapter_numbering": manifest_string(
+                    normalized_extra,
+                    "packaging_chapter_numbering",
+                    "source",
+                ),
+                "packaging_keep_merged": (
+                    "true"
+                    if manifest_bool(normalized_extra, "packaging_keep_merged", True)
+                    else "false"
+                ),
+            },
             resume=True,
         )
         runtime_config = self._resolve_runtime_config(config)
@@ -702,6 +758,13 @@ class BookvoicePipeline(
                 manifest_path, run_root, normalized_extra, "audio_parts", Path("audio/parts.json")
             ),
             merged=resolve_merged_path(manifest_path, run_root, payload),
+            packaged=resolve_artifact_path(
+                manifest_path,
+                run_root,
+                normalized_extra,
+                "packaged_audio",
+                Path("audio/packaged.json"),
+            ),
         )
         validation_report = validate_resume_artifact_consistency(
             raw_text_path=paths.raw_text,
@@ -712,6 +775,8 @@ class BookvoicePipeline(
             rewrites_path=paths.rewrites,
             audio_parts_path=paths.audio_parts,
             merged_path=paths.merged,
+            packaged_path=paths.packaged,
+            packaging_enabled=self._packaging_options(config).formats != tuple(),
         )
         ensure_recoverable_resume_state(validation_report)
 
@@ -909,6 +974,46 @@ class BookvoicePipeline(
             output_path=state.paths.merged,
         )
 
+    def _load_or_package_resume_artifact(self, state: ResumeState) -> None:
+        """Reuse packaged outputs only when merge and packaged files are fully reusable."""
+
+        packaging_enabled = self._packaging_options(state.config).formats != tuple()
+        if (
+            state.paths.packaged.exists()
+            and state.paths.merged.exists()
+            and state.reuse_audio_parts
+            and state.final_merged_path == state.paths.merged
+        ):
+            loaded_outputs = load_packaged_audio(state.paths.packaged)
+            if all(item.path.exists() for item in loaded_outputs):
+                state.packaged_outputs = loaded_outputs
+                state.reuse_packaged_outputs = True
+                return
+
+        if state.final_merged_path is None:
+            raise PipelineStageError(
+                stage="package",
+                detail="Resume package stage did not receive a merged output path.",
+                hint="Retry `bookvoice resume` to regenerate merge and packaging artifacts.",
+            )
+        state.packaged_outputs = self._package(
+            audio_parts=state.audio_parts,
+            merged_path=state.final_merged_path,
+            config=state.config,
+            store=state.store,
+        )
+        packaging_metadata = self._packaging_manifest_metadata(self._packaging_options(state.config))
+        state.paths.packaged = state.store.save_json(
+            Path("audio/packaged.json"),
+            packaged_audio_artifact_payload(
+                state.packaged_outputs,
+                state.chapter_scope,
+                packaging_metadata,
+            ),
+        )
+        if not packaging_enabled and not state.packaged_outputs:
+            state.reuse_packaged_outputs = False
+
     def _write_resume_manifest(self, state: ResumeState) -> RunManifest:
         """Write final resume manifest while preserving metadata keys."""
 
@@ -919,6 +1024,16 @@ class BookvoicePipeline(
                 hint="Retry `bookvoice resume` to regenerate downstream artifacts.",
             )
         part_mapping_metadata = part_mapping_manifest_metadata(state.audio_parts)
+        packaging_metadata = self._packaging_manifest_metadata(self._packaging_options(state.config))
+        if not state.paths.packaged.exists():
+            state.paths.packaged = state.store.save_json(
+                Path("audio/packaged.json"),
+                packaged_audio_artifact_payload(
+                    state.packaged_outputs,
+                    state.chapter_scope,
+                    packaging_metadata,
+                ),
+            )
         return self._write_manifest(
             config=state.config,
             run_id=state.run_id,
@@ -934,11 +1049,13 @@ class BookvoicePipeline(
                 "rewrites": str(state.paths.rewrites),
                 "audio_parts": str(state.paths.audio_parts),
                 "merged_audio_filename": state.final_merged_path.name,
+                "packaged_audio": str(state.paths.packaged),
                 "resume_next_stage": state.next_stage,
                 **state.validation_report.as_manifest_metadata(),
                 "chapter_source": state.chapter_source,
                 "chapter_fallback_reason": state.chapter_fallback_reason,
                 **part_mapping_metadata,
+                **packaging_metadata,
                 **state.runtime_config.as_manifest_metadata(),
                 **state.chapter_scope,
             },

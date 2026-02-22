@@ -93,6 +93,9 @@ def _resolve_command_base_config(
     out: Path | None,
     chapters: str | None,
     rewrite_bypass: bool | None,
+    package_mode: str | None = None,
+    package_chapter_numbering: str | None = None,
+    package_keep_merged: bool | None = None,
 ) -> BookvoiceConfig:
     """Resolve effective command config from YAML defaults and explicit CLI overrides."""
 
@@ -107,11 +110,21 @@ def _resolve_command_base_config(
             )
         resolved_output_dir = out if out is not None else Path("out")
         resolved_rewrite_bypass = rewrite_bypass if rewrite_bypass is not None else False
+        resolved_extra: dict[str, str] = {}
+        if package_mode is not None:
+            resolved_extra["packaging_mode"] = package_mode
+        if package_chapter_numbering is not None:
+            resolved_extra["packaging_chapter_numbering"] = package_chapter_numbering
+        if package_keep_merged is not None:
+            resolved_extra["packaging_keep_merged"] = (
+                "true" if package_keep_merged else "false"
+            )
         return BookvoiceConfig(
             input_pdf=input_pdf,
             output_dir=resolved_output_dir,
             chapter_selection=chapters,
             rewrite_bypass=resolved_rewrite_bypass,
+            extra=resolved_extra,
         )
 
     resolved_input_pdf = input_pdf if input_pdf is not None else loaded_config.input_pdf
@@ -120,6 +133,13 @@ def _resolve_command_base_config(
     resolved_rewrite_bypass = (
         rewrite_bypass if rewrite_bypass is not None else loaded_config.rewrite_bypass
     )
+    resolved_extra = dict(loaded_config.extra)
+    if package_mode is not None:
+        resolved_extra["packaging_mode"] = package_mode
+    if package_chapter_numbering is not None:
+        resolved_extra["packaging_chapter_numbering"] = package_chapter_numbering
+    if package_keep_merged is not None:
+        resolved_extra["packaging_keep_merged"] = "true" if package_keep_merged else "false"
 
     return BookvoiceConfig(
         input_pdf=resolved_input_pdf,
@@ -137,7 +157,7 @@ def _resolve_command_base_config(
         chunk_size_chars=loaded_config.chunk_size_chars,
         chapter_selection=resolved_chapters,
         resume=loaded_config.resume,
-        extra=dict(loaded_config.extra),
+        extra=resolved_extra,
     )
 
 
@@ -264,6 +284,27 @@ def build_command(
             ),
         ),
     ] = None,
+    package_mode: Annotated[
+        str | None,
+        typer.Option(
+            "--package-mode",
+            help="Packaged output mode: `none`, `aac`, `mp3`, or `both`.",
+        ),
+    ] = None,
+    package_chapter_numbering: Annotated[
+        str | None,
+        typer.Option(
+            "--package-chapter-numbering",
+            help="Number packaged chapter files by source index or sequential order.",
+        ),
+    ] = None,
+    package_keep_merged: Annotated[
+        bool | None,
+        typer.Option(
+            "--package-keep-merged/--no-package-keep-merged",
+            help="Keep full merged WAV deliverable inside packaged output folder.",
+        ),
+    ] = None,
 ) -> None:
     """Run the full pipeline."""
 
@@ -288,6 +329,9 @@ def build_command(
             out=out,
             chapters=chapters,
             rewrite_bypass=rewrite_bypass,
+            package_mode=package_mode,
+            package_chapter_numbering=package_chapter_numbering,
+            package_keep_merged=package_keep_merged,
         )
         config = _apply_runtime_sources(
             base_config=base_config,
@@ -305,6 +349,7 @@ def build_command(
 
     typer.echo(f"Run id: {manifest.run_id}")
     typer.echo(f"Merged audio: {manifest.merged_audio_path}")
+    typer.echo(f"Packaged audio artifact: {manifest.extra.get('packaged_audio', '(not written)')}")
     typer.echo(f"Manifest: {manifest.extra.get('manifest_path', '(not written)')}")
     echo_chapter_summary(manifest)
     echo_cost_summary(manifest)
@@ -629,6 +674,9 @@ def tts_only_command(
     typer.echo(f"Run id: {replayed_manifest.run_id}")
     typer.echo(f"Merged audio: {replayed_manifest.merged_audio_path}")
     typer.echo(f"Audio parts artifact: {replayed_manifest.extra.get('audio_parts', '(not written)')}")
+    typer.echo(
+        f"Packaged audio artifact: {replayed_manifest.extra.get('packaged_audio', '(not written)')}"
+    )
     typer.echo(f"Manifest: {replayed_manifest.extra.get('manifest_path', '(not written)')}")
     echo_chapter_summary(replayed_manifest)
     echo_cost_summary(replayed_manifest)
@@ -655,6 +703,9 @@ def resume_command(
         f"Resumed from stage: {resumed_manifest.extra.get('resume_next_stage', 'unknown')}"
     )
     typer.echo(f"Merged audio: {resumed_manifest.merged_audio_path}")
+    typer.echo(
+        f"Packaged audio artifact: {resumed_manifest.extra.get('packaged_audio', '(not written)')}"
+    )
     typer.echo(f"Manifest: {resumed_manifest.extra.get('manifest_path', '(not written)')}")
     echo_chapter_summary(resumed_manifest)
     echo_cost_summary(resumed_manifest)

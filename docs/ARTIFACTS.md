@@ -24,7 +24,11 @@ out/
       rewrites.json
     audio/
       parts.json
+      packaged.json
       bookvoice_merged.wav
+      package/
+        chapter_001_chapter-1.m4a
+        chapter_001_chapter-1.mp3
       chunks/
         001_01_chapter-1.wav
         001_02_chapter-1.wav
@@ -248,6 +252,57 @@ Minimal shape:
 - WAV outputs are tagged with RIFF `LIST/INFO` metadata:
   `INAM` (title), `ISBJ` (chapter/part context), and `ICMT` (source identifier).
 - Tagging is format-aware and currently implemented only for `.wav` outputs.
+
+### `audio/package/chapter_<NNN>_<chapter-title-slug>.<ext>`
+
+- Optional chapter-split packaged deliverables emitted by package stage.
+- `ext` is `m4a` (AAC) and/or `mp3` based on packaging mode.
+- Numbering mode is configurable:
+  - `source`: `NNN` mirrors source chapter index.
+  - `sequential`: `NNN` follows selected chapter order.
+- Packaging is additive: deterministic merged WAV remains the master artifact.
+
+### `audio/packaged.json`
+
+- Packaging artifact with deterministic file references and metadata.
+
+Minimal shape:
+
+```json
+{
+  "packaged_audio": [
+    {
+      "output_kind": "chapter",
+      "format": "m4a",
+      "chapter_index": 1,
+      "chapter_number": 1,
+      "chapter_title": "Chapter 1",
+      "filename": "chapter_001_chapter-1.m4a",
+      "path": "out/run-.../audio/package/chapter_001_chapter-1.m4a",
+      "source_part_filenames": ["001_01_chapter-1.wav"]
+    },
+    {
+      "output_kind": "merged",
+      "format": "wav",
+      "chapter_index": null,
+      "chapter_number": null,
+      "chapter_title": null,
+      "filename": "bookvoice_merged.wav",
+      "path": "out/run-.../audio/package/bookvoice_merged.wav",
+      "source_part_filenames": []
+    }
+  ],
+  "metadata": {
+    "chapter_scope": {
+      "chapter_scope_mode": "all",
+      "chapter_scope_label": "all"
+    },
+    "packaging_mode": "both",
+    "packaging_chapter_numbering": "source",
+    "packaging_keep_merged": "true"
+  }
+}
+```
 
 ## Manifest
 
