@@ -198,6 +198,43 @@ Environment keys:
 - `BOOKVOICE_TTS_VOICE`
 - `BOOKVOICE_REWRITE_BYPASS`
 
+`ConfigLoader.from_yaml` supported keys:
+
+- `input_pdf` (required)
+- `output_dir` (required)
+- `language`
+- `provider_translator`
+- `provider_rewriter`
+- `provider_tts`
+- `model_translate`
+- `model_rewrite`
+- `model_tts`
+- `tts_voice`
+- `rewrite_bypass` (`true`/`false`, `1`/`0`, `yes`/`no`)
+- `api_key`
+- `chunk_size_chars` (positive integer)
+- `chapter_selection`
+- `resume` (`true`/`false`, `1`/`0`, `yes`/`no`)
+- `extra` (string-to-string mapping)
+
+`ConfigLoader.from_env` supported keys:
+
+- `BOOKVOICE_INPUT_PDF` (required)
+- `BOOKVOICE_OUTPUT_DIR`
+- `BOOKVOICE_LANGUAGE`
+- `BOOKVOICE_CHUNK_SIZE_CHARS`
+- `BOOKVOICE_CHAPTER_SELECTION`
+- `BOOKVOICE_RESUME`
+- `BOOKVOICE_PROVIDER_TRANSLATOR`
+- `BOOKVOICE_PROVIDER_REWRITER`
+- `BOOKVOICE_PROVIDER_TTS`
+- `BOOKVOICE_MODEL_TRANSLATE`
+- `BOOKVOICE_MODEL_REWRITE`
+- `BOOKVOICE_MODEL_TTS`
+- `BOOKVOICE_TTS_VOICE`
+- `BOOKVOICE_REWRITE_BYPASS`
+- `OPENAI_API_KEY`
+
 ## Artifacts You Can Expect
 
 Each build creates a deterministic run directory:

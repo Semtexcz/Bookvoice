@@ -15,10 +15,15 @@ Key types:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import os
 from pathlib import Path
-from typing import Mapping
+from typing import Any, Mapping
 
-from .parsing import normalize_optional_string, parse_required_boolean
+from .parsing import (
+    normalize_optional_string,
+    parse_permissive_boolean,
+    parse_required_boolean,
+)
 
 
 _DEFAULT_TRANSLATION_MODEL = "gpt-4.1-mini"
@@ -338,39 +343,483 @@ class BookvoiceConfig:
 
 
 class ConfigLoader:
-    """Factory methods for creating `BookvoiceConfig`.
+    """Factory methods for creating `BookvoiceConfig` from external sources."""
 
-    Real parsing logic is intentionally deferred to future implementation.
-    """
+    _REQUIRED_YAML_KEYS = frozenset({"input_pdf", "output_dir"})
+    _SUPPORTED_YAML_KEYS = frozenset(
+        {
+            "input_pdf",
+            "output_dir",
+            "language",
+            "provider_translator",
+            "provider_rewriter",
+            "provider_tts",
+            "model_translate",
+            "model_rewrite",
+            "model_tts",
+            "tts_voice",
+            "rewrite_bypass",
+            "api_key",
+            "chunk_size_chars",
+            "chapter_selection",
+            "resume",
+            "extra",
+        }
+    )
+    _RUNTIME_ENV_KEYS = frozenset(
+        {
+            "BOOKVOICE_PROVIDER_TRANSLATOR",
+            "BOOKVOICE_PROVIDER_REWRITER",
+            "BOOKVOICE_PROVIDER_TTS",
+            "BOOKVOICE_MODEL_TRANSLATE",
+            "BOOKVOICE_MODEL_REWRITE",
+            "BOOKVOICE_MODEL_TTS",
+            "BOOKVOICE_TTS_VOICE",
+            "BOOKVOICE_REWRITE_BYPASS",
+            "OPENAI_API_KEY",
+        }
+    )
 
     @staticmethod
     def from_yaml(path: Path) -> BookvoiceConfig:
-        """Create a config from a YAML file.
+        """Create a validated config from a YAML file."""
 
-        Note:
-            YAML parsing is planned for a future optional dependency.
+        path_text = path.read_text(encoding="utf-8")
+        payload = ConfigLoader._parse_yaml_payload(path_text, path)
 
-        Args:
-            path: Path to a future YAML config file.
-
-        Returns:
-            A placeholder `BookvoiceConfig` instance.
-        """
-
-        _ = path
-        return BookvoiceConfig(input_pdf=Path("input.pdf"), output_dir=Path("out"))
+        return ConfigLoader._build_config_from_mapping(payload, source_label=f"YAML `{path}`")
 
     @staticmethod
     def from_env(env: Mapping[str, str] | None = None) -> BookvoiceConfig:
-        """Create a config from environment variables.
+        """Create a validated config from environment variables."""
 
-        Args:
-            env: Optional environment mapping. If omitted, `os.environ` will be
-                used in a future implementation.
+        env_map: Mapping[str, str] = os.environ if env is None else env
 
-        Returns:
-            A placeholder `BookvoiceConfig` instance.
-        """
+        input_pdf = ConfigLoader._required_env_path(env_map, "BOOKVOICE_INPUT_PDF")
+        output_dir = ConfigLoader._optional_env_path(env_map, "BOOKVOICE_OUTPUT_DIR") or Path("out")
+        language = ConfigLoader._optional_env_string(env_map, "BOOKVOICE_LANGUAGE") or "cs"
+        chunk_size = ConfigLoader._optional_env_positive_int(
+            env_map, "BOOKVOICE_CHUNK_SIZE_CHARS"
+        ) or 1800
+        chapter_selection = ConfigLoader._optional_env_string(
+            env_map, "BOOKVOICE_CHAPTER_SELECTION"
+        )
+        resume = ConfigLoader._optional_env_boolean(env_map, "BOOKVOICE_RESUME") or False
+        provider_translator = (
+            ConfigLoader._optional_env_string(env_map, "BOOKVOICE_PROVIDER_TRANSLATOR")
+            or "openai"
+        )
+        provider_rewriter = (
+            ConfigLoader._optional_env_string(env_map, "BOOKVOICE_PROVIDER_REWRITER") or "openai"
+        )
+        provider_tts = (
+            ConfigLoader._optional_env_string(env_map, "BOOKVOICE_PROVIDER_TTS") or "openai"
+        )
+        model_translate = (
+            ConfigLoader._optional_env_string(env_map, "BOOKVOICE_MODEL_TRANSLATE")
+            or _DEFAULT_TRANSLATION_MODEL
+        )
+        model_rewrite = (
+            ConfigLoader._optional_env_string(env_map, "BOOKVOICE_MODEL_REWRITE")
+            or _DEFAULT_REWRITE_MODEL
+        )
+        model_tts = (
+            ConfigLoader._optional_env_string(env_map, "BOOKVOICE_MODEL_TTS")
+            or _DEFAULT_TTS_MODEL
+        )
+        tts_voice = (
+            ConfigLoader._optional_env_string(env_map, "BOOKVOICE_TTS_VOICE")
+            or _DEFAULT_TTS_VOICE
+        )
+        rewrite_bypass = (
+            ConfigLoader._optional_env_boolean(env_map, "BOOKVOICE_REWRITE_BYPASS") or False
+        )
+        api_key = ConfigLoader._optional_env_string(env_map, "OPENAI_API_KEY")
 
-        _ = env
-        return BookvoiceConfig(input_pdf=Path("input.pdf"), output_dir=Path("out"))
+        runtime_env = {
+            key: value
+            for key, value in env_map.items()
+            if key in ConfigLoader._RUNTIME_ENV_KEYS
+            and normalize_optional_string(value) is not None
+        }
+
+        config = BookvoiceConfig(
+            input_pdf=input_pdf,
+            output_dir=output_dir,
+            language=language,
+            provider_translator=provider_translator,
+            provider_rewriter=provider_rewriter,
+            provider_tts=provider_tts,
+            model_translate=model_translate,
+            model_rewrite=model_rewrite,
+            model_tts=model_tts,
+            tts_voice=tts_voice,
+            rewrite_bypass=rewrite_bypass,
+            api_key=api_key,
+            chunk_size_chars=chunk_size,
+            chapter_selection=chapter_selection,
+            resume=resume,
+            runtime_sources=RuntimeConfigSources(env=runtime_env),
+        )
+        config.validate()
+        return config
+
+    @staticmethod
+    def _parse_yaml_payload(raw_text: str, path: Path) -> Mapping[str, Any]:
+        """Parse YAML text and enforce a mapping root payload."""
+
+        try:
+            import yaml
+            payload = yaml.safe_load(raw_text)
+        except ImportError:
+            payload = ConfigLoader._parse_simple_yaml_mapping(raw_text, path)
+
+        if payload is None:
+            payload = {}
+        if not isinstance(payload, Mapping):
+            raise ValueError(f"YAML config `{path}` must contain a top-level mapping/object.")
+        return payload
+
+    @staticmethod
+    def _build_config_from_mapping(payload: Mapping[str, Any], source_label: str) -> BookvoiceConfig:
+        """Build a validated config from a normalized mapping payload."""
+
+        ConfigLoader._validate_yaml_keys(payload, source_label)
+
+        input_pdf = ConfigLoader._required_path(payload, "input_pdf", source_label)
+        output_dir = ConfigLoader._required_path(payload, "output_dir", source_label)
+        language = ConfigLoader._optional_non_empty_string(payload, "language", source_label) or "cs"
+        provider_translator = (
+            ConfigLoader._optional_non_empty_string(payload, "provider_translator", source_label)
+            or "openai"
+        )
+        provider_rewriter = (
+            ConfigLoader._optional_non_empty_string(payload, "provider_rewriter", source_label)
+            or "openai"
+        )
+        provider_tts = (
+            ConfigLoader._optional_non_empty_string(payload, "provider_tts", source_label)
+            or "openai"
+        )
+        model_translate = (
+            ConfigLoader._optional_non_empty_string(payload, "model_translate", source_label)
+            or _DEFAULT_TRANSLATION_MODEL
+        )
+        model_rewrite = (
+            ConfigLoader._optional_non_empty_string(payload, "model_rewrite", source_label)
+            or _DEFAULT_REWRITE_MODEL
+        )
+        model_tts = (
+            ConfigLoader._optional_non_empty_string(payload, "model_tts", source_label)
+            or _DEFAULT_TTS_MODEL
+        )
+        tts_voice = (
+            ConfigLoader._optional_non_empty_string(payload, "tts_voice", source_label)
+            or _DEFAULT_TTS_VOICE
+        )
+        rewrite_bypass = ConfigLoader._optional_boolean(
+            payload,
+            "rewrite_bypass",
+            source_label,
+            default=False,
+        )
+        api_key = ConfigLoader._optional_non_empty_string(payload, "api_key", source_label)
+        chunk_size = ConfigLoader._optional_positive_int(
+            payload,
+            "chunk_size_chars",
+            source_label,
+            default=1800,
+        )
+        chapter_selection = ConfigLoader._optional_non_empty_string(
+            payload, "chapter_selection", source_label
+        )
+        resume = ConfigLoader._optional_boolean(
+            payload,
+            "resume",
+            source_label,
+            default=False,
+        )
+        extra = ConfigLoader._optional_string_map(payload, "extra", source_label)
+
+        config = BookvoiceConfig(
+            input_pdf=input_pdf,
+            output_dir=output_dir,
+            language=language,
+            provider_translator=provider_translator,
+            provider_rewriter=provider_rewriter,
+            provider_tts=provider_tts,
+            model_translate=model_translate,
+            model_rewrite=model_rewrite,
+            model_tts=model_tts,
+            tts_voice=tts_voice,
+            rewrite_bypass=rewrite_bypass,
+            api_key=api_key,
+            chunk_size_chars=chunk_size,
+            chapter_selection=chapter_selection,
+            resume=resume,
+            extra=extra,
+        )
+        config.validate()
+        return config
+
+    @staticmethod
+    def _validate_yaml_keys(payload: Mapping[str, Any], source_label: str) -> None:
+        """Validate supported and required YAML keys."""
+
+        unknown = sorted(set(payload).difference(ConfigLoader._SUPPORTED_YAML_KEYS))
+        if unknown:
+            key_list = ", ".join(unknown)
+            raise ValueError(f"{source_label} includes unsupported key(s): {key_list}.")
+
+        missing = sorted(
+            key for key in ConfigLoader._REQUIRED_YAML_KEYS if key not in payload
+        )
+        if missing:
+            key_list = ", ".join(missing)
+            raise ValueError(f"{source_label} is missing required key(s): {key_list}.")
+
+    @staticmethod
+    def _required_path(payload: Mapping[str, Any], key: str, source_label: str) -> Path:
+        """Read a required non-empty path-like field from a payload."""
+
+        value = ConfigLoader._optional_non_empty_string(payload, key, source_label)
+        if value is None:
+            raise ValueError(f"{source_label} requires non-empty `{key}`.")
+        return Path(value)
+
+    @staticmethod
+    def _optional_non_empty_string(
+        payload: Mapping[str, Any], key: str, source_label: str
+    ) -> str | None:
+        """Read an optional string field and normalize blank values to `None`."""
+
+        if key not in payload:
+            return None
+        value = normalize_optional_string(payload[key])
+        if value is None:
+            return None
+        return value
+
+    @staticmethod
+    def _optional_positive_int(
+        payload: Mapping[str, Any], key: str, source_label: str, default: int
+    ) -> int:
+        """Read and validate a positive integer payload field."""
+
+        if key not in payload:
+            return default
+
+        raw_value = payload[key]
+        if isinstance(raw_value, bool):
+            raise ValueError(f"{source_label} field `{key}` must be a positive integer.")
+        if isinstance(raw_value, int):
+            parsed = raw_value
+        else:
+            normalized = normalize_optional_string(raw_value)
+            if normalized is None:
+                return default
+            try:
+                parsed = int(normalized)
+            except ValueError as exc:
+                raise ValueError(
+                    f"{source_label} field `{key}` must be a positive integer."
+                ) from exc
+
+        if parsed <= 0:
+            raise ValueError(f"{source_label} field `{key}` must be a positive integer.")
+        return parsed
+
+    @staticmethod
+    def _optional_boolean(
+        payload: Mapping[str, Any], key: str, source_label: str, default: bool
+    ) -> bool:
+        """Read and validate a boolean field from a payload."""
+
+        if key not in payload:
+            return default
+
+        raw_value = payload[key]
+        parsed = parse_permissive_boolean(raw_value)
+        if parsed is None:
+            raise ValueError(
+                f"{source_label} field `{key}` must be a boolean value "
+                "(`true`/`false`, `1`/`0`, `yes`/`no`)."
+            )
+        return parsed
+
+    @staticmethod
+    def _optional_string_map(
+        payload: Mapping[str, Any], key: str, source_label: str
+    ) -> dict[str, str]:
+        """Read an optional mapping with non-empty string keys and values."""
+
+        if key not in payload:
+            return {}
+
+        raw = payload[key]
+        if raw is None:
+            return {}
+        if not isinstance(raw, Mapping):
+            raise ValueError(f"{source_label} field `{key}` must be a mapping/object.")
+
+        normalized: dict[str, str] = {}
+        for raw_key, raw_value in raw.items():
+            key_value = normalize_optional_string(raw_key)
+            value_value = normalize_optional_string(raw_value)
+            if key_value is None:
+                raise ValueError(f"{source_label} field `{key}` contains a blank key.")
+            if value_value is None:
+                raise ValueError(
+                    f"{source_label} field `{key}` contains blank value for `{key_value}`."
+                )
+            normalized[key_value] = value_value
+        return normalized
+
+    @staticmethod
+    def _required_env_path(env: Mapping[str, str], key: str) -> Path:
+        """Read a required non-empty path value from environment mapping."""
+
+        value = ConfigLoader._optional_env_string(env, key)
+        if value is None:
+            raise ValueError(f"Environment variable `{key}` is required.")
+        return Path(value)
+
+    @staticmethod
+    def _optional_env_path(env: Mapping[str, str], key: str) -> Path | None:
+        """Read an optional path value from environment mapping."""
+
+        value = ConfigLoader._optional_env_string(env, key)
+        if value is None:
+            return None
+        return Path(value)
+
+    @staticmethod
+    def _optional_env_string(env: Mapping[str, str], key: str) -> str | None:
+        """Read and normalize optional string environment variable values."""
+
+        if key not in env:
+            return None
+        return normalize_optional_string(env.get(key))
+
+    @staticmethod
+    def _optional_env_positive_int(env: Mapping[str, str], key: str) -> int | None:
+        """Read an optional positive integer from environment mapping."""
+
+        raw_value = ConfigLoader._optional_env_string(env, key)
+        if raw_value is None:
+            return None
+        try:
+            parsed = int(raw_value)
+        except ValueError as exc:
+            raise ValueError(f"Environment variable `{key}` must be a positive integer.") from exc
+        if parsed <= 0:
+            raise ValueError(f"Environment variable `{key}` must be a positive integer.")
+        return parsed
+
+    @staticmethod
+    def _optional_env_boolean(env: Mapping[str, str], key: str) -> bool | None:
+        """Read an optional boolean from environment mapping."""
+
+        if key not in env:
+            return None
+        raw_value = env.get(key)
+        parsed = parse_permissive_boolean(raw_value)
+        if parsed is None:
+            raise ValueError(
+                f"Environment variable `{key}` must be a boolean value "
+                "(`true`/`false`, `1`/`0`, `yes`/`no`)."
+            )
+        return parsed
+
+    @staticmethod
+    def _parse_simple_yaml_mapping(raw_text: str, path: Path) -> Mapping[str, Any]:
+        """Parse a strict YAML subset supporting mappings, scalars, and one-line comments."""
+
+        lines = raw_text.splitlines()
+        parsed, next_index = ConfigLoader._parse_simple_yaml_block(
+            lines=lines, start_index=0, expected_indent=0, path=path
+        )
+        trailing_non_empty = any(
+            normalize_optional_string(line) is not None for line in lines[next_index:]
+        )
+        if trailing_non_empty:
+            raise ValueError(f"YAML config `{path}` contains invalid trailing content.")
+        return parsed
+
+    @staticmethod
+    def _parse_simple_yaml_block(
+        lines: list[str], start_index: int, expected_indent: int, path: Path
+    ) -> tuple[dict[str, Any], int]:
+        """Parse one indentation block of a minimal YAML mapping."""
+
+        payload: dict[str, Any] = {}
+        index = start_index
+        while index < len(lines):
+            raw_line = lines[index]
+            stripped = raw_line.strip()
+            if not stripped or stripped.startswith("#"):
+                index += 1
+                continue
+
+            indent = len(raw_line) - len(raw_line.lstrip(" "))
+            if indent < expected_indent:
+                break
+            if indent > expected_indent:
+                raise ValueError(
+                    f"YAML config `{path}` has invalid indentation on line {index + 1}."
+                )
+
+            line = raw_line[expected_indent:]
+            if ":" not in line:
+                raise ValueError(
+                    f"YAML config `{path}` has invalid mapping entry on line {index + 1}."
+                )
+            key_part, value_part = line.split(":", 1)
+            key = normalize_optional_string(key_part)
+            if key is None:
+                raise ValueError(f"YAML config `{path}` has blank key on line {index + 1}.")
+            value_text = value_part.strip()
+            if not value_text:
+                child_payload, child_index = ConfigLoader._parse_simple_yaml_block(
+                    lines=lines,
+                    start_index=index + 1,
+                    expected_indent=expected_indent + 2,
+                    path=path,
+                )
+                if not child_payload:
+                    raise ValueError(
+                        f"YAML config `{path}` key `{key}` must define a non-empty mapping."
+                    )
+                payload[key] = child_payload
+                index = child_index
+                continue
+
+            payload[key] = ConfigLoader._parse_simple_yaml_scalar(value_text)
+            index += 1
+
+        return payload, index
+
+    @staticmethod
+    def _parse_simple_yaml_scalar(value: str) -> Any:
+        """Parse scalar values from the supported YAML subset."""
+
+        if value.startswith('"') and value.endswith('"') and len(value) >= 2:
+            return value[1:-1]
+        if value.startswith("'") and value.endswith("'") and len(value) >= 2:
+            return value[1:-1]
+
+        normalized = value.strip()
+        lower = normalized.lower()
+        if lower == "true":
+            return True
+        if lower == "false":
+            return False
+
+        if normalized.startswith(("+", "-")):
+            digit_part = normalized[1:]
+        else:
+            digit_part = normalized
+        if digit_part.isdigit():
+            return int(normalized)
+
+        return normalized

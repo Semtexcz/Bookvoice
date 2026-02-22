@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-02-22
+
+### Added
+
+- Completed `TASK-036` by implementing real `ConfigLoader.from_yaml` and `ConfigLoader.from_env` parsing and validation in `bookvoice/config.py`.
+- Added strict YAML schema validation for required keys, unknown-key rejection, typed boolean/integer parsing, and normalized optional string/mapping fields.
+- Added focused unit coverage for valid/invalid YAML payloads, environment loading behavior, typed value errors, blank normalization, and runtime precedence compatibility.
+
+### Changed
+
+- Updated `README.md` with explicit supported keys for `ConfigLoader.from_yaml` and `ConfigLoader.from_env`, including typed token expectations for boolean and integer values.
+- Marked `TASK-036` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.4.0`.
+
 ## [0.3.0] - 2026-02-22
 
 ### Added
