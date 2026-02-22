@@ -33,6 +33,7 @@ from .artifacts import (
     audio_parts_artifact_payload,
     chapter_artifact_payload,
     chunk_artifact_payload,
+    load_json_object,
     load_audio_parts,
     load_chapter_metadata,
     load_chapters,
@@ -409,6 +410,206 @@ class BookvoicePipeline(
                 store=store,
             ),
         )
+
+    def run_tts_only_from_manifest(self, manifest_path: Path) -> RunManifest:
+        """Run only TTS/merge/manifest stages from an existing run manifest."""
+
+        state = self._build_resume_state(manifest_path)
+        self._validate_tts_only_runtime_metadata(state.extra)
+        state.rewrites, state.chapter_scope = self._load_tts_only_prerequisites(state)
+
+        state.audio_parts = self._run_stage(
+            "tts",
+            lambda: self._tts(
+                state.rewrites,
+                state.config,
+                state.store,
+                state.runtime_config,
+            ),
+        )
+        add_tts_costs(state.rewrites, state.cost_tracker)
+        state.paths.audio_parts = state.store.save_json(
+            Path("audio/parts.json"),
+            audio_parts_artifact_payload(
+                state.audio_parts,
+                state.chapter_scope,
+                state.runtime_config,
+            ),
+        )
+        part_mapping_metadata = part_mapping_manifest_metadata(state.audio_parts)
+
+        merged_path = self._run_stage(
+            "merge",
+            lambda: self._merge(
+                self._postprocess(state.audio_parts, state.config),
+                state.config,
+                state.store,
+                output_path=state.paths.merged,
+            ),
+        )
+
+        return self._run_stage(
+            "manifest",
+            lambda: self._write_manifest(
+                config=state.config,
+                run_id=state.run_id,
+                config_hash=state.config_hash,
+                merged_audio_path=merged_path,
+                artifact_paths={
+                    "run_root": str(state.store.root),
+                    "raw_text": str(state.paths.raw_text),
+                    "clean_text": str(state.paths.clean_text),
+                    "chapters": str(state.paths.chapters),
+                    "chunks": str(state.paths.chunks),
+                    "translations": str(state.paths.translations),
+                    "rewrites": str(state.paths.rewrites),
+                    "audio_parts": str(state.paths.audio_parts),
+                    "merged_audio_filename": merged_path.name,
+                    "pipeline_mode": "tts_only",
+                    "chapter_source": state.chapter_source,
+                    "chapter_fallback_reason": state.chapter_fallback_reason,
+                    **part_mapping_metadata,
+                    **state.runtime_config.as_manifest_metadata(),
+                    **state.chapter_scope,
+                },
+                cost_summary=rounded_cost_summary(state.cost_tracker),
+                store=state.store,
+            ),
+        )
+
+    def _validate_tts_only_runtime_metadata(self, extra: dict[str, object]) -> None:
+        """Validate manifest runtime metadata required for deterministic TTS replay."""
+
+        required_runtime_keys = (
+            "provider_tts",
+            "model_tts",
+            "tts_voice",
+        )
+        for key in required_runtime_keys:
+            raw_value = extra.get(key)
+            if not isinstance(raw_value, str) or not raw_value.strip():
+                raise PipelineStageError(
+                    stage="tts-only-prerequisites",
+                    detail=(
+                        "Manifest is missing runtime setting "
+                        f"`extra.{key}` required for `tts-only` replay."
+                    ),
+                    hint=(
+                        "Generate a fresh manifest via `bookvoice build` or "
+                        "`bookvoice resume`, then rerun `bookvoice tts-only`."
+                    ),
+                )
+
+    def _load_tts_only_prerequisites(
+        self, state: ResumeState
+    ) -> tuple[list[RewriteResult], dict[str, str]]:
+        """Load and validate prerequisite artifacts for `tts-only` execution."""
+
+        if not state.paths.rewrites.exists():
+            raise PipelineStageError(
+                stage="tts-only-prerequisites",
+                detail=f"Required rewrites artifact is missing: {state.paths.rewrites}",
+                hint=(
+                    "Run `bookvoice build` or `bookvoice resume` through rewrite stage "
+                    "before running `bookvoice tts-only`."
+                ),
+            )
+        if not state.paths.chunks.exists():
+            raise PipelineStageError(
+                stage="tts-only-prerequisites",
+                detail=f"Required chunks artifact is missing: {state.paths.chunks}",
+                hint=(
+                    "Run `bookvoice build` or `bookvoice resume` through chunk stage "
+                    "before running `bookvoice tts-only`."
+                ),
+            )
+
+        rewrites = load_rewrites(state.paths.rewrites)
+        if not rewrites:
+            raise PipelineStageError(
+                stage="tts-only-prerequisites",
+                detail=f"Rewrites artifact is empty: {state.paths.rewrites}",
+                hint=(
+                    "Ensure rewrite stage produced chunk rewrites, then retry "
+                    "`bookvoice tts-only`."
+                ),
+            )
+
+        chunk_payload = load_json_object(state.paths.chunks)
+        metadata = chunk_payload.get("metadata")
+        if not isinstance(metadata, dict):
+            raise PipelineStageError(
+                stage="tts-only-prerequisites",
+                detail=f"Chunks artifact metadata is missing or invalid: {state.paths.chunks}",
+                hint=(
+                    "Regenerate `text/chunks.json` via `bookvoice build` or "
+                    "`bookvoice resume` before running `bookvoice tts-only`."
+                ),
+            )
+        chapter_scope_payload = metadata.get("chapter_scope")
+        if not isinstance(chapter_scope_payload, dict):
+            raise PipelineStageError(
+                stage="tts-only-prerequisites",
+                detail=(
+                    "Chunks artifact metadata is missing required "
+                    f"`metadata.chapter_scope`: {state.paths.chunks}"
+                ),
+                hint=(
+                    "Regenerate `text/chunks.json` via `bookvoice build` or "
+                    "`bookvoice resume` before running `bookvoice tts-only`."
+                ),
+            )
+
+        chapter_scope = {
+            str(key): str(value)
+            for key, value in chapter_scope_payload.items()
+            if isinstance(key, str) and isinstance(value, str)
+        }
+        if not chapter_scope.get("chapter_scope_mode"):
+            raise PipelineStageError(
+                stage="tts-only-prerequisites",
+                detail=(
+                    "Chunks artifact metadata is missing non-empty "
+                    "`metadata.chapter_scope.chapter_scope_mode`."
+                ),
+                hint=(
+                    "Regenerate `text/chunks.json` via `bookvoice build` or "
+                    "`bookvoice resume` before running `bookvoice tts-only`."
+                ),
+            )
+
+        chunks = load_chunks(state.paths.chunks)
+        chunk_pairs = {(item.chapter_index, item.chunk_index) for item in chunks}
+        for rewrite in rewrites:
+            chunk = rewrite.translation.chunk
+            chunk_pair = (chunk.chapter_index, chunk.chunk_index)
+            if chunk_pair not in chunk_pairs:
+                raise PipelineStageError(
+                    stage="tts-only-prerequisites",
+                    detail=(
+                        "Rewrites artifact references chunk "
+                        f"{chunk.chapter_index}:{chunk.chunk_index} "
+                        "that is not present in chunk metadata."
+                    ),
+                    hint=(
+                        "Regenerate `text/chunks.json` and `text/rewrites.json` via "
+                        "`bookvoice resume` before running `bookvoice tts-only`."
+                    ),
+                )
+            if chunk.part_id is None or not chunk.part_id.strip():
+                raise PipelineStageError(
+                    stage="tts-only-prerequisites",
+                    detail=(
+                        "Rewrite chunk metadata is missing deterministic `part_id` "
+                        f"for chunk {chunk.chapter_index}:{chunk.chunk_index}."
+                    ),
+                    hint=(
+                        "Regenerate chunk/rewrite artifacts via `bookvoice build` "
+                        "or `bookvoice resume`, then rerun `bookvoice tts-only`."
+                    ),
+                )
+
+        return rewrites, chapter_scope
 
     def resume(self, manifest_path: Path) -> RunManifest:
         """Resume a run from an existing manifest and artifacts."""

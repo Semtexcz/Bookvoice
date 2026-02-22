@@ -23,7 +23,6 @@ Implemented:
 
 Still limited:
 
-- `tts-only` command is still a placeholder.
 - Postprocessing and metadata tagging are minimal.
 - `ConfigLoader.from_yaml` and `ConfigLoader.from_env` remain placeholders.
 
@@ -35,10 +34,10 @@ Goal:
 
 - Replace placeholder command behavior with true partial-pipeline execution.
 
-Scope:
+Scope complete:
 
-- Implement real `tts-only` from manifest/artifacts.
-- Add integration tests for `tts-only` command path.
+- `tts-only` implemented from manifest/artifacts with constrained replay (`tts` + `merge` + `manifest`).
+- Integration coverage added for successful replay and prerequisite validation failures.
 
 ## Phase 2: Reliability Hardening
 

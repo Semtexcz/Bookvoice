@@ -21,7 +21,6 @@ Implemented today:
 
 Still intentionally limited:
 
-- `tts-only` is still a placeholder.
 - Audio postprocessing/tagging are minimal scaffolds.
 
 ## Chunk Boundary Guarantees
@@ -139,6 +138,19 @@ Behavior:
 - Persists deterministic text artifacts (`raw`, `clean`, `chapters`, `chunks`, `translations`) and `run_manifest.json`.
 - Does not execute `rewrite`, `tts`, or `merge`.
 - Supports the same provider/model/runtime precedence and secure credential flow as `build`.
+
+### TTS-only (from manifest + text artifacts)
+
+```bash
+poetry run bookvoice tts-only out/run-<id>/run_manifest.json
+```
+
+Behavior:
+
+- Runs only `tts`, `merge`, and `manifest`.
+- Requires valid `text/rewrites.json` and `text/chunks.json` artifacts from a prior run.
+- Preserves deterministic part naming and artifact schemas used by full `build`/`resume`.
+- Does not execute upstream text stages (`extract` through `rewrite`).
 
 ### List chapters
 

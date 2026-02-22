@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-02-22
+
+### Added
+
+- Completed `TASK-035` by implementing a real `bookvoice tts-only <manifest.json>` flow that replays from persisted artifacts and executes only `tts`, `merge`, and `manifest` stages.
+- Added strict `tts-only` prerequisite validation for manifest runtime metadata (`provider_tts`, `model_tts`, `tts_voice`), required `text/rewrites.json`, and required chunk metadata in `text/chunks.json`.
+- Added integration coverage for `tts-only` successful replay, upstream-stage non-execution guarantees, and missing/corrupted prerequisite artifact failures.
+
+### Changed
+
+- Replaced the CLI `tts-only` placeholder with full pipeline wiring including stage progress, phase logging, chapter summary, and deterministic cost output rendering.
+- Updated docs (`README.md`, `docs/ARCHITECTURE.md`, `docs/MODULES.md`, `docs/ROADMAP.md`) to document real `tts-only` behavior and remove placeholder status.
+- Marked `TASK-035` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.3.0`.
+
 ## [0.2.0] - 2026-02-22
 
 ### Added

@@ -468,8 +468,24 @@ def credentials_command(
 def tts_only_command(
     manifest: Annotated[Path, typer.Argument(help="Path to run manifest JSON.")],
 ) -> None:
-    """Run TTS stage from prior artifacts."""
-    typer.echo(f"[tts-only] Would synthesize audio from manifest: {manifest}")
+    """Run only TTS/merge stages from an existing manifest and text artifacts."""
+
+    try:
+        progress = BuildProgressIndicator(command_name="tts-only")
+        pipeline = BookvoicePipeline(
+            run_logger=RunLogger(),
+            stage_progress_callback=progress.on_stage_start,
+        )
+        replayed_manifest = pipeline.run_tts_only_from_manifest(manifest)
+    except Exception as exc:
+        exit_with_command_error("tts-only", exc)
+
+    typer.echo(f"Run id: {replayed_manifest.run_id}")
+    typer.echo(f"Merged audio: {replayed_manifest.merged_audio_path}")
+    typer.echo(f"Audio parts artifact: {replayed_manifest.extra.get('audio_parts', '(not written)')}")
+    typer.echo(f"Manifest: {replayed_manifest.extra.get('manifest_path', '(not written)')}")
+    echo_chapter_summary(replayed_manifest)
+    echo_cost_summary(replayed_manifest)
 
 
 @app.command("resume")
