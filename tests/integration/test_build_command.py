@@ -9,6 +9,40 @@ from typer.testing import CliRunner
 from bookvoice.cli import app
 
 
+def _parse_wav_info_tags(wav_bytes: bytes) -> dict[str, str]:
+    """Parse RIFF `LIST/INFO` tags from WAV bytes for integration assertions."""
+
+    if len(wav_bytes) < 12 or wav_bytes[:4] != b"RIFF" or wav_bytes[8:12] != b"WAVE":
+        return {}
+
+    tags: dict[str, str] = {}
+    payload = wav_bytes[12:]
+    offset = 0
+    while offset + 8 <= len(payload):
+        chunk_id = payload[offset : offset + 4]
+        chunk_size = int.from_bytes(payload[offset + 4 : offset + 8], "little")
+        content_start = offset + 8
+        content_end = content_start + chunk_size
+        if content_end > len(payload):
+            break
+        content = payload[content_start:content_end]
+        if chunk_id == b"LIST" and content.startswith(b"INFO"):
+            info = content[4:]
+            info_offset = 0
+            while info_offset + 8 <= len(info):
+                key = info[info_offset : info_offset + 4].decode("ascii", errors="ignore")
+                value_size = int.from_bytes(info[info_offset + 4 : info_offset + 8], "little")
+                value_start = info_offset + 8
+                value_end = value_start + value_size
+                if value_end > len(info):
+                    break
+                raw_value = info[value_start:value_end]
+                tags[key] = raw_value.rstrip(b"\x00").decode("utf-8", errors="ignore")
+                info_offset = value_end + (value_size % 2)
+        offset = content_end + (chunk_size % 2)
+    return tags
+
+
 def test_build_command_creates_outputs(tmp_path: Path) -> None:
     """Build command should create run artifacts and include deterministic cost fields."""
 
@@ -28,6 +62,10 @@ def test_build_command_creates_outputs(tmp_path: Path) -> None:
     assert manifests, "manifest should be written"
     assert merged_files, "merged audio should be written"
     assert merged_files[0].stat().st_size > 44, "merged WAV should contain audio data"
+    tags = _parse_wav_info_tags(merged_files[0].read_bytes())
+    assert tags["INAM"] == fixture_pdf.stem
+    assert "scope=all" in tags["ISBJ"]
+    assert "source=" in tags["ICMT"]
     assert raw_texts and raw_texts[0].read_text(encoding="utf-8").strip()
     assert rewrites and rewrites[0].read_text(encoding="utf-8").strip()
 

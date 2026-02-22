@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-02-22
+
+### Added
+
+- Completed `TASK-038` by implementing deterministic merged-WAV postprocessing with explicit defaults: leading/trailing silence trimming and peak normalization to `95%`.
+- Added deterministic WAV metadata tagging via RIFF `LIST/INFO` fields: `INAM` (title), `ISBJ` (chapter/part context), and `ICMT` (source identifier).
+- Added unit coverage for postprocessing idempotence/normalization behavior and tag presence/idempotence.
+- Added integration coverage asserting merged build outputs contain deterministic WAV metadata tags.
+
+### Changed
+
+- Wired merge stage to apply merged-output postprocessing and metadata tagging consistently across `build`, `resume`, and `tts-only` replay paths.
+- Updated `README.md` and `docs/ARTIFACTS.md` to document postprocessing/tagging behavior and current WAV-only limitation.
+- Updated `tts-only` missing-rewrites integration expectation to reflect current `resume-validation` behavior for mixed missing/stale artifact chains.
+- Marked `TASK-038` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.5.0`.
+
 ## [0.4.3] - 2026-02-22
 
 ### Changed

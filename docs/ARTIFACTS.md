@@ -243,6 +243,11 @@ Minimal shape:
 
 - Final merged audiobook output for the run.
 - For chapter-scoped runs, the filename remains deterministic and scope metadata is stored in manifest `extra`.
+- Deterministic in-place postprocessing is applied in merge stage:
+  leading/trailing silence trimming followed by peak normalization to `95%`.
+- WAV outputs are tagged with RIFF `LIST/INFO` metadata:
+  `INAM` (title), `ISBJ` (chapter/part context), and `ICMT` (source identifier).
+- Tagging is format-aware and currently implemented only for `.wav` outputs.
 
 ## Manifest
 

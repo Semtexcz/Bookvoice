@@ -60,7 +60,7 @@ def test_tts_only_command_replays_tts_merge_without_upstream_stages(
 
 
 def test_tts_only_command_reports_missing_rewrites_prerequisite(tmp_path: Path) -> None:
-    """TTS-only should fail with actionable diagnostics when rewrites artifact is missing."""
+    """TTS-only should fail when rewrites are missing but downstream artifacts still exist."""
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
@@ -75,8 +75,8 @@ def test_tts_only_command_reports_missing_rewrites_prerequisite(tmp_path: Path) 
 
     result = runner.invoke(app, ["tts-only", str(manifest_path)])
     assert result.exit_code == 1
-    assert "tts-only failed at stage `tts-only-prerequisites`" in result.output
-    assert "Required rewrites artifact is missing" in result.output
+    assert "tts-only failed at stage `resume-validation`" in result.output
+    assert "missing `rewrites`" in result.output
 
 
 def test_tts_only_command_reports_corrupted_chunk_metadata_prerequisite(

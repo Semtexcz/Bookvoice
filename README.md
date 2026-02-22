@@ -21,7 +21,7 @@ Implemented today:
 
 Still intentionally limited:
 
-- Audio postprocessing/tagging are minimal scaffolds.
+- Postprocessing/tagging are currently WAV-only and do not transcode to other tagged formats.
 
 ## Chunk Boundary Guarantees
 
@@ -150,6 +150,8 @@ Behavior:
 - Runs only `tts`, `merge`, and `manifest`.
 - Requires valid `text/rewrites.json` and `text/chunks.json` artifacts from a prior run.
 - Preserves deterministic part naming and artifact schemas used by full `build`/`resume`.
+- Reapplies deterministic merged-output postprocessing (silence trim + peak normalization)
+  and WAV metadata tagging on every replay.
 - Does not execute upstream text stages (`extract` through `rewrite`).
 
 ### List chapters
@@ -253,6 +255,10 @@ Each build creates a deterministic run directory:
 `audio/parts.json` includes deterministic `chapter_index`, `part_index`, `part_id`,
 final emitted `filename`, source `source_order_indices`, and per-part
 `provider`/`model`/`voice` metadata.
+`audio/bookvoice_merged*.wav` is postprocessed deterministically in-place:
+leading/trailing silence trimming followed by peak normalization to `95%`.
+Merged WAV outputs include RIFF `LIST/INFO` tags: `INAM` (title), `ISBJ`
+(chapter/part context), and `ICMT` (source identifier).
 `run_manifest.json` `extra` includes compact chapter/part mapping and referenced
 structure indices for resume/rebuild stability, plus emitted audio filename fields.
 `text/chunks.json` includes planner metadata under `metadata.planner` and chunk-level

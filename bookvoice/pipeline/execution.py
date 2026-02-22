@@ -12,6 +12,7 @@ from pathlib import Path
 
 from ..audio.merger import AudioMerger
 from ..audio.postprocess import AudioPostProcessor
+from ..audio.tags import AudioTagContext, MetadataWriter
 from ..config import BookvoiceConfig, ProviderRuntimeConfig
 from ..errors import PipelineStageError
 from ..io.chapter_splitter import ChapterSplitter
@@ -384,31 +385,11 @@ class PipelineExecutionMixin:
     def _postprocess(
         self, audio_parts: list[AudioPart], config: BookvoiceConfig
     ) -> list[AudioPart]:
-        """Apply postprocessing to synthesized audio parts."""
+        """Return deterministic part metadata before merged-output postprocessing."""
 
         try:
             _ = config
-            postprocessor = AudioPostProcessor()
-            processed: list[AudioPart] = []
-            for part in audio_parts:
-                normalized = postprocessor.normalize(part.path)
-                trimmed = postprocessor.trim_silence(normalized)
-                processed.append(
-                    AudioPart(
-                        chapter_index=part.chapter_index,
-                        chunk_index=part.chunk_index,
-                        path=trimmed,
-                        duration_seconds=part.duration_seconds,
-                        part_index=part.part_index,
-                        part_title=part.part_title,
-                        part_id=part.part_id,
-                        source_order_indices=part.source_order_indices,
-                        provider=part.provider,
-                        model=part.model,
-                        voice=part.voice,
-                    )
-                )
-            return processed
+            return list(audio_parts)
         except PipelineStageError:
             raise
         except Exception as exc:
@@ -428,9 +409,8 @@ class PipelineExecutionMixin:
         """Merge chapter or book-level audio outputs."""
 
         try:
-            _ = config
             merger = AudioMerger()
-            return merger.merge(
+            merged_path = merger.merge(
                 audio_parts,
                 output_path=(
                     output_path
@@ -438,6 +418,48 @@ class PipelineExecutionMixin:
                     else store.root / "audio/bookvoice_merged.wav"
                 ),
             )
+            postprocessor = AudioPostProcessor()
+            processed_path = postprocessor.process_merged(merged_path)
+
+            sorted_parts = sorted(
+                audio_parts,
+                key=lambda item: (item.chapter_index, item.chunk_index),
+            )
+            chapter_indices = sorted({part.chapter_index for part in sorted_parts})
+            chapter_indices_csv = ",".join(str(index) for index in chapter_indices)
+            chapter_scope_label = (
+                "all"
+                if not config.chapter_selection
+                else (
+                    f"{chapter_indices[0]}-{chapter_indices[-1]}"
+                    if chapter_indices
+                    else "selected"
+                )
+            )
+            part_ids_csv = ",".join(
+                part.part_id if part.part_id is not None else str(part.chunk_index)
+                for part in sorted_parts
+            )
+            merged_title = (
+                config.input_pdf.stem
+                if chapter_scope_label == "all"
+                else f"{config.input_pdf.stem} (chapters {chapter_scope_label})"
+            )
+            source_identifier = f"{config.input_pdf.name}#{store.root.name}"
+
+            metadata_writer = MetadataWriter()
+            metadata_writer.write(
+                processed_path,
+                AudioTagContext(
+                    title=merged_title,
+                    chapter_scope_label=chapter_scope_label,
+                    chapter_indices_csv=chapter_indices_csv,
+                    source_identifier=source_identifier,
+                    part_count=len(sorted_parts),
+                    part_ids_csv=part_ids_csv,
+                ),
+            )
+            return processed_path
         except PipelineStageError:
             raise
         except Exception as exc:
