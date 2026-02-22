@@ -13,15 +13,21 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Annotated, NoReturn
+from typing import Annotated
 
 import typer
 
+from .cli_rendering import (
+    echo_chapter_list,
+    echo_chapter_source,
+    echo_chapter_summary,
+    echo_cost_summary,
+    exit_with_command_error,
+)
 from .config import BookvoiceConfig, RuntimeConfigSources
 from .credentials import create_credential_store
 from .cli_runtime import resolve_provider_runtime_sources
 from .errors import PipelineStageError
-from .models.datatypes import Chapter, RunManifest
 from .parsing import normalize_optional_string
 from .pipeline import BookvoicePipeline
 from .telemetry.logger import RunLogger
@@ -51,54 +57,6 @@ class BuildProgressIndicator:
             f"[progress] command={self._command_name} "
             f"{spinner} {stage_index}/{stage_total} stage={stage_name}"
         )
-
-
-def _exit_with_command_error(command_name: str, exc: Exception) -> NoReturn:
-    """Print concise diagnostics for command failures and exit with code 1."""
-
-    if isinstance(exc, PipelineStageError):
-        typer.secho(
-            f"{command_name} failed at stage `{exc.stage}`: {exc.detail}",
-            fg=typer.colors.RED,
-            err=True,
-        )
-        if exc.hint:
-            typer.secho(f"Hint: {exc.hint}", fg=typer.colors.YELLOW, err=True)
-    else:
-        typer.secho(f"{command_name} failed: {exc}", fg=typer.colors.RED, err=True)
-    raise typer.Exit(code=1) from exc
-
-
-def _echo_cost_summary(manifest: RunManifest) -> None:
-    """Print run-level cost summary in USD."""
-
-    typer.echo(f"Cost LLM (USD): {manifest.total_llm_cost_usd:.6f}")
-    typer.echo(f"Cost TTS (USD): {manifest.total_tts_cost_usd:.6f}")
-    typer.echo(f"Cost Total (USD): {manifest.total_cost_usd:.6f}")
-
-
-def _echo_chapter_summary(manifest: RunManifest) -> None:
-    """Print chapter extraction source and fallback reason when available."""
-
-    source = manifest.extra.get("chapter_source", "unknown")
-    fallback_reason = manifest.extra.get("chapter_fallback_reason", "")
-    typer.echo(f"Chapter source: {source}")
-    if fallback_reason:
-        typer.echo(f"Chapter fallback reason: {fallback_reason}")
-    selection_label = manifest.extra.get("chapter_scope_label", "all")
-    selection_mode = manifest.extra.get("chapter_scope_mode", "all")
-    typer.echo(f"Chapter scope: {selection_mode} ({selection_label})")
-
-
-def _echo_chapter_list(chapters: list[Chapter]) -> None:
-    """Print compact deterministic chapter index/title rows."""
-
-    sorted_rows = sorted(
-        ((chapter.index, chapter.title) for chapter in chapters),
-        key=lambda item: item[0],
-    )
-    for index, title in sorted_rows:
-        typer.echo(f"{index}. {title}")
 
 
 @app.command("build")
@@ -213,13 +171,13 @@ def build_command(
         )
         manifest = pipeline.run(config)
     except Exception as exc:
-        _exit_with_command_error("build", exc)
+        exit_with_command_error("build", exc)
 
     typer.echo(f"Run id: {manifest.run_id}")
     typer.echo(f"Merged audio: {manifest.merged_audio_path}")
     typer.echo(f"Manifest: {manifest.extra.get('manifest_path', '(not written)')}")
-    _echo_chapter_summary(manifest)
-    _echo_cost_summary(manifest)
+    echo_chapter_summary(manifest)
+    echo_cost_summary(manifest)
 
 
 @app.command("chapters-only")
@@ -247,12 +205,12 @@ def chapters_only_command(
         )
         manifest = pipeline.run_chapters_only(config)
     except Exception as exc:
-        _exit_with_command_error("chapters-only", exc)
+        exit_with_command_error("chapters-only", exc)
 
     typer.echo(f"Run id: {manifest.run_id}")
     typer.echo(f"Chapters artifact: {manifest.extra.get('chapters', '(not written)')}")
     typer.echo(f"Manifest: {manifest.extra.get('manifest_path', '(not written)')}")
-    _echo_chapter_summary(manifest)
+    echo_chapter_summary(manifest)
 
 
 @app.command("list-chapters")
@@ -275,7 +233,7 @@ def list_chapters_command(
     if (input_pdf is None and chapters_artifact is None) or (
         input_pdf is not None and chapters_artifact is not None
     ):
-        _exit_with_command_error(
+        exit_with_command_error(
             "list-chapters",
             PipelineStageError(
                 stage="list-chapters-input",
@@ -302,12 +260,10 @@ def list_chapters_command(
             config = BookvoiceConfig(input_pdf=input_pdf, output_dir=out)
             chapters, source, fallback_reason = pipeline.list_chapters_from_pdf(config)
     except Exception as exc:
-        _exit_with_command_error("list-chapters", exc)
+        exit_with_command_error("list-chapters", exc)
 
-    typer.echo(f"Chapter source: {source or 'unknown'}")
-    if fallback_reason:
-        typer.echo(f"Chapter fallback reason: {fallback_reason}")
-    _echo_chapter_list(chapters)
+    echo_chapter_source(source, fallback_reason)
+    echo_chapter_list(chapters)
 
 
 @app.command("translate-only")
@@ -322,7 +278,7 @@ def translate_only_command(
         config = BookvoiceConfig(input_pdf=input_pdf, output_dir=out)
         manifest = pipeline.run(config)
     except Exception as exc:
-        _exit_with_command_error("translate-only", exc)
+        exit_with_command_error("translate-only", exc)
 
     typer.echo(f"[translate-only] Would process: {config.input_pdf}")
     typer.echo(f"[translate-only] Output dir: {config.output_dir}")
@@ -349,7 +305,7 @@ def credentials_command(
     """Manage securely stored CLI credentials."""
 
     if set_api_key and clear_api_key:
-        _exit_with_command_error(
+        exit_with_command_error(
             "credentials",
             PipelineStageError(
                 stage="credentials",
@@ -369,7 +325,7 @@ def credentials_command(
             )
         )
         if prompted_api_key is None:
-            _exit_with_command_error(
+            exit_with_command_error(
                 "credentials",
                 PipelineStageError(
                     stage="credentials",
@@ -380,7 +336,7 @@ def credentials_command(
         try:
             credential_store.set_api_key(prompted_api_key)
         except Exception as exc:
-            _exit_with_command_error(
+            exit_with_command_error(
                 "credentials",
                 PipelineStageError(
                     stage="credentials",
@@ -428,7 +384,7 @@ def resume_command(
         )
         resumed_manifest = pipeline.resume(manifest)
     except Exception as exc:
-        _exit_with_command_error("resume", exc)
+        exit_with_command_error("resume", exc)
 
     typer.echo(f"Run id: {resumed_manifest.run_id}")
     typer.echo(
@@ -436,8 +392,8 @@ def resume_command(
     )
     typer.echo(f"Merged audio: {resumed_manifest.merged_audio_path}")
     typer.echo(f"Manifest: {resumed_manifest.extra.get('manifest_path', '(not written)')}")
-    _echo_chapter_summary(resumed_manifest)
-    _echo_cost_summary(resumed_manifest)
+    echo_chapter_summary(resumed_manifest)
+    echo_cost_summary(resumed_manifest)
 
 
 def main() -> None:

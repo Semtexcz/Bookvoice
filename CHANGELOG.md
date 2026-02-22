@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.52] - 2026-02-22
+
+### Changed
+
+- Completed `TASK-030` by extracting CLI output and error rendering helpers into new module `bookvoice/cli_rendering.py`.
+- Updated `bookvoice/cli.py` to delegate chapter summaries, chapter list/source rendering, cost summaries, and command failure diagnostics through shared rendering helpers.
+- Kept CLI output text and ordering stable for existing command integration coverage.
+- Added unit tests for centralized error rendering behavior for both `PipelineStageError` (with hint) and generic exception fallback paths.
+- Marked `TASK-030` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.1.52`.
+
 ## [0.1.51] - 2026-02-22
 
 ### Changed
