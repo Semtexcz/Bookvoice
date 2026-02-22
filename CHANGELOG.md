@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2] - 2026-02-22
+
+### Changed
+
+- Added `TASK-040` to `project/backlog/` to track CLI integration of config-file loading (`--config`) with explicit precedence guarantees and tests/docs scope.
+- Bumped project version to `0.4.2`.
+
 ## [0.4.1] - 2026-02-22
 
 ### Changed
