@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.51] - 2026-02-22
+
+### Changed
+
+- Completed `TASK-029` by extracting provider runtime-source assembly and interactive prompt flow from `bookvoice/cli.py` into new support module `bookvoice/cli_runtime.py`.
+- Kept `bookvoice build` CLI options and secure credential behavior unchanged for `--store-api-key`, `--prompt-api-key`, and `--interactive-provider-setup`.
+- Added focused unit coverage for extracted runtime-resolution helpers, including interactive prompts, secure fallback behavior, and secure-store failure mapping.
+- Updated `bookvoice/cli.py` to delegate provider runtime resolution to the extracted helper while preserving command signatures and UX output.
+- Marked `TASK-029` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.1.51`.
+
 ## [0.1.50] - 2026-02-22
 
 ### Changed

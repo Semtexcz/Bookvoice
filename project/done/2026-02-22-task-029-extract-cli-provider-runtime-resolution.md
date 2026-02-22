@@ -1,6 +1,6 @@
 ---
 task: TASK-029
-status: "backlog"
+status: "done"
 priority: P2
 type: refactor
 ---
@@ -8,7 +8,7 @@ type: refactor
 # Extract CLI provider runtime resolution from command module
 
 Task: TASK-029
-Status: backlog
+Status: done
 Priority: P2
 Type: refactor
 Author:
@@ -21,10 +21,10 @@ Related: TASK-014B, TASK-028
 
 ## Definition of Done
 
-- [ ] Move provider runtime source assembly and prompt flow from `bookvoice/cli.py` into a dedicated CLI support module.
-- [ ] Keep Typer command signatures and flags unchanged.
-- [ ] Keep secure credential behavior unchanged (`--store-api-key`, `--prompt-api-key`, `--interactive-provider-setup`).
-- [ ] Add targeted tests for extracted runtime-resolution helpers without invoking full command execution.
+- [x] Move provider runtime source assembly and prompt flow from `bookvoice/cli.py` into a dedicated CLI support module.
+- [x] Keep Typer command signatures and flags unchanged.
+- [x] Keep secure credential behavior unchanged (`--store-api-key`, `--prompt-api-key`, `--interactive-provider-setup`).
+- [x] Add targeted tests for extracted runtime-resolution helpers without invoking full command execution.
 
 ## Notes
 
