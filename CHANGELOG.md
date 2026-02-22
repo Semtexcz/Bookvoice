@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.54] - 2026-02-22
+
+### Changed
+
+- Completed `TASK-032` by consolidating duplicated OpenAI JSON POST request construction and transport/exception mapping logic into shared `_OpenAIBaseClient` helpers.
+- Kept chat-completions text parsing and speech-byte validation stage-specific while reusing shared HTTP plumbing for both `OpenAIChatClient` and `OpenAISpeechClient`.
+- Preserved existing `OpenAIProviderError` diagnostic message patterns used by pipeline stage error mapping.
+- Added unit coverage for shared transport handling: malformed HTTP error body decoding fallback, URL transport failures, timeout classification, and empty OpenAI speech responses.
+- Marked `TASK-032` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.1.54`.
+
 ## [0.1.53] - 2026-02-22
 
 ### Changed

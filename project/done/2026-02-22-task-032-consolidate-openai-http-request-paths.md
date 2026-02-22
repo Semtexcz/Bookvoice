@@ -1,6 +1,6 @@
 ---
 task: TASK-032
-status: "backlog"
+status: "done"
 priority: P2
 type: refactor
 ---
@@ -8,7 +8,7 @@ type: refactor
 # Consolidate duplicated OpenAI HTTP request and error handling
 
 Task: TASK-032
-Status: backlog
+Status: done
 Priority: P2
 Type: refactor
 Author:
@@ -21,10 +21,10 @@ Related: TASK-014E, TASK-012
 
 ## Definition of Done
 
-- [ ] Extract shared request execution and error translation helpers in `_OpenAIBaseClient`.
-- [ ] Keep chat and speech response parsing separate, but reuse transport/error plumbing.
-- [ ] Preserve current `OpenAIProviderError` message patterns used by pipeline stage mapping.
-- [ ] Add tests for shared transport error handling (HTTP error body decode, URL errors, timeout, empty response).
+- [x] Extract shared request execution and error translation helpers in `_OpenAIBaseClient`.
+- [x] Keep chat and speech response parsing separate, but reuse transport/error plumbing.
+- [x] Preserve current `OpenAIProviderError` message patterns used by pipeline stage mapping.
+- [x] Add tests for shared transport error handling (HTTP error body decode, URL errors, timeout, empty response).
 
 ## Notes
 

@@ -62,6 +62,85 @@ class _OpenAIBaseClient:
                 failure_kind="invalid_api_key",
             )
 
+    def _build_json_post_request(
+        self,
+        endpoint_path: str,
+        payload: dict[str, Any],
+    ) -> request.Request:
+        """Build a JSON POST request for an OpenAI API endpoint path."""
+
+        body = json.dumps(payload).encode("utf-8")
+        endpoint = f"{self.base_url}{endpoint_path}"
+        return request.Request(
+            endpoint,
+            data=body,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+
+    def _execute_request_bytes(
+        self,
+        http_request: request.Request,
+        *,
+        require_non_empty_response: bool = False,
+        empty_response_message: str = "OpenAI response is empty.",
+    ) -> bytes:
+        """Execute an HTTP request and map transport/provider failures consistently."""
+
+        try:
+            with request.urlopen(http_request, timeout=self.timeout_seconds) as response:
+                response_bytes = response.read()
+        except error.HTTPError as exc:
+            raise self._http_error_to_provider_error(exc) from exc
+        except error.URLError as exc:
+            reason = getattr(exc, "reason", exc)
+            failure_kind = self._classify_transport_failure(reason)
+            if failure_kind == "timeout":
+                detail = "OpenAI request timed out."
+            else:
+                detail = (
+                    "OpenAI request transport error: "
+                    f"{self._short_message(str(reason))}"
+                )
+            raise OpenAIProviderError(detail, failure_kind=failure_kind) from exc
+        except TimeoutError as exc:
+            raise OpenAIProviderError(
+                "OpenAI request timed out.",
+                failure_kind="timeout",
+            ) from exc
+        except Exception as exc:
+            raise OpenAIProviderError(
+                f"OpenAI request failed: {self._short_message(str(exc))}",
+                failure_kind="unknown",
+            ) from exc
+
+        if require_non_empty_response and not response_bytes:
+            raise OpenAIProviderError(empty_response_message)
+        return bytes(response_bytes)
+
+    def _post_json_bytes(
+        self,
+        *,
+        endpoint_path: str,
+        payload: dict[str, Any],
+        require_non_empty_response: bool = False,
+        empty_response_message: str = "OpenAI response is empty.",
+    ) -> bytes:
+        """POST JSON payload to OpenAI and return raw response bytes."""
+
+        http_request = self._build_json_post_request(
+            endpoint_path=endpoint_path,
+            payload=payload,
+        )
+        return self._execute_request_bytes(
+            http_request,
+            require_non_empty_response=require_non_empty_response,
+            empty_response_message=empty_response_message,
+        )
+
     @staticmethod
     def _decode_error_body(exc: error.HTTPError) -> str:
         """Decode an HTTP error body into a best-effort UTF-8 payload string."""
@@ -206,38 +285,10 @@ class OpenAIChatClient(_OpenAIBaseClient):
             ],
             "temperature": temperature,
         }
-        body = json.dumps(payload).encode("utf-8")
-        endpoint = f"{self.base_url}/chat/completions"
-        http_request = request.Request(
-            endpoint,
-            data=body,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-            method="POST",
-        )
-        try:
-            with request.urlopen(http_request, timeout=self.timeout_seconds) as response:
-                raw_payload = response.read().decode("utf-8")
-        except error.HTTPError as exc:
-            raise self._http_error_to_provider_error(exc) from exc
-        except error.URLError as exc:
-            reason = getattr(exc, "reason", exc)
-            failure_kind = self._classify_transport_failure(reason)
-            if failure_kind == "timeout":
-                detail = "OpenAI request timed out."
-            else:
-                detail = f"OpenAI request transport error: {self._short_message(str(reason))}"
-            raise OpenAIProviderError(detail, failure_kind=failure_kind) from exc
-        except TimeoutError as exc:
-            raise OpenAIProviderError("OpenAI request timed out.", failure_kind="timeout") from exc
-        except Exception as exc:
-            raise OpenAIProviderError(
-                f"OpenAI request failed: {self._short_message(str(exc))}",
-                failure_kind="unknown",
-            ) from exc
-
+        raw_payload = self._post_json_bytes(
+            endpoint_path="/chat/completions",
+            payload=payload,
+        ).decode("utf-8")
         return self._extract_message_text(raw_payload)
 
     @staticmethod
@@ -308,38 +359,9 @@ class OpenAISpeechClient(_OpenAIBaseClient):
             "response_format": response_format,
             "speed": speed,
         }
-        body = json.dumps(payload).encode("utf-8")
-        endpoint = f"{self.base_url}/audio/speech"
-        http_request = request.Request(
-            endpoint,
-            data=body,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-            method="POST",
+        return self._post_json_bytes(
+            endpoint_path="/audio/speech",
+            payload=payload,
+            require_non_empty_response=True,
+            empty_response_message="OpenAI speech response is empty.",
         )
-        try:
-            with request.urlopen(http_request, timeout=self.timeout_seconds) as response:
-                audio_bytes = response.read()
-        except error.HTTPError as exc:
-            raise self._http_error_to_provider_error(exc) from exc
-        except error.URLError as exc:
-            reason = getattr(exc, "reason", exc)
-            failure_kind = self._classify_transport_failure(reason)
-            if failure_kind == "timeout":
-                detail = "OpenAI request timed out."
-            else:
-                detail = f"OpenAI request transport error: {self._short_message(str(reason))}"
-            raise OpenAIProviderError(detail, failure_kind=failure_kind) from exc
-        except TimeoutError as exc:
-            raise OpenAIProviderError("OpenAI request timed out.", failure_kind="timeout") from exc
-        except Exception as exc:
-            raise OpenAIProviderError(
-                f"OpenAI request failed: {self._short_message(str(exc))}",
-                failure_kind="unknown",
-            ) from exc
-
-        if not isinstance(audio_bytes, (bytes, bytearray)) or not audio_bytes:
-            raise OpenAIProviderError("OpenAI speech response is empty.")
-        return bytes(audio_bytes)

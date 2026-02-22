@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 from pathlib import Path
+import socket
 from urllib import error
 import wave
 
@@ -359,6 +360,107 @@ def test_openai_client_classifies_quota_failures(
             user_prompt="user",
         )
     assert exc_info.value.failure_kind == "insufficient_quota"
+
+
+def test_openai_client_handles_http_error_with_undecodable_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OpenAI client should map HTTP errors even when body bytes cannot be decoded."""
+
+    def _mock_urlopen(_request, timeout: float = 0.0):
+        """Raise deterministic malformed HTTP error response."""
+
+        _ = timeout
+        raise error.HTTPError(
+            url="https://api.openai.com/v1/chat/completions",
+            code=500,
+            msg="Internal Server Error",
+            hdrs=None,
+            fp=io.BytesIO(b"\xff\xfe\xfd"),
+        )
+
+    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    client = OpenAIChatClient(api_key="key")
+
+    with pytest.raises(
+        OpenAIProviderError,
+        match="OpenAI request failed \\(HTTP 500\\)",
+    ) as exc_info:
+        client.chat_completion_text(
+            model="gpt-4.1-mini",
+            system_prompt="system",
+            user_prompt="user",
+        )
+    assert exc_info.value.failure_kind == "http_error"
+    assert exc_info.value.status_code == 500
+
+
+def test_openai_client_classifies_url_error_as_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OpenAI client should classify URL errors backed by timeout reasons."""
+
+    def _mock_urlopen(_request, timeout: float = 0.0):
+        """Raise deterministic timeout transport error."""
+
+        _ = timeout
+        raise error.URLError(socket.timeout("socket timed out"))
+
+    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    client = OpenAIChatClient(api_key="key")
+
+    with pytest.raises(OpenAIProviderError, match="timed out") as exc_info:
+        client.chat_completion_text(
+            model="gpt-4.1-mini",
+            system_prompt="system",
+            user_prompt="user",
+        )
+    assert exc_info.value.failure_kind == "timeout"
+
+
+def test_openai_client_classifies_url_error_as_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OpenAI client should classify non-timeout URL errors as transport failures."""
+
+    def _mock_urlopen(_request, timeout: float = 0.0):
+        """Raise deterministic non-timeout transport error."""
+
+        _ = timeout
+        raise error.URLError("temporary DNS failure")
+
+    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    client = OpenAISpeechClient(api_key="key")
+
+    with pytest.raises(OpenAIProviderError, match="transport error") as exc_info:
+        client.synthesize_speech(
+            model="gpt-4o-mini-tts",
+            voice="alloy",
+            text="Ahoj svete.",
+        )
+    assert exc_info.value.failure_kind == "transport"
+
+
+def test_openai_speech_rejects_empty_response_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OpenAI speech client should reject empty responses from shared transport helper."""
+
+    def _mock_urlopen(_request, timeout: float = 0.0) -> _MockBinaryHTTPResponse:
+        """Return an empty binary payload."""
+
+        _ = timeout
+        return _MockBinaryHTTPResponse(b"")
+
+    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    client = OpenAISpeechClient(api_key="key")
+
+    with pytest.raises(OpenAIProviderError, match="OpenAI speech response is empty."):
+        client.synthesize_speech(
+            model="gpt-4o-mini-tts",
+            voice="alloy",
+            text="Ahoj svete.",
+        )
 
 
 def test_pipeline_maps_translate_invalid_key_to_stage_error(
