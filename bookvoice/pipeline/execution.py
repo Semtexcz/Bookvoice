@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..audio.merger import AudioMerger
-from ..audio.packaging import AudioPackager, PackagingOptions
+from ..audio.packaging import AudioPackager, PackagedTagContext, PackagingOptions
 from ..audio.postprocess import AudioPostProcessor
 from ..audio.tags import AudioTagContext, MetadataWriter
 from ..config import BookvoiceConfig, ProviderRuntimeConfig
@@ -509,6 +509,63 @@ class PipelineExecutionMixin:
             "packaging_keep_merged": "true" if options.keep_merged_deliverable else "false",
         }
 
+    def _packaging_tag_context(
+        self,
+        *,
+        audio_parts: list[AudioPart],
+        config: BookvoiceConfig,
+        store: ArtifactStore,
+    ) -> PackagedTagContext:
+        """Build deterministic run-level context used for packaged metadata tags."""
+
+        sorted_parts = sorted(audio_parts, key=lambda item: (item.chapter_index, item.chunk_index))
+        chapter_indices = sorted({part.chapter_index for part in sorted_parts})
+        chapter_indices_csv = ",".join(str(index) for index in chapter_indices)
+        chapter_scope_label = (
+            "all"
+            if not config.chapter_selection
+            else (
+                f"{chapter_indices[0]}-{chapter_indices[-1]}"
+                if chapter_indices
+                else "selected"
+            )
+        )
+        source_identifier = f"{config.input_pdf.name}#{store.root.name}"
+        book_title = (
+            config.input_pdf.stem
+            if chapter_scope_label == "all"
+            else f"{config.input_pdf.stem} (chapters {chapter_scope_label})"
+        )
+        return PackagedTagContext(
+            book_title=book_title,
+            chapter_scope_label=chapter_scope_label,
+            chapter_indices_csv=chapter_indices_csv,
+            source_identifier=source_identifier,
+        )
+
+    def _packaging_tag_manifest_metadata(
+        self,
+        *,
+        audio_parts: list[AudioPart],
+        config: BookvoiceConfig,
+        store: ArtifactStore,
+        options: PackagingOptions,
+    ) -> dict[str, str]:
+        """Serialize packaged tag schema/context metadata for manifest persistence."""
+
+        context = self._packaging_tag_context(audio_parts=audio_parts, config=config, store=store)
+        chapter_count = len({item.chapter_index for item in audio_parts})
+        enabled = "true" if options.formats != tuple() else "false"
+        return {
+            "packaging_tags_schema": "bookvoice-packaged-v1",
+            "packaging_tags_enabled": enabled,
+            "packaging_tags_fields_csv": "title,album,track,chapter_context,source_identifier",
+            "packaging_tags_source_identifier": context.source_identifier,
+            "packaging_tags_scope_label": context.chapter_scope_label,
+            "packaging_tags_scope_indices_csv": context.chapter_indices_csv,
+            "packaging_tags_chapter_count": str(chapter_count),
+        }
+
     def _package(
         self,
         *,
@@ -516,17 +573,23 @@ class PipelineExecutionMixin:
         merged_path: Path,
         config: BookvoiceConfig,
         store: ArtifactStore,
+        options: PackagingOptions | None = None,
     ) -> list[PackagedAudio]:
         """Export chapter-split packaged outputs as an additive stage after merge."""
 
         try:
-            options = self._packaging_options(config)
+            resolved_options = options if options is not None else self._packaging_options(config)
             packager = AudioPackager()
             return packager.package(
                 audio_parts=audio_parts,
                 merged_path=merged_path,
                 output_root=store.root / "audio/package",
-                options=options,
+                options=resolved_options,
+                tag_context=self._packaging_tag_context(
+                    audio_parts=audio_parts,
+                    config=config,
+                    store=store,
+                ),
             )
         except PipelineStageError:
             raise

@@ -268,6 +268,7 @@ class BookvoicePipeline(
                 output_path=self._merged_output_path_for_scope(store, chapter_scope),
             ),
         )
+        packaging_options = self._packaging_options(config)
         packaged_outputs = self._run_stage(
             "package",
             lambda: self._package(
@@ -275,9 +276,18 @@ class BookvoicePipeline(
                 merged_path=merged_path,
                 config=config,
                 store=store,
+                options=packaging_options,
             ),
         )
-        packaging_metadata = self._packaging_manifest_metadata(self._packaging_options(config))
+        packaging_metadata = {
+            **self._packaging_manifest_metadata(packaging_options),
+            **self._packaging_tag_manifest_metadata(
+                audio_parts=audio_parts,
+                config=config,
+                store=store,
+                options=packaging_options,
+            ),
+        }
         packaged_path = store.save_json(
             Path("audio/packaged.json"),
             packaged_audio_artifact_payload(packaged_outputs, chapter_scope, packaging_metadata),
@@ -472,6 +482,7 @@ class BookvoicePipeline(
                 output_path=state.paths.merged,
             ),
         )
+        packaging_options = self._packaging_options(state.config)
         packaged_outputs = self._run_stage(
             "package",
             lambda: self._package(
@@ -479,9 +490,18 @@ class BookvoicePipeline(
                 merged_path=merged_path,
                 config=state.config,
                 store=state.store,
+                options=packaging_options,
             ),
         )
-        packaging_metadata = self._packaging_manifest_metadata(self._packaging_options(state.config))
+        packaging_metadata = {
+            **self._packaging_manifest_metadata(packaging_options),
+            **self._packaging_tag_manifest_metadata(
+                audio_parts=state.audio_parts,
+                config=state.config,
+                store=state.store,
+                options=packaging_options,
+            ),
+        }
         state.paths.packaged = state.store.save_json(
             Path("audio/packaged.json"),
             packaged_audio_artifact_payload(
@@ -977,7 +997,8 @@ class BookvoicePipeline(
     def _load_or_package_resume_artifact(self, state: ResumeState) -> None:
         """Reuse packaged outputs only when merge and packaged files are fully reusable."""
 
-        packaging_enabled = self._packaging_options(state.config).formats != tuple()
+        packaging_options = self._packaging_options(state.config)
+        packaging_enabled = packaging_options.formats != tuple()
         if (
             state.paths.packaged.exists()
             and state.paths.merged.exists()
@@ -1001,8 +1022,17 @@ class BookvoicePipeline(
             merged_path=state.final_merged_path,
             config=state.config,
             store=state.store,
+            options=packaging_options,
         )
-        packaging_metadata = self._packaging_manifest_metadata(self._packaging_options(state.config))
+        packaging_metadata = {
+            **self._packaging_manifest_metadata(packaging_options),
+            **self._packaging_tag_manifest_metadata(
+                audio_parts=state.audio_parts,
+                config=state.config,
+                store=state.store,
+                options=packaging_options,
+            ),
+        }
         state.paths.packaged = state.store.save_json(
             Path("audio/packaged.json"),
             packaged_audio_artifact_payload(
@@ -1024,7 +1054,16 @@ class BookvoicePipeline(
                 hint="Retry `bookvoice resume` to regenerate downstream artifacts.",
             )
         part_mapping_metadata = part_mapping_manifest_metadata(state.audio_parts)
-        packaging_metadata = self._packaging_manifest_metadata(self._packaging_options(state.config))
+        packaging_options = self._packaging_options(state.config)
+        packaging_metadata = {
+            **self._packaging_manifest_metadata(packaging_options),
+            **self._packaging_tag_manifest_metadata(
+                audio_parts=state.audio_parts,
+                config=state.config,
+                store=state.store,
+                options=packaging_options,
+            ),
+        }
         if not state.paths.packaged.exists():
             state.paths.packaged = state.store.save_json(
                 Path("audio/packaged.json"),

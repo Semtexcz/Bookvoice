@@ -23,8 +23,8 @@ Implemented:
 
 Still limited:
 
-- Final delivery packaging is still WAV-first; AAC/MP3 outputs are not yet implemented.
-- Format-aware metadata tagging for MP3/M4A is not yet implemented.
+- Packaging, tagging, and playback metadata quality depend on local `ffmpeg`
+  runtime/container support and player-specific metadata rendering behavior.
 
 ## Next Priorities
 

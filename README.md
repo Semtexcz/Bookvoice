@@ -21,7 +21,7 @@ Implemented today:
 
 Still intentionally limited:
 
-- Packaging uses local `ffmpeg` runtime and currently applies metadata tags only to merged WAV.
+- Packaging and metadata tagging rely on local `ffmpeg` runtime and codec/container support.
 
 ## Chunk Boundary Guarantees
 
@@ -292,9 +292,14 @@ Merged WAV outputs include RIFF `LIST/INFO` tags: `INAM` (title), `ISBJ`
 When packaging is enabled, chapter-split AAC (`.m4a`) and/or MP3 outputs are emitted
 under `audio/package/` with deterministic `chapter_<NNN>_<slug>.<ext>` naming.
 Chapter numbering can follow source indices or sequential ordering.
+Packaged chapter metadata tags are written deterministically for both formats:
+- Canonical payload: `title`, `album`, `track`, `chapter_context`, `source_identifier`.
+- MP3 (ID3): `title`, `album`, `track`, `comment` (chapter context), `publisher` (source/run).
+- M4A (MP4 atoms): `title`, `album`, `track`, `description` (chapter context), `comment` (source/run).
+Player support for `description`/`publisher` may vary by platform; `title`/`album`/`track` remain primary.
 `run_manifest.json` `extra` includes compact chapter/part mapping and referenced
-structure indices for resume/rebuild stability, packaging intent metadata, and
-packaged artifact references.
+structure indices for resume/rebuild stability, packaging intent metadata,
+packaged-tag summary metadata (`packaging_tags_*`), and packaged artifact references.
 `text/chunks.json` includes planner metadata under `metadata.planner` and chunk-level
 `boundary_strategy` metadata.
 

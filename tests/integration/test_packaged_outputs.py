@@ -19,11 +19,13 @@ def _fake_encode_chapter(
     chapter_parts: list[AudioPart],
     format_id: str,
     output_path: Path,
+    tag_payload: object | None = None,
 ) -> None:
     """Write deterministic placeholder bytes for packaged outputs in tests."""
 
     _ = self
     _ = chapter_parts
+    _ = tag_payload
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(f"packaged-{format_id}".encode("utf-8"))
 
@@ -60,10 +62,21 @@ def test_build_creates_deterministic_packaged_outputs_and_manifest_references(
     assert manifest_payload["extra"]["packaging_mode"] == "both"
     assert manifest_payload["extra"]["packaging_chapter_numbering"] == "sequential"
     assert manifest_payload["extra"]["packaging_keep_merged"] == "true"
+    assert manifest_payload["extra"]["packaging_tags_schema"] == "bookvoice-packaged-v1"
+    assert manifest_payload["extra"]["packaging_tags_enabled"] == "true"
+    assert (
+        manifest_payload["extra"]["packaging_tags_fields_csv"]
+        == "title,album,track,chapter_context,source_identifier"
+    )
+    assert manifest_payload["extra"]["packaging_tags_source_identifier"].endswith(
+        f"#{manifest_path.parent.name}"
+    )
 
     packaged_path = Path(manifest_payload["extra"]["packaged_audio"])
     assert packaged_path.exists()
     packaged_payload = json.loads(packaged_path.read_text(encoding="utf-8"))
+    assert packaged_payload["metadata"]["packaging_tags_schema"] == "bookvoice-packaged-v1"
+    assert packaged_payload["metadata"]["packaging_tags_enabled"] == "true"
     packaged_entries = packaged_payload["packaged_audio"]
     assert packaged_entries, "packaged outputs should be persisted"
 
@@ -160,6 +173,8 @@ def test_tts_only_replays_with_packaging_metadata_and_outputs(
     replayed_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert replayed_payload["extra"]["packaging_mode"] == "mp3"
     assert replayed_payload["extra"]["packaging_keep_merged"] == "false"
+    assert replayed_payload["extra"]["packaging_tags_schema"] == "bookvoice-packaged-v1"
+    assert replayed_payload["extra"]["packaging_tags_enabled"] == "true"
     packaged_payload = json.loads(
         Path(replayed_payload["extra"]["packaged_audio"]).read_text(encoding="utf-8")
     )

@@ -34,6 +34,44 @@ class PackagingOptions:
     keep_merged_deliverable: bool
 
 
+@dataclass(frozen=True, slots=True)
+class PackagedTagContext:
+    """Run-level context used to build deterministic packaged metadata tags.
+
+    Attributes:
+        book_title: Human-readable run/book title for packaged chapter outputs.
+        chapter_scope_label: Chapter scope summary (`all`, `1-3`, etc.).
+        chapter_indices_csv: Resolved chapter index list in CSV form.
+        source_identifier: Compact run identifier (`<source.pdf>#<run-id>`).
+    """
+
+    book_title: str
+    chapter_scope_label: str
+    chapter_indices_csv: str
+    source_identifier: str
+
+
+@dataclass(frozen=True, slots=True)
+class PackagedTagPayload:
+    """Canonical packaged metadata payload independent of audio container format.
+
+    Attributes:
+        title: Chapter title shown in playback UIs.
+        album: Book/run-level title context for chapter outputs.
+        track_number: Chapter number used in output naming policy.
+        track_total: Total chapter count for the packaged run scope.
+        chapter_context: Compact chapter-scope context string.
+        source_identifier: Source/run identifier for traceability.
+    """
+
+    title: str
+    album: str
+    track_number: int
+    track_total: int
+    chapter_context: str
+    source_identifier: str
+
+
 class AudioPackager:
     """Export chapter-split packaged audio files using a deterministic ffmpeg policy."""
 
@@ -93,12 +131,14 @@ class AudioPackager:
         merged_path: Path,
         output_root: Path,
         options: PackagingOptions,
+        tag_context: PackagedTagContext | None = None,
     ) -> list[PackagedAudio]:
         """Export packaged outputs according to resolved deterministic options."""
 
         output_root.mkdir(parents=True, exist_ok=True)
         packaged_outputs: list[PackagedAudio] = []
         chapter_groups = self._group_parts_by_chapter(audio_parts)
+        chapter_total = len(chapter_groups)
 
         for format_id in options.formats:
             for sequence_number, chapter_entry in enumerate(chapter_groups, start=1):
@@ -115,10 +155,19 @@ class AudioPackager:
                     chapter_title=chapter_title,
                     format_id=format_id,
                 )
+                tag_payload = self._chapter_tag_payload(
+                    chapter_title=chapter_title,
+                    chapter_index=chapter_index,
+                    chapter_number=chapter_number,
+                    chapter_total=chapter_total,
+                    numbering_mode=options.chapter_numbering_mode,
+                    context=tag_context,
+                )
                 self._encode_chapter(
                     chapter_parts=chapter_parts,
                     format_id=format_id,
                     output_path=output_path,
+                    tag_payload=tag_payload,
                 )
                 packaged_outputs.append(
                     PackagedAudio(
@@ -170,6 +219,7 @@ class AudioPackager:
         chapter_parts: list[AudioPart],
         format_id: str,
         output_path: Path,
+        tag_payload: PackagedTagPayload | None = None,
     ) -> None:
         """Encode one chapter from ordered WAV parts into the target packaged format."""
 
@@ -213,8 +263,9 @@ class AudioPackager:
             codec,
             "-b:a",
             bitrate,
-            str(output_path),
         ]
+        command.extend(self._format_metadata_arguments(format_id, tag_payload))
+        command.append(str(output_path))
 
         try:
             subprocess.run(
@@ -252,6 +303,92 @@ class AudioPackager:
         if format_id == "m4a":
             return "aac", "128k"
         return "libmp3lame", "128k"
+
+    def _chapter_tag_payload(
+        self,
+        *,
+        chapter_title: str,
+        chapter_index: int,
+        chapter_number: int,
+        chapter_total: int,
+        numbering_mode: str,
+        context: PackagedTagContext | None,
+    ) -> PackagedTagPayload:
+        """Build canonical chapter tag payload from deterministic packaging context."""
+
+        book_title = context.book_title if context is not None else "Bookvoice"
+        chapter_context = self._chapter_context_value(
+            chapter_index=chapter_index,
+            chapter_number=chapter_number,
+            numbering_mode=numbering_mode,
+            chapter_scope_label=context.chapter_scope_label if context is not None else "all",
+            chapter_indices_csv=context.chapter_indices_csv if context is not None else "",
+        )
+        source_identifier = (
+            context.source_identifier if context is not None else "unknown#unknown"
+        )
+        return PackagedTagPayload(
+            title=chapter_title,
+            album=book_title,
+            track_number=chapter_number,
+            track_total=chapter_total,
+            chapter_context=chapter_context,
+            source_identifier=source_identifier,
+        )
+
+    def _chapter_context_value(
+        self,
+        *,
+        chapter_index: int,
+        chapter_number: int,
+        numbering_mode: str,
+        chapter_scope_label: str,
+        chapter_indices_csv: str,
+    ) -> str:
+        """Build compact deterministic chapter context value for packaged tag payloads."""
+
+        indices = chapter_indices_csv if chapter_indices_csv else "-"
+        return (
+            f"scope={chapter_scope_label};indices={indices};"
+            f"source_index={chapter_index};chapter_number={chapter_number};"
+            f"numbering={numbering_mode}"
+        )
+
+    def _format_metadata_arguments(
+        self,
+        format_id: str,
+        payload: PackagedTagPayload | None,
+    ) -> list[str]:
+        """Build deterministic ffmpeg metadata arguments for one output container."""
+
+        if payload is None:
+            return []
+
+        track_value = f"{payload.track_number}/{payload.track_total}"
+        if format_id == "mp3":
+            tag_pairs = [
+                ("title", payload.title),
+                ("album", payload.album),
+                ("track", track_value),
+                ("comment", payload.chapter_context),
+                ("publisher", payload.source_identifier),
+            ]
+            args = ["-id3v2_version", "3"]
+        else:
+            tag_pairs = [
+                ("title", payload.title),
+                ("album", payload.album),
+                ("track", track_value),
+                ("description", payload.chapter_context),
+                ("comment", payload.source_identifier),
+            ]
+            args = []
+
+        for key, value in tag_pairs:
+            normalized = value.strip()
+            if normalized:
+                args.extend(["-metadata", f"{key}={normalized}"])
+        return args
 
     def _escape_concat_path(self, path: Path) -> str:
         """Escape one file path for ffmpeg concat list format."""

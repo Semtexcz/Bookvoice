@@ -251,7 +251,6 @@ Minimal shape:
   leading/trailing silence trimming followed by peak normalization to `95%`.
 - WAV outputs are tagged with RIFF `LIST/INFO` metadata:
   `INAM` (title), `ISBJ` (chapter/part context), and `ICMT` (source identifier).
-- Tagging is format-aware and currently implemented only for `.wav` outputs.
 
 ### `audio/package/chapter_<NNN>_<chapter-title-slug>.<ext>`
 
@@ -261,6 +260,16 @@ Minimal shape:
   - `source`: `NNN` mirrors source chapter index.
   - `sequential`: `NNN` follows selected chapter order.
 - Packaging is additive: deterministic merged WAV remains the master artifact.
+- Packaged outputs are tagged with a canonical payload:
+  - `title`: chapter title.
+  - `album`: run/book title.
+  - `track`: chapter number / chapter count, aligned with numbering mode.
+  - `chapter_context`: scope + source index + numbering metadata.
+  - `source_identifier`: `<source.pdf>#<run-id>`.
+- Format-aware key mapping:
+  - MP3 (`ID3`): `title`, `album`, `track`, `comment` (chapter context), `publisher` (source).
+  - M4A (`MP4` atoms): `title`, `album`, `track`, `description` (chapter context), `comment` (source).
+- Player behavior for secondary keys (`description`, `publisher`) can vary across ecosystems.
 
 ### `audio/packaged.json`
 
@@ -299,7 +308,14 @@ Minimal shape:
     },
     "packaging_mode": "both",
     "packaging_chapter_numbering": "source",
-    "packaging_keep_merged": "true"
+    "packaging_keep_merged": "true",
+    "packaging_tags_schema": "bookvoice-packaged-v1",
+    "packaging_tags_enabled": "true",
+    "packaging_tags_fields_csv": "title,album,track,chapter_context,source_identifier",
+    "packaging_tags_source_identifier": "book.pdf#run-1a2b3c4d5e6f",
+    "packaging_tags_scope_label": "all",
+    "packaging_tags_scope_indices_csv": "1,2",
+    "packaging_tags_chapter_count": "2"
   }
 }
 ```

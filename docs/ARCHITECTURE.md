@@ -74,4 +74,5 @@ Resolved non-secret runtime metadata is persisted in manifest `extra`.
 ## Current Constraints
 
 - Packaging depends on local `ffmpeg` runtime and codec availability.
-- Metadata tags are currently written only for merged WAV outputs.
+- Packaged MP3/M4A tags use container-specific key mapping; some secondary fields
+  may render differently across playback applications.

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from bookvoice.audio.packaging import AudioPackager, PackagingOptions
+from bookvoice.audio.packaging import AudioPackager, PackagedTagContext, PackagingOptions
 from bookvoice.errors import PipelineStageError
 from bookvoice.models.datatypes import AudioPart
 
@@ -17,11 +17,13 @@ def _fake_encode_chapter(
     chapter_parts: list[AudioPart],
     format_id: str,
     output_path: Path,
+    tag_payload: object | None = None,
 ) -> None:
     """Write deterministic placeholder bytes for encoded chapter outputs."""
 
     _ = self
     _ = chapter_parts
+    _ = tag_payload
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(f"encoded-{format_id}".encode("utf-8"))
 
@@ -177,3 +179,99 @@ def test_encode_chapter_reports_missing_ffmpeg_deterministically(
 
     assert exc_info.value.stage == "package"
     assert "ffmpeg" in exc_info.value.detail.lower()
+
+
+def test_encode_chapter_writes_deterministic_mp3_id3_metadata_arguments(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """MP3 packaging should pass deterministic ID3 metadata keys to ffmpeg."""
+
+    captured_command: list[str] = []
+
+    def _capture_run(command: list[str], **_: object) -> None:
+        """Capture invoked ffmpeg command for assertion."""
+
+        captured_command.extend(command)
+
+    monkeypatch.setattr("bookvoice.audio.packaging.subprocess.run", _capture_run)
+    packager = AudioPackager()
+    chapter_part = _build_part(chapter_index=7, chunk_index=0, title="Alpha Chapter", root=tmp_path)
+    output_path = tmp_path / "package" / "chapter_007_alpha-chapter.mp3"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    tag_payload = packager._chapter_tag_payload(
+        chapter_title="Alpha Chapter",
+        chapter_index=7,
+        chapter_number=5,
+        chapter_total=12,
+        numbering_mode="sequential",
+        context=PackagedTagContext(
+            book_title="Sample Book (chapters 7-9)",
+            chapter_scope_label="7-9",
+            chapter_indices_csv="7,8,9",
+            source_identifier="sample.pdf#run-abc123",
+        ),
+    )
+
+    packager._encode_chapter(
+        chapter_parts=[chapter_part],
+        format_id="mp3",
+        output_path=output_path,
+        tag_payload=tag_payload,
+    )
+
+    joined_command = " ".join(captured_command)
+    assert "-id3v2_version 3" in joined_command
+    assert "title=Alpha Chapter" in joined_command
+    assert "album=Sample Book (chapters 7-9)" in joined_command
+    assert "track=5/12" in joined_command
+    assert "numbering=sequential" in joined_command
+    assert "publisher=sample.pdf#run-abc123" in joined_command
+
+
+def test_encode_chapter_writes_deterministic_m4a_mp4_metadata_arguments(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """M4A packaging should pass deterministic MP4 atom metadata keys to ffmpeg."""
+
+    captured_command: list[str] = []
+
+    def _capture_run(command: list[str], **_: object) -> None:
+        """Capture invoked ffmpeg command for assertion."""
+
+        captured_command.extend(command)
+
+    monkeypatch.setattr("bookvoice.audio.packaging.subprocess.run", _capture_run)
+    packager = AudioPackager()
+    chapter_part = _build_part(chapter_index=3, chunk_index=0, title="Gamma Chapter", root=tmp_path)
+    output_path = tmp_path / "package" / "chapter_003_gamma-chapter.m4a"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    tag_payload = packager._chapter_tag_payload(
+        chapter_title="Gamma Chapter",
+        chapter_index=3,
+        chapter_number=3,
+        chapter_total=3,
+        numbering_mode="source",
+        context=PackagedTagContext(
+            book_title="Sample Book",
+            chapter_scope_label="all",
+            chapter_indices_csv="1,2,3",
+            source_identifier="sample.pdf#run-xyz999",
+        ),
+    )
+
+    packager._encode_chapter(
+        chapter_parts=[chapter_part],
+        format_id="m4a",
+        output_path=output_path,
+        tag_payload=tag_payload,
+    )
+
+    joined_command = " ".join(captured_command)
+    assert "-id3v2_version 3" not in joined_command
+    assert "title=Gamma Chapter" in joined_command
+    assert "album=Sample Book" in joined_command
+    assert "track=3/3" in joined_command
+    assert "description=scope=all;indices=1,2,3;source_index=3;chapter_number=3;numbering=source" in joined_command
+    assert "comment=sample.pdf#run-xyz999" in joined_command

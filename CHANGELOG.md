@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-02-22
+
+### Added
+
+- Completed `TASK-042` by adding deterministic format-aware metadata tagging for packaged chapter outputs in both MP3 (`ID3`) and M4A (`MP4`) containers.
+- Added a canonical packaged tag payload (`title`, `album`, `track`, `chapter_context`, `source_identifier`) with chapter-level track numbering aligned to packaging numbering mode (`source` or `sequential`).
+- Added tag summary metadata persistence to packaged artifact and manifest metadata (`packaging_tags_*`) for deterministic replay diagnostics.
+- Added packaging unit coverage for deterministic MP3/M4A metadata argument mapping and track/context/source value generation.
+- Added integration coverage asserting packaged tag summary metadata persistence for `build` and `tts-only` replay paths.
+
+### Changed
+
+- Extended package-stage execution to propagate run/chapter scope context into packaged metadata tags while preserving additive packaging behavior.
+- Updated docs (`README.md`, `docs/ARTIFACTS.md`, `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`) to document packaged metadata fields, format-specific key mapping, and known player/container limitations.
+- Marked `TASK-042` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.8.0`.
+
 ## [0.7.1] - 2026-02-22
 
 ### Fixed
