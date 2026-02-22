@@ -12,30 +12,21 @@ import json
 from pathlib import Path
 
 from ..errors import PipelineStageError
+from ..parsing import normalize_optional_string, parse_permissive_boolean
 
 
 def manifest_string(payload: dict[str, object], key: str, default_value: str) -> str:
     """Read a non-empty string from manifest extras with deterministic fallback."""
 
-    value = payload.get(key)
-    if isinstance(value, str) and value.strip():
-        return value.strip()
-    return default_value
+    value = normalize_optional_string(payload.get(key))
+    return value if value is not None else default_value
 
 
 def manifest_bool(payload: dict[str, object], key: str, default_value: bool) -> bool:
     """Read a boolean value from manifest extras with permissive string parsing."""
 
-    value = payload.get(key)
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if normalized in {"1", "true", "yes", "on"}:
-            return True
-        if normalized in {"0", "false", "no", "off"}:
-            return False
-    return default_value
+    parsed = parse_permissive_boolean(payload.get(key))
+    return parsed if parsed is not None else default_value
 
 
 def load_manifest_payload(manifest_path: Path) -> dict[str, object]:

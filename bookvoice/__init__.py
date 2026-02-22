@@ -9,4 +9,4 @@ from .pipeline import BookvoicePipeline
 
 __all__ = ["BookvoicePipeline", "__version__"]
 
-__version__ = "0.1.48"
+__version__ = "0.1.50"

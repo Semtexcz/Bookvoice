@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.50] - 2026-02-22
+
+### Changed
+
+- Completed `TASK-028` by introducing shared parsing helpers in `bookvoice/parsing.py` for normalized optional strings and permissive/strict boolean token parsing.
+- Refactored `bookvoice/config.py` and `bookvoice/pipeline/resume.py` to consume the shared parsing helpers while preserving accepted boolean tokens, defaults, and runtime validation error text.
+- Added focused unit coverage for parsing edge cases, including blank values, mixed-case boolean tokens, and invalid-token fallback/validation behavior.
+- Marked `TASK-028` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.1.50`.
+
 ## [0.1.49] - 2026-02-22
 
 ### Changed

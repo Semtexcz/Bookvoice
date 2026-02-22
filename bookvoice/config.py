@@ -18,6 +18,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
 
+from .parsing import normalize_optional_string, parse_required_boolean
+
 
 _DEFAULT_TRANSLATION_MODEL = "gpt-4.1-mini"
 _DEFAULT_REWRITE_MODEL = "gpt-4.1-mini"
@@ -303,18 +305,13 @@ class BookvoiceConfig:
 
         if key not in mapping:
             return None
-        return BookvoiceConfig._normalize_optional_string(mapping.get(key))
+        return normalize_optional_string(mapping.get(key))
 
     @staticmethod
     def _normalize_optional_string(value: object) -> str | None:
         """Normalize optional string values by stripping whitespace and empty values."""
 
-        if value is None:
-            return None
-        text = str(value).strip()
-        if not text:
-            return None
-        return text
+        return normalize_optional_string(value)
 
     @staticmethod
     def _validate_provider_id(provider_id: str, field_name: str) -> None:
@@ -337,14 +334,7 @@ class BookvoiceConfig:
     def _parse_boolean_value(value: str, field_name: str) -> bool:
         """Parse a runtime boolean value from canonical textual forms."""
 
-        normalized = value.strip().lower()
-        if normalized in {"1", "true", "yes", "on"}:
-            return True
-        if normalized in {"0", "false", "no", "off"}:
-            return False
-        raise ValueError(
-            f"`{field_name}` must be a boolean value (`true`/`false`, `1`/`0`, `yes`/`no`)."
-        )
+        return parse_required_boolean(value, field_name)
 
 
 class ConfigLoader:
