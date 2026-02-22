@@ -193,8 +193,9 @@ def test_openai_rewriter_provider_failure(monkeypatch: pytest.MonkeyPatch) -> No
     )
     rewriter = AudioRewriter(model="gpt-4.1-mini", provider_id="openai", api_key="key")
 
-    with pytest.raises(OpenAIProviderError, match="HTTP 401"):
+    with pytest.raises(OpenAIProviderError, match="authentication failed") as exc_info:
         rewriter.rewrite(translation)
+    assert exc_info.value.failure_kind == "invalid_api_key"
 
 
 def test_openai_tts_happy_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -320,48 +321,103 @@ def test_openai_tts_provider_failure(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
 
-    with pytest.raises(OpenAIProviderError, match="HTTP 401"):
+    with pytest.raises(OpenAIProviderError, match="authentication failed") as exc_info:
         OpenAISpeechClient(api_key="key").synthesize_speech(
             model="gpt-4o-mini-tts",
             voice="alloy",
             text="Ahoj svete.",
         )
+    assert exc_info.value.failure_kind == "invalid_api_key"
 
 
-def test_pipeline_maps_translate_provider_failure_to_stage_error(
+def test_openai_client_classifies_quota_failures(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Pipeline should surface translation provider failures as translate stage errors."""
+    """OpenAI client should classify HTTP 429 quota responses for diagnostics."""
+
+    def _mock_urlopen(_request, timeout: float = 0.0):
+        """Raise deterministic insufficient quota response."""
+
+        _ = timeout
+        raise error.HTTPError(
+            url="https://api.openai.com/v1/chat/completions",
+            code=429,
+            msg="Too Many Requests",
+            hdrs=None,
+            fp=io.BytesIO(
+                b'{\"error\":{\"message\":\"You exceeded your current quota.\",\"code\":\"insufficient_quota\"}}'
+            ),
+        )
+
+    monkeypatch.setattr("bookvoice.llm.openai_client.request.urlopen", _mock_urlopen)
+    client = OpenAIChatClient(api_key="key")
+
+    with pytest.raises(OpenAIProviderError, match="quota is insufficient") as exc_info:
+        client.chat_completion_text(
+            model="gpt-4.1-mini",
+            system_prompt="system",
+            user_prompt="user",
+        )
+    assert exc_info.value.failure_kind == "insufficient_quota"
+
+
+def test_pipeline_maps_translate_invalid_key_to_stage_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pipeline should map invalid API key failures to translate stage diagnostics."""
 
     def _failing_chat_completion(self, **kwargs: object) -> str:
         """Raise deterministic provider error for stage-mapping assertions."""
 
         _ = self
         _ = kwargs
-        raise OpenAIProviderError("boom")
+        raise OpenAIProviderError("auth failed", failure_kind="invalid_api_key")
 
     monkeypatch.setattr(OpenAIChatClient, "chat_completion_text", _failing_chat_completion)
     pipeline = BookvoicePipeline()
     config = BookvoiceConfig(input_pdf=Path("in.pdf"), output_dir=Path("out"), api_key="key")
     chunk = Chunk(chapter_index=1, chunk_index=0, text="Text", char_start=0, char_end=4)
 
-    with pytest.raises(PipelineStageError, match="boom") as exc_info:
+    with pytest.raises(PipelineStageError, match="authentication failed") as exc_info:
         pipeline._translate([chunk], config)
     assert exc_info.value.stage == "translate"
-    assert "OPENAI_API_KEY" in (exc_info.value.hint or "")
+    assert "bookvoice credentials" in (exc_info.value.hint or "")
 
 
-def test_pipeline_maps_rewrite_provider_failure_to_stage_error(
+def test_pipeline_maps_translate_quota_to_stage_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Pipeline should surface rewrite provider failures as rewrite stage errors."""
+    """Pipeline should map quota failures to actionable translate stage diagnostics."""
 
     def _failing_chat_completion(self, **kwargs: object) -> str:
         """Raise deterministic provider error for stage-mapping assertions."""
 
         _ = self
         _ = kwargs
-        raise OpenAIProviderError("boom")
+        raise OpenAIProviderError("quota", failure_kind="insufficient_quota")
+
+    monkeypatch.setattr(OpenAIChatClient, "chat_completion_text", _failing_chat_completion)
+    pipeline = BookvoicePipeline()
+    config = BookvoiceConfig(input_pdf=Path("in.pdf"), output_dir=Path("out"), api_key="key")
+    chunk = Chunk(chapter_index=1, chunk_index=0, text="Text", char_start=0, char_end=4)
+
+    with pytest.raises(PipelineStageError, match="quota is insufficient") as exc_info:
+        pipeline._translate([chunk], config)
+    assert exc_info.value.stage == "translate"
+    assert "billing/quota" in (exc_info.value.hint or "")
+
+
+def test_pipeline_maps_rewrite_invalid_model_to_stage_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pipeline should map invalid model failures to rewrite stage diagnostics."""
+
+    def _failing_chat_completion(self, **kwargs: object) -> str:
+        """Raise deterministic provider error for stage-mapping assertions."""
+
+        _ = self
+        _ = kwargs
+        raise OpenAIProviderError("model rejected", failure_kind="invalid_model")
 
     monkeypatch.setattr(OpenAIChatClient, "chat_completion_text", _failing_chat_completion)
     pipeline = BookvoicePipeline()
@@ -374,24 +430,25 @@ def test_pipeline_maps_rewrite_provider_failure_to_stage_error(
         model="gpt-4.1-mini",
     )
 
-    with pytest.raises(PipelineStageError, match="boom") as exc_info:
+    with pytest.raises(PipelineStageError, match="configured model") as exc_info:
         pipeline._rewrite_for_audio([translation], config)
     assert exc_info.value.stage == "rewrite"
+    assert "--model-rewrite" in (exc_info.value.hint or "")
     assert "--rewrite-bypass" in (exc_info.value.hint or "")
 
 
-def test_pipeline_maps_tts_provider_failure_to_stage_error(
+def test_pipeline_maps_tts_timeout_to_stage_error(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Pipeline should surface TTS provider failures as tts stage errors."""
+    """Pipeline should map timeout failures to TTS stage diagnostics."""
 
     def _failing_speech(self, **kwargs: object) -> bytes:
         """Raise deterministic provider error for stage-mapping assertions."""
 
         _ = self
         _ = kwargs
-        raise OpenAIProviderError("boom")
+        raise OpenAIProviderError("timeout", failure_kind="timeout")
 
     monkeypatch.setattr(OpenAISpeechClient, "synthesize_speech", _failing_speech)
     pipeline = BookvoicePipeline()
@@ -410,10 +467,10 @@ def test_pipeline_maps_tts_provider_failure_to_stage_error(
         model="gpt-4.1-mini",
     )
 
-    with pytest.raises(PipelineStageError, match="boom") as exc_info:
+    with pytest.raises(PipelineStageError, match="timed out") as exc_info:
         pipeline._tts([rewrite], config, store=ArtifactStore(tmp_path / "run"))
     assert exc_info.value.stage == "tts"
-    assert "OPENAI_API_KEY" in (exc_info.value.hint or "")
+    assert "Retry the command" in (exc_info.value.hint or "")
 
 
 def test_pipeline_rewrite_bypass_returns_deterministic_pass_through() -> None:

@@ -9,6 +9,8 @@ Responsibilities:
 from __future__ import annotations
 
 import json
+import re
+import socket
 from typing import Any
 from urllib import error, request
 
@@ -16,9 +18,26 @@ from urllib import error, request
 class OpenAIProviderError(RuntimeError):
     """Raised when an OpenAI provider request fails or returns malformed output."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        failure_kind: str = "unknown",
+        status_code: int | None = None,
+        provider_code: str | None = None,
+    ) -> None:
+        """Initialize provider error metadata for stage-aware diagnostics."""
+
+        super().__init__(message)
+        self.failure_kind = failure_kind
+        self.status_code = status_code
+        self.provider_code = provider_code
+
 
 class _OpenAIBaseClient:
     """Shared OpenAI HTTP settings and helpers used by stage-specific clients."""
+
+    _MAX_PROVIDER_MESSAGE_CHARS = 180
 
     def __init__(
         self,
@@ -39,20 +58,129 @@ class _OpenAIBaseClient:
         if not self.api_key:
             raise OpenAIProviderError(
                 "Missing OpenAI API key. Set `OPENAI_API_KEY`, use `--api-key`, or "
-                "`--prompt-api-key`."
+                "`--prompt-api-key`.",
+                failure_kind="invalid_api_key",
             )
 
     @staticmethod
     def _decode_error_body(exc: error.HTTPError) -> str:
-        """Decode an HTTP error body into a short diagnostic string."""
+        """Decode an HTTP error body into a best-effort UTF-8 payload string."""
 
         try:
-            payload = exc.read().decode("utf-8", errors="replace").strip()
+            return exc.read().decode("utf-8", errors="replace").strip()
         except Exception:
-            payload = ""
-        if payload:
-            return payload
-        return "No response body."
+            return ""
+
+    @classmethod
+    def _redact_sensitive_tokens(cls, text: str) -> str:
+        """Redact API-key-like tokens from provider error content."""
+
+        redacted = re.sub(r"\bsk-[A-Za-z0-9_-]{8,}\b", "[redacted-key]", text)
+        redacted = re.sub(
+            r"(?i)bearer\s+[A-Za-z0-9._-]{12,}",
+            "Bearer [redacted-token]",
+            redacted,
+        )
+        return redacted
+
+    @classmethod
+    def _short_message(cls, text: str) -> str:
+        """Normalize and cap user-facing provider message length."""
+
+        compact = " ".join(text.split())
+        if len(compact) <= cls._MAX_PROVIDER_MESSAGE_CHARS:
+            return compact
+        return f"{compact[: cls._MAX_PROVIDER_MESSAGE_CHARS - 1]}..."
+
+    @classmethod
+    def _extract_provider_message(cls, body: str) -> tuple[str, str | None]:
+        """Extract a concise provider-facing message and optional provider error code."""
+
+        if not body:
+            return "", None
+
+        try:
+            payload = json.loads(body)
+        except json.JSONDecodeError:
+            return cls._short_message(cls._redact_sensitive_tokens(body)), None
+
+        provider_code: str | None = None
+        message: str | None = None
+        if isinstance(payload, dict):
+            error_payload = payload.get("error")
+            if isinstance(error_payload, dict):
+                code_value = error_payload.get("code")
+                if isinstance(code_value, str) and code_value.strip():
+                    provider_code = code_value.strip()
+                message_value = error_payload.get("message")
+                if isinstance(message_value, str) and message_value.strip():
+                    message = message_value.strip()
+
+        if message is None:
+            message = body
+
+        return cls._short_message(cls._redact_sensitive_tokens(message)), provider_code
+
+    @staticmethod
+    def _classify_http_failure(
+        status_code: int,
+        provider_message: str,
+        provider_code: str | None,
+    ) -> str:
+        """Classify OpenAI HTTP errors into deterministic diagnostic kinds."""
+
+        message_lower = provider_message.lower()
+        normalized_code = provider_code.lower() if provider_code is not None else ""
+
+        if status_code == 401 or "api key" in message_lower:
+            return "invalid_api_key"
+        if normalized_code == "insufficient_quota" or (
+            status_code == 429 and "quota" in message_lower
+        ):
+            return "insufficient_quota"
+        if normalized_code == "model_not_found" or (
+            "model" in message_lower
+            and any(phrase in message_lower for phrase in ("not found", "does not exist", "invalid"))
+        ):
+            return "invalid_model"
+        if status_code in {408, 504} or "timeout" in message_lower or "timed out" in message_lower:
+            return "timeout"
+        return "http_error"
+
+    @staticmethod
+    def _classify_transport_failure(reason: object) -> str:
+        """Classify network-layer failures into deterministic diagnostic kinds."""
+
+        if isinstance(reason, TimeoutError | socket.timeout):
+            return "timeout"
+        return "transport"
+
+    @classmethod
+    def _http_error_to_provider_error(cls, exc: error.HTTPError) -> OpenAIProviderError:
+        """Convert HTTP errors into normalized provider exceptions with metadata."""
+
+        body = cls._decode_error_body(exc)
+        provider_message, provider_code = cls._extract_provider_message(body)
+        failure_kind = cls._classify_http_failure(exc.code, provider_message, provider_code)
+
+        headline = {
+            "invalid_api_key": "OpenAI authentication failed",
+            "insufficient_quota": "OpenAI quota is insufficient for this request",
+            "invalid_model": "OpenAI rejected the selected model",
+            "timeout": "OpenAI request timed out",
+        }.get(failure_kind, "OpenAI request failed")
+
+        if provider_message:
+            detail = f"{headline} (HTTP {exc.code}): {provider_message}"
+        else:
+            detail = f"{headline} (HTTP {exc.code})."
+
+        return OpenAIProviderError(
+            detail,
+            failure_kind=failure_kind,
+            status_code=exc.code,
+            provider_code=provider_code,
+        )
 
 
 class OpenAIChatClient(_OpenAIBaseClient):
@@ -93,17 +221,22 @@ class OpenAIChatClient(_OpenAIBaseClient):
             with request.urlopen(http_request, timeout=self.timeout_seconds) as response:
                 raw_payload = response.read().decode("utf-8")
         except error.HTTPError as exc:
-            detail = self._decode_error_body(exc)
-            raise OpenAIProviderError(
-                f"OpenAI request failed with HTTP {exc.code}: {detail}"
-            ) from exc
+            raise self._http_error_to_provider_error(exc) from exc
         except error.URLError as exc:
             reason = getattr(exc, "reason", exc)
-            raise OpenAIProviderError(f"OpenAI request transport error: {reason}") from exc
+            failure_kind = self._classify_transport_failure(reason)
+            if failure_kind == "timeout":
+                detail = "OpenAI request timed out."
+            else:
+                detail = f"OpenAI request transport error: {self._short_message(str(reason))}"
+            raise OpenAIProviderError(detail, failure_kind=failure_kind) from exc
         except TimeoutError as exc:
-            raise OpenAIProviderError("OpenAI request timed out.") from exc
+            raise OpenAIProviderError("OpenAI request timed out.", failure_kind="timeout") from exc
         except Exception as exc:
-            raise OpenAIProviderError(f"OpenAI request failed: {exc}") from exc
+            raise OpenAIProviderError(
+                f"OpenAI request failed: {self._short_message(str(exc))}",
+                failure_kind="unknown",
+            ) from exc
 
         return self._extract_message_text(raw_payload)
 
@@ -190,17 +323,22 @@ class OpenAISpeechClient(_OpenAIBaseClient):
             with request.urlopen(http_request, timeout=self.timeout_seconds) as response:
                 audio_bytes = response.read()
         except error.HTTPError as exc:
-            detail = self._decode_error_body(exc)
-            raise OpenAIProviderError(
-                f"OpenAI request failed with HTTP {exc.code}: {detail}"
-            ) from exc
+            raise self._http_error_to_provider_error(exc) from exc
         except error.URLError as exc:
             reason = getattr(exc, "reason", exc)
-            raise OpenAIProviderError(f"OpenAI request transport error: {reason}") from exc
+            failure_kind = self._classify_transport_failure(reason)
+            if failure_kind == "timeout":
+                detail = "OpenAI request timed out."
+            else:
+                detail = f"OpenAI request transport error: {self._short_message(str(reason))}"
+            raise OpenAIProviderError(detail, failure_kind=failure_kind) from exc
         except TimeoutError as exc:
-            raise OpenAIProviderError("OpenAI request timed out.") from exc
+            raise OpenAIProviderError("OpenAI request timed out.", failure_kind="timeout") from exc
         except Exception as exc:
-            raise OpenAIProviderError(f"OpenAI request failed: {exc}") from exc
+            raise OpenAIProviderError(
+                f"OpenAI request failed: {self._short_message(str(exc))}",
+                failure_kind="unknown",
+            ) from exc
 
         if not isinstance(audio_bytes, (bytes, bytearray)) or not audio_bytes:
             raise OpenAIProviderError("OpenAI speech response is empty.")

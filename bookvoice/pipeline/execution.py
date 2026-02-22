@@ -40,6 +40,76 @@ from ..tts.voices import VoiceProfile
 class PipelineExecutionMixin:
     """Provide stage-level pipeline helper methods."""
 
+    @staticmethod
+    def _provider_error_detail(stage: str, exc: OpenAIProviderError) -> str:
+        """Build concise stage-scoped detail text for provider-backed failures."""
+
+        _ = stage
+        mapping = {
+            "invalid_api_key": "Provider authentication failed for OpenAI API credentials.",
+            "insufficient_quota": "Provider quota is insufficient for this OpenAI request.",
+            "invalid_model": "Provider rejected the configured model for this request.",
+            "timeout": "Provider request timed out before completion.",
+            "transport": "Provider request failed due to a transport/network error.",
+        }
+        return mapping.get(exc.failure_kind, str(exc))
+
+    @staticmethod
+    def _provider_error_hint(stage: str, exc: OpenAIProviderError) -> str:
+        """Build actionable user hints for stage-specific provider failure kinds."""
+
+        kind = exc.failure_kind
+        if kind == "invalid_api_key":
+            return (
+                "Set a valid API key via `bookvoice credentials` or pass one-time "
+                "`--api-key` / `--prompt-api-key`."
+            )
+        if kind == "insufficient_quota":
+            if stage == "rewrite":
+                return (
+                    "Check OpenAI billing/quota for this project, then retry. "
+                    "For one-off runs, you can use `--rewrite-bypass`."
+                )
+            return "Check OpenAI billing/quota for this project, then retry the command."
+        if kind == "invalid_model":
+            stage_model_hint = {
+                "translate": "Use `--model-translate` with an available chat model.",
+                "rewrite": (
+                    "Use `--model-rewrite` with an available chat model, "
+                    "or run with `--rewrite-bypass`."
+                ),
+                "tts": "Use `--model-tts` with an available TTS model.",
+            }
+            return stage_model_hint.get(
+                stage,
+                "Use a valid model identifier for the configured provider.",
+            )
+        if kind == "timeout":
+            return "Retry the command. If timeouts persist, verify network stability."
+        if kind == "transport":
+            return "Check internet/proxy connectivity and retry the command."
+
+        fallback = {
+            "translate": (
+                "Verify API key and translation model/provider configuration, then retry."
+            ),
+            "rewrite": (
+                "Verify API key and rewrite model/provider configuration, "
+                "or use `--rewrite-bypass`."
+            ),
+            "tts": "Verify API key plus TTS model/voice/provider configuration, then retry.",
+        }
+        return fallback.get(stage, "Verify provider configuration and retry the command.")
+
+    def _provider_stage_error(self, stage: str, exc: OpenAIProviderError) -> PipelineStageError:
+        """Convert provider exception metadata into a stage-aware pipeline error."""
+
+        return PipelineStageError(
+            stage=stage,
+            detail=self._provider_error_detail(stage, exc),
+            hint=self._provider_error_hint(stage, exc),
+        )
+
     def _extract(self, config: BookvoiceConfig) -> str:
         """Extract raw text from the configured PDF input."""
 
@@ -228,14 +298,7 @@ class PipelineExecutionMixin:
                 for chunk in chunks
             ]
         except OpenAIProviderError as exc:
-            raise PipelineStageError(
-                stage="translate",
-                detail=str(exc),
-                hint=(
-                    "Verify `OPENAI_API_KEY` or `bookvoice credentials`, then confirm "
-                    "the translation model/provider configuration."
-                ),
-            ) from exc
+            raise self._provider_stage_error("translate", exc) from exc
         except PipelineStageError:
             raise
         except Exception as exc:
@@ -269,14 +332,7 @@ class PipelineExecutionMixin:
             )
             return [rewriter.rewrite(translation) for translation in translations]
         except OpenAIProviderError as exc:
-            raise PipelineStageError(
-                stage="rewrite",
-                detail=str(exc),
-                hint=(
-                    "Verify API key/model settings, or rerun with `--rewrite-bypass` for "
-                    "deterministic pass-through rewrite output."
-                ),
-            ) from exc
+            raise self._provider_stage_error("rewrite", exc) from exc
         except PipelineStageError:
             raise
         except Exception as exc:
@@ -315,14 +371,7 @@ class PipelineExecutionMixin:
             )
             return [synthesizer.synthesize(item, voice) for item in rewrites]
         except OpenAIProviderError as exc:
-            raise PipelineStageError(
-                stage="tts",
-                detail=str(exc),
-                hint=(
-                    "Verify `OPENAI_API_KEY` or `bookvoice credentials`, then confirm "
-                    "the TTS model/voice/provider configuration."
-                ),
-            ) from exc
+            raise self._provider_stage_error("tts", exc) from exc
         except PipelineStageError:
             raise
         except Exception as exc:

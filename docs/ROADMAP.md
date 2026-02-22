@@ -32,9 +32,11 @@ Still limited:
 ## Phase 1: Command Completeness
 
 Goal:
+
 - Replace placeholder command behavior with true partial-pipeline execution.
 
 Scope:
+
 - Implement real `translate-only`.
 - Implement real `tts-only` from manifest/artifacts.
 - Add integration tests for both command paths.
@@ -42,9 +44,11 @@ Scope:
 ## Phase 2: Reliability Hardening
 
 Goal:
+
 - Improve resilience of external-provider stages.
 
 Scope:
+
 - Retry/backoff policy for provider calls.
 - Better distinction of recoverable vs non-recoverable provider errors.
 - Expanded resume validation around partially missing artifact sets.
@@ -52,9 +56,11 @@ Scope:
 ## Phase 3: Audio Quality and Metadata
 
 Goal:
+
 - Improve output quality and playback metadata.
 
 Scope:
+
 - Enhanced postprocessing pipeline.
 - Deterministic tagging metadata write path.
 - Optional output packaging formats beyond merged WAV.
