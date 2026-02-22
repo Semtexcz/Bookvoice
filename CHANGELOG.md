@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.47] - 2026-02-22
+
+- Added an agent rule in `AGENTS.md` requiring completed tasks from `project/backlog` to be marked `done` and moved to `project/done`.
+- Bumped project version to `0.1.47`.
+
 ## [0.1.46] - 2026-02-22
 
 - Added a new agent rule in `AGENTS.md` requiring `CHANGELOG.md` updates after every code change.
