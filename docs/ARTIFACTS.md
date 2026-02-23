@@ -60,6 +60,9 @@ Minimal shape:
   "metadata": {
     "source": "pdf_outline",
     "fallback_reason": "",
+    "normalization": {
+      "drop_cap_merges_count": 1
+    },
     "chapter_scope": {
       "chapter_scope_mode": "all",
       "chapter_scope_label": "all"
@@ -108,6 +111,7 @@ Minimal shape:
       "chapter_scope_mode": "all",
       "chapter_scope_label": "all"
     },
+    "sentence_boundary_repairs_count": 1,
     "planner": {
       "strategy": "text_budget_segment_planner",
       "budget_chars": 1800,

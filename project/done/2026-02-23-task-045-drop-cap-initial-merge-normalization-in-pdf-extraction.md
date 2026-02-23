@@ -1,6 +1,6 @@
 ---
 task: TASK-045
-status: "backlog"
+status: "done"
 priority: P1
 type: fix
 ---
@@ -8,7 +8,7 @@ type: fix
 # Drop-cap and sentence-continuity normalization in PDF text extraction
 
 Task: TASK-045
-Status: backlog
+Status: done
 Priority: P1
 Type: fix
 Author:
@@ -67,17 +67,17 @@ Suggested sentence-continuity boundary policy:
 
 ## Definition of Done
 
-- [ ] Implement drop-cap merge normalization in text cleanup flow with deterministic behavior.
-- [ ] Implement sentence-continuity boundary repair so chunks are not split in the middle of one sentence when avoidable.
-- [ ] Add focused unit tests for:
+- [x] Implement drop-cap merge normalization in text cleanup flow with deterministic behavior.
+- [x] Implement sentence-continuity boundary repair so chunks are not split in the middle of one sentence when avoidable.
+- [x] Add focused unit tests for:
   - positive merge (`E` + `VERY` -> `EVERY`),
   - blank-line-separated merge,
   - heading/list false-positive avoidance,
   - fragment/continuation boundary repair (`"What` + `important truth ...`).
-- [ ] Add integration fixture/assertion proving the normalized extracted text no longer contains the split initial pattern.
-- [ ] Add integration fixture/assertion proving sentence continuity in produced chunks for drop-cap opening paragraphs.
-- [ ] Persist merge/repair counts in artifact metadata and expose them in manifest `extra` for audit visibility.
-- [ ] Update docs (`README.md` or `docs/ARTIFACTS.md`) with a short note about drop-cap normalization behavior and limitations.
+- [x] Add integration fixture/assertion proving the normalized extracted text no longer contains the split initial pattern.
+- [x] Add integration fixture/assertion proving sentence continuity in produced chunks for drop-cap opening paragraphs.
+- [x] Persist merge/repair counts in artifact metadata and expose them in manifest `extra` for audit visibility.
+- [x] Update docs (`README.md` or `docs/ARTIFACTS.md`) with a short note about drop-cap normalization behavior and limitations.
 
 ## Notes
 

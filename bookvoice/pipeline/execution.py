@@ -32,7 +32,7 @@ from ..models.datatypes import (
     TranslationResult,
 )
 from ..provider_factory import ProviderFactory
-from ..text.chunking import Chunker
+from ..text.chunking import Chunker, SentenceBoundaryRepairer
 from ..text.cleaners import TextCleaner
 from ..text.segment_planner import TextBudgetSegmentPlanner
 from ..text.slug import slugify_audio_title
@@ -131,9 +131,18 @@ class PipelineExecutionMixin:
     def _clean(self, raw_text: str) -> str:
         """Apply deterministic cleanup and normalization rules."""
 
+        cleaned_text, _ = self._clean_with_metadata(raw_text)
+        return cleaned_text
+
+    def _clean_with_metadata(self, raw_text: str) -> tuple[str, dict[str, int]]:
+        """Apply deterministic cleanup and return text plus normalization diagnostics."""
+
         try:
             cleaner = TextCleaner()
-            return cleaner.clean(raw_text).strip()
+            report = cleaner.clean_with_report(raw_text)
+            return report.cleaned_text.strip(), {
+                "drop_cap_merges_count": report.drop_cap_merges_count,
+            }
         except PipelineStageError:
             raise
         except Exception as exc:
@@ -206,7 +215,14 @@ class PipelineExecutionMixin:
             if selected_units:
                 plan = planner.plan(selected_units, budget_chars=config.chunk_size_chars)
                 chunks = planner.to_chunks(plan)
+                repair_report = SentenceBoundaryRepairer(
+                    max_extension_chars=max(1, int(config.chunk_size_chars * 0.35))
+                ).repair(chunks=chunks, target_size=config.chunk_size_chars)
+                chunks = repair_report.chunks
                 metadata = {
+                    "sentence_boundary_repairs_count": (
+                        repair_report.sentence_boundary_repairs_count
+                    ),
                     "planner": {
                         "strategy": "text_budget_segment_planner",
                         "budget_chars": plan.budget_chars,
@@ -224,7 +240,12 @@ class PipelineExecutionMixin:
                 chunks=Chunker().to_chunks(chapters, target_size=config.chunk_size_chars),
                 chapters=chapters,
             )
+            repair_report = SentenceBoundaryRepairer(
+                max_extension_chars=max(1, int(config.chunk_size_chars * 0.35))
+            ).repair(chunks=fallback_chunks, target_size=config.chunk_size_chars)
+            fallback_chunks = repair_report.chunks
             fallback_metadata = {
+                "sentence_boundary_repairs_count": repair_report.sentence_boundary_repairs_count,
                 "planner": {
                     "strategy": "chunker_fallback",
                     "budget_chars": config.chunk_size_chars,

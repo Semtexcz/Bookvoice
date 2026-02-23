@@ -108,6 +108,8 @@ class ResumeState:
     chapter_scope: dict[str, str] = field(default_factory=dict)
     raw_text: str = ""
     clean_text: str = ""
+    drop_cap_merges_count: int = 0
+    sentence_boundary_repairs_count: int = 0
     chapters: list[Chapter] = field(default_factory=list)
     normalized_structure: list[ChapterStructureUnit] = field(default_factory=list)
     selected_chapters: list[Chapter] = field(default_factory=list)
@@ -139,6 +141,19 @@ class BookvoicePipeline(
 
         self._run_logger = run_logger
         self._stage_progress_callback = stage_progress_callback
+
+    @staticmethod
+    def _manifest_int(extra: dict[str, object], key: str, default: int = 0) -> int:
+        """Read integer-like manifest extra value with deterministic fallback."""
+
+        value = extra.get(key)
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.isdigit():
+                return int(stripped)
+        return default
 
     def list_chapters_from_pdf(
         self, config: BookvoiceConfig
@@ -198,7 +213,10 @@ class BookvoicePipeline(
         raw_text = self._run_stage("extract", lambda: self._extract(config))
         raw_text_path = store.save_text(Path("text/raw.txt"), raw_text)
 
-        clean_text = self._run_stage("clean", lambda: self._clean(raw_text))
+        clean_text, clean_metadata = self._run_stage(
+            "clean",
+            lambda: self._clean_with_metadata(raw_text),
+        )
         clean_text_path = store.save_text(Path("text/clean.txt"), clean_text)
 
         chapters, chapter_source, chapter_fallback_reason = self._run_stage(
@@ -219,6 +237,7 @@ class BookvoicePipeline(
                 chapter_fallback_reason,
                 chapter_scope,
                 normalized_structure,
+                clean_metadata=clean_metadata,
             ),
         )
 
@@ -313,6 +332,12 @@ class BookvoicePipeline(
                     "packaged_audio": str(packaged_path),
                     "chapter_source": chapter_source,
                     "chapter_fallback_reason": chapter_fallback_reason,
+                    "drop_cap_merges_count": str(
+                        int(clean_metadata.get("drop_cap_merges_count", 0))
+                    ),
+                    "sentence_boundary_repairs_count": str(
+                        int(chunk_metadata.get("sentence_boundary_repairs_count", 0))
+                    ),
                     **part_mapping_metadata,
                     **packaging_metadata,
                     **runtime_config.as_manifest_metadata(),
@@ -333,7 +358,7 @@ class BookvoicePipeline(
         raw_text = self._extract(config)
         raw_text_path = store.save_text(Path("text/raw.txt"), raw_text)
 
-        clean_text = self._clean(raw_text)
+        clean_text, clean_metadata = self._clean_with_metadata(raw_text)
         clean_text_path = store.save_text(Path("text/clean.txt"), clean_text)
 
         chapters, chapter_source, chapter_fallback_reason = self._split_chapters(
@@ -348,6 +373,7 @@ class BookvoicePipeline(
                 chapter_fallback_reason,
                 chapter_scope,
                 self._extract_normalized_structure(chapters, chapter_source, config.input_pdf),
+                clean_metadata=clean_metadata,
             ),
         )
 
@@ -363,6 +389,8 @@ class BookvoicePipeline(
                 "chapters": str(chapters_path),
                 "chapter_source": chapter_source,
                 "chapter_fallback_reason": chapter_fallback_reason,
+                "drop_cap_merges_count": str(int(clean_metadata.get("drop_cap_merges_count", 0))),
+                "sentence_boundary_repairs_count": "0",
                 "pipeline_mode": "chapters_only",
                 **runtime_config.as_manifest_metadata(),
                 **chapter_scope,
@@ -381,7 +409,10 @@ class BookvoicePipeline(
         raw_text = self._run_stage("extract", lambda: self._extract(config))
         raw_text_path = store.save_text(Path("text/raw.txt"), raw_text)
 
-        clean_text = self._run_stage("clean", lambda: self._clean(raw_text))
+        clean_text, clean_metadata = self._run_stage(
+            "clean",
+            lambda: self._clean_with_metadata(raw_text),
+        )
         clean_text_path = store.save_text(Path("text/clean.txt"), clean_text)
 
         chapters, chapter_source, chapter_fallback_reason = self._run_stage(
@@ -402,6 +433,7 @@ class BookvoicePipeline(
                 chapter_fallback_reason,
                 chapter_scope,
                 normalized_structure,
+                clean_metadata=clean_metadata,
             ),
         )
 
@@ -437,6 +469,12 @@ class BookvoicePipeline(
                     "translations": str(translations_path),
                     "chapter_source": chapter_source,
                     "chapter_fallback_reason": chapter_fallback_reason,
+                    "drop_cap_merges_count": str(
+                        int(clean_metadata.get("drop_cap_merges_count", 0))
+                    ),
+                    "sentence_boundary_repairs_count": str(
+                        int(chunk_metadata.get("sentence_boundary_repairs_count", 0))
+                    ),
                     "pipeline_mode": "translate_only",
                     **runtime_config.as_manifest_metadata(),
                     **chapter_scope,
@@ -532,6 +570,16 @@ class BookvoicePipeline(
                     "pipeline_mode": "tts_only",
                     "chapter_source": state.chapter_source,
                     "chapter_fallback_reason": state.chapter_fallback_reason,
+                    "drop_cap_merges_count": str(
+                        self._manifest_int(state.extra, "drop_cap_merges_count", default=0)
+                    ),
+                    "sentence_boundary_repairs_count": str(
+                        self._manifest_int(
+                            state.extra,
+                            "sentence_boundary_repairs_count",
+                            default=0,
+                        )
+                    ),
                     **part_mapping_metadata,
                     **packaging_metadata,
                     **state.runtime_config.as_manifest_metadata(),
@@ -837,7 +885,8 @@ class BookvoicePipeline(
             state.clean_text = state.paths.clean_text.read_text(encoding="utf-8")
             return
 
-        state.clean_text = self._clean(state.raw_text)
+        state.clean_text, clean_metadata = self._clean_with_metadata(state.raw_text)
+        state.drop_cap_merges_count = int(clean_metadata.get("drop_cap_merges_count", 0))
         state.paths.clean_text = state.store.save_text(Path("text/clean.txt"), state.clean_text)
 
     def _load_or_split_resume_chapters(self, state: ResumeState) -> None:
@@ -849,6 +898,9 @@ class BookvoicePipeline(
             if chapter_metadata["source"]:
                 state.chapter_source = chapter_metadata["source"]
             state.chapter_fallback_reason = chapter_metadata["fallback_reason"]
+            state.drop_cap_merges_count = int(
+                chapter_metadata.get("drop_cap_merges_count", "0")
+            )
             state.normalized_structure = load_normalized_structure(state.paths.chapters)
         else:
             (
@@ -872,6 +924,7 @@ class BookvoicePipeline(
                     state.chapter_fallback_reason,
                     state.chapter_scope,
                     state.normalized_structure,
+                    clean_metadata={"drop_cap_merges_count": state.drop_cap_merges_count},
                 ),
             )
 
@@ -891,10 +944,19 @@ class BookvoicePipeline(
 
         if state.paths.chunks.exists():
             state.chunks = load_chunks(state.paths.chunks)
+            chunk_payload = load_json_object(state.paths.chunks)
+            chunk_metadata = chunk_payload.get("metadata")
+            if isinstance(chunk_metadata, dict):
+                state.sentence_boundary_repairs_count = int(
+                    chunk_metadata.get("sentence_boundary_repairs_count", 0)
+                )
             return
 
         state.chunks, chunk_metadata = self._chunk(
             state.selected_chapters, state.normalized_structure, state.config
+        )
+        state.sentence_boundary_repairs_count = int(
+            chunk_metadata.get("sentence_boundary_repairs_count", 0)
         )
         state.paths.chunks = state.store.save_json(
             Path("text/chunks.json"),
@@ -1093,6 +1155,10 @@ class BookvoicePipeline(
                 **state.validation_report.as_manifest_metadata(),
                 "chapter_source": state.chapter_source,
                 "chapter_fallback_reason": state.chapter_fallback_reason,
+                "drop_cap_merges_count": str(state.drop_cap_merges_count),
+                "sentence_boundary_repairs_count": str(
+                    state.sentence_boundary_repairs_count
+                ),
                 **part_mapping_metadata,
                 **packaging_metadata,
                 **state.runtime_config.as_manifest_metadata(),

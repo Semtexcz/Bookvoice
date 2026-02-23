@@ -28,10 +28,12 @@ Still intentionally limited:
 - Fallback chapter chunking now targets sentence-complete boundaries and prefers `.` before `!`/`?`.
 - If no boundary exists near the target size, the chunker extends forward to the next sentence boundary within a bounded safety margin.
 - If no sentence boundary exists within that margin (for example very long punctuation-free text), the chunker performs a deterministic forced split and marks the chunk with `boundary_strategy = "forced_split_no_sentence_boundary"`.
+- During cleanup, decorative drop-cap initials split across lines (for example `E` + `VERY`) are conservatively merged when safe guards pass.
+- When deterministic splitting still lands mid-sentence, chunk-boundary repair can carry the minimum continuation prefix from the next chunk to complete the sentence.
 
 Current limitation:
 
-- Structure-driven segment planning (`TextBudgetSegmentPlanner`) is paragraph-first; sentence-boundary enforcement applies to chunker fallback path.
+- Drop-cap merging is conservative by design and can miss borderline layouts to avoid incorrect merges.
 
 ## Pipeline Overview
 

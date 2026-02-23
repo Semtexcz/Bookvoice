@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.5] - 2026-02-23
+
+### Added
+
+- Completed `TASK-045` by adding deterministic drop-cap normalization for split initials (for example `E` + `VERY` -> `EVERY`) in cleanup flow with conservative heading/list false-positive guards.
+- Added deterministic sentence-boundary repair for chunk sequences, including bounded continuation carry-over when a split lands mid-sentence.
+- Added focused unit coverage for drop-cap merge positives/guards and quote-fragment sentence-boundary stitching.
+- Added integration coverage proving normalized clean text no longer contains split-initial patterns and produced chunks preserve sentence continuity.
+
+### Changed
+
+- Persisted `drop_cap_merges_count` in chapter artifact metadata and `sentence_boundary_repairs_count` in chunk artifact metadata.
+- Exposed normalization counters in manifest `extra` for build/translate-only/chapters-only/resume/tts-only audit visibility.
+- Updated `README.md` and `docs/ARTIFACTS.md` with drop-cap normalization and sentence-boundary repair behavior/limitations.
+- Marked `TASK-045` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.8.5`.
+
 ## [0.8.4] - 2026-02-23
 
 ### Changed

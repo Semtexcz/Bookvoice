@@ -32,14 +32,21 @@ def chapter_artifact_payload(
     fallback_reason: str,
     chapter_scope: dict[str, str],
     normalized_structure: list[ChapterStructureUnit],
+    clean_metadata: dict[str, int] | None = None,
 ) -> dict[str, object]:
     """Serialize chapter artifacts with extraction metadata."""
 
+    normalization_metadata = {
+        "drop_cap_merges_count": int(
+            (clean_metadata or {}).get("drop_cap_merges_count", 0)
+        ),
+    }
     return {
         "chapters": [asdict(chapter) for chapter in chapters],
         "metadata": {
             "source": source,
             "fallback_reason": fallback_reason,
+            "normalization": normalization_metadata,
             "chapter_scope": chapter_scope,
             "normalized_structure": [asdict(unit) for unit in normalized_structure],
         },
@@ -316,9 +323,18 @@ def load_chapter_metadata(path: Path) -> dict[str, str]:
         return {"source": "", "fallback_reason": ""}
     source = metadata.get("source")
     fallback_reason = metadata.get("fallback_reason")
+    normalization = metadata.get("normalization")
+    drop_cap_merges_count = "0"
+    if isinstance(normalization, dict):
+        drop_cap_raw = normalization.get("drop_cap_merges_count")
+        if isinstance(drop_cap_raw, int):
+            drop_cap_merges_count = str(drop_cap_raw)
+        elif isinstance(drop_cap_raw, str) and drop_cap_raw.strip().isdigit():
+            drop_cap_merges_count = str(int(drop_cap_raw))
     return {
         "source": str(source) if isinstance(source, str) else "",
         "fallback_reason": str(fallback_reason) if isinstance(fallback_reason, str) else "",
+        "drop_cap_merges_count": drop_cap_merges_count,
     }
 
 
