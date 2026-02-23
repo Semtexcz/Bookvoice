@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.4] - 2026-02-23
+
+### Changed
+
+- Expanded `TASK-045` scope to also cover sentence-continuity chunk-boundary repairs for drop-cap opening paragraphs split mid-sentence (for example `"... What"` + `"important truth ..."`).
+- Added deterministic boundary-repair strategy and acceptance criteria, including diagnostics metadata for applied sentence-boundary repairs.
+- Bumped project version to `0.8.4`.
+
+## [0.8.3] - 2026-02-23
+
+### Changed
+
+- Added `TASK-045` to `project/backlog/` to track drop-cap initial merge normalization during PDF text extraction (for example `E` + `VERY` -> `EVERY`) with deterministic detection safeguards.
+- Documented proposed implementation strategy and acceptance criteria, including false-positive guards, metadata diagnostics, and coverage expectations.
+- Bumped project version to `0.8.3`.
+
 ## [0.8.2] - 2026-02-22
 
 ### Changed
