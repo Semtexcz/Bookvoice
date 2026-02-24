@@ -28,3 +28,4 @@ venv/
 bookvoice.local.yaml
 out/
 tests/files/zero_to_one.pdf
+blog/
