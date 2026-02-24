@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.26] - 2026-02-24
+
+### Fixed
+
+- Fixed Windows PyInstaller executable startup by switching `bookvoice/__main__.py` to an absolute import (`from bookvoice.cli import main`), preventing `ImportError: attempted relative import with no known parent package` when `bookvoice.exe` launches.
+
+### Changed
+
+- Bumped project version to `0.8.26`.
+
 ## [0.8.25] - 2026-02-24
 
 ### Added

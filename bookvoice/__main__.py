@@ -6,7 +6,7 @@ entry script for ``bookvoice.exe``.
 
 from __future__ import annotations
 
-from .cli import main
+from bookvoice.cli import main
 
 
 if __name__ == "__main__":
