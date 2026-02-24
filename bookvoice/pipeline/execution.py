@@ -317,10 +317,18 @@ class PipelineExecutionMixin:
                 model=runtime_config.translate_model,
                 api_key=runtime_config.api_key,
             )
-            return [
+            translations = [
                 translator.translate(chunk, target_language=config.language)
                 for chunk in chunks
             ]
+            self._record_provider_retry_attempts(
+                getattr(translator, "retry_attempt_count", 0)
+            )
+            self._record_provider_cache_stats(
+                hits=getattr(translator, "cache_hits", 0),
+                misses=getattr(translator, "cache_misses", 0),
+            )
+            return translations
         except OpenAIProviderError as exc:
             raise self._provider_stage_error("translate", exc) from exc
         except PipelineStageError:
@@ -354,7 +362,15 @@ class PipelineExecutionMixin:
                 model=resolved_runtime.rewrite_model,
                 api_key=resolved_runtime.api_key,
             )
-            return [rewriter.rewrite(translation) for translation in translations]
+            rewrites = [rewriter.rewrite(translation) for translation in translations]
+            self._record_provider_retry_attempts(
+                getattr(rewriter, "retry_attempt_count", 0)
+            )
+            self._record_provider_cache_stats(
+                hits=getattr(rewriter, "cache_hits", 0),
+                misses=getattr(rewriter, "cache_misses", 0),
+            )
+            return rewrites
         except OpenAIProviderError as exc:
             raise self._provider_stage_error("rewrite", exc) from exc
         except PipelineStageError:
@@ -393,7 +409,11 @@ class PipelineExecutionMixin:
                 model=resolved_runtime.tts_model,
                 api_key=resolved_runtime.api_key,
             )
-            return [synthesizer.synthesize(item, voice) for item in rewrites]
+            audio_parts = [synthesizer.synthesize(item, voice) for item in rewrites]
+            self._record_provider_retry_attempts(
+                getattr(synthesizer, "retry_attempt_count", 0)
+            )
+            return audio_parts
         except OpenAIProviderError as exc:
             raise self._provider_stage_error("tts", exc) from exc
         except PipelineStageError:

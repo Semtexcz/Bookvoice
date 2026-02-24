@@ -11,9 +11,12 @@ from __future__ import annotations
 import json
 import re
 import socket
+import time
 from typing import Any
 
 import requests
+
+from .rate_limiter import RateLimiter
 
 
 class OpenAIProviderError(RuntimeError):
@@ -46,12 +49,30 @@ class _OpenAIBaseClient:
         api_key: str | None,
         base_url: str = "https://api.openai.com/v1",
         timeout_seconds: float = 60.0,
+        rate_limiter: RateLimiter | None = None,
+        max_retries: int = 2,
+        retry_backoff_base_seconds: float = 0.5,
+        retry_backoff_max_seconds: float = 4.0,
     ) -> None:
         """Initialize OpenAI HTTP client settings."""
 
         self.api_key = api_key.strip() if isinstance(api_key, str) else ""
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
+        self.rate_limiter = rate_limiter if rate_limiter is not None else RateLimiter()
+        self.max_retries = max(0, int(max_retries))
+        self.retry_backoff_base_seconds = max(0.0, float(retry_backoff_base_seconds))
+        self.retry_backoff_max_seconds = max(
+            self.retry_backoff_base_seconds,
+            float(retry_backoff_max_seconds),
+        )
+        self._retry_attempt_count = 0
+
+    @property
+    def retry_attempt_count(self) -> int:
+        """Return number of performed retry attempts for this client instance."""
+
+        return self._retry_attempt_count
 
     def _require_api_key(self) -> None:
         """Require API key presence before issuing OpenAI requests."""
@@ -67,6 +88,7 @@ class _OpenAIBaseClient:
         self,
         *,
         endpoint_path: str,
+        request_key: str,
         payload: dict[str, Any],
         require_non_empty_response: bool = False,
         empty_response_message: str = "OpenAI response is empty.",
@@ -78,46 +100,74 @@ class _OpenAIBaseClient:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        try:
-            response = requests.post(
-                endpoint,
-                headers=headers,
-                json=payload,
-                timeout=self.timeout_seconds,
-            )
-            response.raise_for_status()
-            response_bytes = bytes(response.content)
-        except requests.HTTPError as exc:
-            raise self._http_error_to_provider_error(exc) from exc
-        except requests.RequestException as exc:
-            failure_kind = self._classify_transport_failure(exc)
-            if failure_kind == "timeout":
-                detail = "OpenAI request timed out."
-            else:
-                detail = (
-                    "OpenAI request transport error: "
-                    f"{self._short_message(str(exc))}"
+        attempt = 0
+        while True:
+            self.rate_limiter.acquire(request_key)
+            try:
+                response = requests.post(
+                    endpoint,
+                    headers=headers,
+                    json=payload,
+                    timeout=self.timeout_seconds,
                 )
-            raise OpenAIProviderError(detail, failure_kind=failure_kind) from exc
-        except TimeoutError as exc:
-            raise OpenAIProviderError(
-                "OpenAI request timed out.",
-                failure_kind="timeout",
-            ) from exc
-        except Exception as exc:
-            raise OpenAIProviderError(
-                f"OpenAI request failed: {self._short_message(str(exc))}",
-                failure_kind="unknown",
-            ) from exc
+                response.raise_for_status()
+                response_bytes = bytes(response.content)
+            except requests.HTTPError as exc:
+                provider_error = self._http_error_to_provider_error(exc)
+                if not self._should_retry_provider_error(provider_error) or attempt >= self.max_retries:
+                    raise provider_error from exc
+                attempt += 1
+                self._retry_attempt_count += 1
+                time.sleep(self._retry_delay_seconds(attempt))
+                continue
+            except requests.RequestException as exc:
+                failure_kind = self._classify_transport_failure(exc)
+                if failure_kind == "timeout":
+                    detail = "OpenAI request timed out."
+                else:
+                    detail = (
+                        "OpenAI request transport error: "
+                        f"{self._short_message(str(exc))}"
+                    )
+                provider_error = OpenAIProviderError(detail, failure_kind=failure_kind)
+                if not self._should_retry_provider_error(provider_error) or attempt >= self.max_retries:
+                    raise provider_error from exc
+                attempt += 1
+                self._retry_attempt_count += 1
+                time.sleep(self._retry_delay_seconds(attempt))
+                continue
+            except TimeoutError as exc:
+                provider_error = OpenAIProviderError(
+                    "OpenAI request timed out.",
+                    failure_kind="timeout",
+                )
+                if not self._should_retry_provider_error(provider_error) or attempt >= self.max_retries:
+                    raise provider_error from exc
+                attempt += 1
+                self._retry_attempt_count += 1
+                time.sleep(self._retry_delay_seconds(attempt))
+                continue
+            except Exception as exc:
+                provider_error = OpenAIProviderError(
+                    f"OpenAI request failed: {self._short_message(str(exc))}",
+                    failure_kind="unknown",
+                )
+                if not self._should_retry_provider_error(provider_error) or attempt >= self.max_retries:
+                    raise provider_error from exc
+                attempt += 1
+                self._retry_attempt_count += 1
+                time.sleep(self._retry_delay_seconds(attempt))
+                continue
 
-        if require_non_empty_response and not response_bytes:
-            raise OpenAIProviderError(empty_response_message)
-        return response_bytes
+            if require_non_empty_response and not response_bytes:
+                raise OpenAIProviderError(empty_response_message)
+            return response_bytes
 
     def _post_json_bytes(
         self,
         *,
         endpoint_path: str,
+        request_key: str,
         payload: dict[str, Any],
         require_non_empty_response: bool = False,
         empty_response_message: str = "OpenAI response is empty.",
@@ -126,10 +176,33 @@ class _OpenAIBaseClient:
 
         return self._execute_json_post_bytes(
             endpoint_path=endpoint_path,
+            request_key=request_key,
             payload=payload,
             require_non_empty_response=require_non_empty_response,
             empty_response_message=empty_response_message,
         )
+
+    def _retry_delay_seconds(self, attempt: int) -> float:
+        """Return bounded exponential backoff delay for a retry attempt."""
+
+        delay = self.retry_backoff_base_seconds * (2 ** max(0, attempt - 1))
+        return min(self.retry_backoff_max_seconds, delay)
+
+    @staticmethod
+    def _should_retry_provider_error(error: OpenAIProviderError) -> bool:
+        """Return whether provider error is retryable under bounded retry policy."""
+
+        if error.failure_kind in {"invalid_api_key", "insufficient_quota", "invalid_model"}:
+            return False
+        if error.failure_kind in {"timeout", "transport"}:
+            return True
+        if error.status_code is None:
+            return error.failure_kind == "unknown"
+        if error.status_code >= 500:
+            return True
+        if error.status_code in {408, 429} and error.failure_kind != "insufficient_quota":
+            return True
+        return False
 
     @staticmethod
     def _decode_error_body(exc: requests.HTTPError) -> str:
@@ -281,6 +354,7 @@ class OpenAIChatClient(_OpenAIBaseClient):
         }
         raw_payload = self._post_json_bytes(
             endpoint_path="/chat/completions",
+            request_key=f"openai:chat:{model}",
             payload=payload,
         ).decode("utf-8")
         return self._extract_message_text(raw_payload)
@@ -355,6 +429,7 @@ class OpenAISpeechClient(_OpenAIBaseClient):
         }
         return self._post_json_bytes(
             endpoint_path="/audio/speech",
+            request_key=f"openai:tts:{model}",
             payload=payload,
             require_non_empty_response=True,
             empty_response_message="OpenAI speech response is empty.",

@@ -12,6 +12,7 @@ import wave
 from pathlib import Path
 from typing import Protocol
 
+from ..llm.rate_limiter import RateLimiter
 from ..llm.openai_client import OpenAIProviderError, OpenAISpeechClient
 from ..models.datatypes import AudioPart, RewriteResult
 from ..text.slug import slugify_audio_title
@@ -34,13 +35,14 @@ class OpenAITTSSynthesizer:
         model: str = "gpt-4o-mini-tts",
         provider_id: str = "openai",
         api_key: str | None = None,
+        rate_limiter: RateLimiter | None = None,
     ) -> None:
         """Initialize OpenAI-backed TTS synthesizer settings."""
 
         self.output_root = output_root
         self.model = model
         self.provider_id = provider_id
-        self.client = OpenAISpeechClient(api_key=api_key)
+        self.client = OpenAISpeechClient(api_key=api_key, rate_limiter=rate_limiter)
 
     def synthesize(self, rewrite: RewriteResult, voice: VoiceProfile) -> AudioPart:
         """Synthesize one OpenAI WAV file and return deterministic chunk metadata."""
@@ -93,3 +95,9 @@ class OpenAITTSSynthesizer:
         if sample_rate <= 0:
             raise OpenAIProviderError("OpenAI speech response has invalid WAV sample rate.")
         return frame_count / float(sample_rate)
+
+    @property
+    def retry_attempt_count(self) -> int:
+        """Return retry attempt count performed by underlying provider client."""
+
+        return self.client.retry_attempt_count

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.6] - 2026-02-24
+
+### Added
+
+- Completed `TASK-012` by implementing deterministic in-memory `ResponseCache` keys with provider/model/operation identity hashing and normalized input payload handling.
+- Added bounded OpenAI provider retry behavior with exponential backoff for transient failures and explicit non-retry behavior for permanent failures (`invalid_api_key`, `insufficient_quota`, `invalid_model`).
+- Added deterministic per-key `RateLimiter` and enforced acquisition on real OpenAI request paths for both LLM chat and TTS speech endpoints.
+- Added manifest telemetry metadata for provider retries and cache efficiency (`provider_retry_attempts`, `provider_cache_hits`, `provider_cache_misses`, `provider_cache_hit_rate`).
+- Added focused unit coverage in `tests/unit/test_cache_retry_rate_limit.py` for deterministic cache keys, cache telemetry counters, retry policy behavior, and request-path rate-limiter enforcement.
+
+### Changed
+
+- Wired OpenAI translator and rewriter stages to cache repeated deterministic prompt results and expose cache/retry counters for pipeline telemetry aggregation.
+- Wired OpenAI TTS synthesis to expose retry counters for run-level telemetry aggregation.
+- Marked `TASK-012` as done and moved it from `project/backlog/` to `project/done/`.
+- Bumped project version to `0.8.6`.
+
 ## [0.8.5] - 2026-02-23
 
 ### Added

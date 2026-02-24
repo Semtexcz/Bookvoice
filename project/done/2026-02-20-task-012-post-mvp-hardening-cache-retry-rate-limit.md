@@ -1,6 +1,6 @@
 ---
 task: TASK-012
-status: "backlog"
+status: "done"
 priority: P2
 type: infra
 ---
@@ -8,7 +8,7 @@ type: infra
 # Post-MVP hardening: cache keys, retry, and rate limiting
 
 Task: TASK-012
-Status: backlog
+Status: done
 Priority: P2
 Type: infra
 Author:
@@ -21,10 +21,10 @@ Current roadmap defers robust reliability controls. Without cache/retry/rate-lim
 
 ## Definition of Done
 
-- [ ] `ResponseCache` uses deterministic keys that include provider, model, operation, and normalized input identity.
-- [ ] External provider calls have bounded retry with backoff for transient failures and clear non-retry rules for permanent failures.
-- [ ] `RateLimiter` is enforced on real provider request paths (LLM + TTS).
-- [ ] Telemetry captures retry counts and cache hit rates.
+- [x] `ResponseCache` uses deterministic keys that include provider, model, operation, and normalized input identity.
+- [x] External provider calls have bounded retry with backoff for transient failures and clear non-retry rules for permanent failures.
+- [x] `RateLimiter` is enforced on real provider request paths (LLM + TTS).
+- [x] Telemetry captures retry counts and cache hit rates.
 
 ## Notes
 

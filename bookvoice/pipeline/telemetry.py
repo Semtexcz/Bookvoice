@@ -30,6 +30,40 @@ class PipelineTelemetryMixin:
         "manifest",
     )
 
+    def _reset_provider_call_telemetry(self) -> None:
+        """Reset provider retry/cache counters for a new pipeline execution flow."""
+
+        self._provider_retry_attempts = 0
+        self._provider_cache_hits = 0
+        self._provider_cache_misses = 0
+
+    def _record_provider_retry_attempts(self, retry_attempts: int) -> None:
+        """Accumulate provider retry telemetry from stage clients."""
+
+        self._provider_retry_attempts += max(0, int(retry_attempts))
+
+    def _record_provider_cache_stats(self, *, hits: int, misses: int) -> None:
+        """Accumulate provider cache hit/miss telemetry from stage clients."""
+
+        self._provider_cache_hits += max(0, int(hits))
+        self._provider_cache_misses += max(0, int(misses))
+
+    def _provider_call_manifest_metadata(self) -> dict[str, str]:
+        """Serialize provider retry/cache telemetry for manifest metadata."""
+
+        total_requests = self._provider_cache_hits + self._provider_cache_misses
+        hit_rate = (
+            self._provider_cache_hits / float(total_requests)
+            if total_requests > 0
+            else 0.0
+        )
+        return {
+            "provider_retry_attempts": str(self._provider_retry_attempts),
+            "provider_cache_hits": str(self._provider_cache_hits),
+            "provider_cache_misses": str(self._provider_cache_misses),
+            "provider_cache_hit_rate": f"{hit_rate:.4f}",
+        }
+
     def _stage_position(self, stage_name: str) -> tuple[int, int] | None:
         """Return 1-based stage index and total stage count for known stages."""
 

@@ -141,6 +141,7 @@ class BookvoicePipeline(
 
         self._run_logger = run_logger
         self._stage_progress_callback = stage_progress_callback
+        self._reset_provider_call_telemetry()
 
     @staticmethod
     def _manifest_int(extra: dict[str, object], key: str, default: int = 0) -> int:
@@ -206,6 +207,7 @@ class BookvoicePipeline(
     def run(self, config: BookvoiceConfig) -> RunManifest:
         """Run the full pipeline and return a manifest."""
 
+        self._reset_provider_call_telemetry()
         run_id, config_hash, store = self._prepare_run(config)
         runtime_config = self._resolve_runtime_config(config)
         cost_tracker = CostTracker()
@@ -340,6 +342,7 @@ class BookvoicePipeline(
                     ),
                     **part_mapping_metadata,
                     **packaging_metadata,
+                    **self._provider_call_manifest_metadata(),
                     **runtime_config.as_manifest_metadata(),
                     **chapter_scope,
                 },
@@ -352,6 +355,7 @@ class BookvoicePipeline(
     def run_chapters_only(self, config: BookvoiceConfig) -> RunManifest:
         """Run only extract/clean/split stages and persist chapter artifacts."""
 
+        self._reset_provider_call_telemetry()
         run_id, config_hash, store = self._prepare_run(config)
         runtime_config = self._resolve_runtime_config(config)
 
@@ -392,6 +396,7 @@ class BookvoicePipeline(
                 "drop_cap_merges_count": str(int(clean_metadata.get("drop_cap_merges_count", 0))),
                 "sentence_boundary_repairs_count": "0",
                 "pipeline_mode": "chapters_only",
+                **self._provider_call_manifest_metadata(),
                 **runtime_config.as_manifest_metadata(),
                 **chapter_scope,
             },
@@ -402,6 +407,7 @@ class BookvoicePipeline(
     def run_translate_only(self, config: BookvoiceConfig) -> RunManifest:
         """Run stages through translation and persist deterministic text artifacts."""
 
+        self._reset_provider_call_telemetry()
         run_id, config_hash, store = self._prepare_run(config)
         runtime_config = self._resolve_runtime_config(config)
         cost_tracker = CostTracker()
@@ -476,6 +482,7 @@ class BookvoicePipeline(
                         int(chunk_metadata.get("sentence_boundary_repairs_count", 0))
                     ),
                     "pipeline_mode": "translate_only",
+                    **self._provider_call_manifest_metadata(),
                     **runtime_config.as_manifest_metadata(),
                     **chapter_scope,
                 },
@@ -487,6 +494,7 @@ class BookvoicePipeline(
     def run_tts_only_from_manifest(self, manifest_path: Path) -> RunManifest:
         """Run only TTS/merge/manifest stages from an existing run manifest."""
 
+        self._reset_provider_call_telemetry()
         state = self._build_resume_state(manifest_path)
         self._validate_tts_only_runtime_metadata(state.extra)
         state.rewrites, state.chapter_scope = self._load_tts_only_prerequisites(state)
@@ -582,6 +590,7 @@ class BookvoicePipeline(
                     ),
                     **part_mapping_metadata,
                     **packaging_metadata,
+                    **self._provider_call_manifest_metadata(),
                     **state.runtime_config.as_manifest_metadata(),
                     **state.chapter_scope,
                 },
@@ -727,6 +736,7 @@ class BookvoicePipeline(
     def resume(self, manifest_path: Path) -> RunManifest:
         """Resume a run from an existing manifest and artifacts."""
 
+        self._reset_provider_call_telemetry()
         state = self._build_resume_state(manifest_path)
         self._load_or_extract_resume_text(state)
         self._load_or_clean_resume_text(state)
@@ -1161,6 +1171,7 @@ class BookvoicePipeline(
                 ),
                 **part_mapping_metadata,
                 **packaging_metadata,
+                **self._provider_call_manifest_metadata(),
                 **state.runtime_config.as_manifest_metadata(),
                 **state.chapter_scope,
             },
