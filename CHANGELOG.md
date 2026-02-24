@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.18] - 2026-02-24
+
+### Added
+
+- Added backlog task `TASK-051` at `project/backlog/2026-02-24-task-051-mypy-baseline-cleanup-and-blocking-ci-gate.md` to track resolving existing mypy baseline errors and switching CI mypy checks to blocking mode.
+
+### Changed
+
+- Bumped project version to `0.8.18`.
+
+## [0.8.17] - 2026-02-24
+
+### Added
+
+- Added GitHub Actions CI workflow at `.github/workflows/ci.yml` triggered on `push` and `pull_request` for `main`.
+- Added matrix execution for Python `3.12` and `3.13` on `ubuntu-latest`.
+- Added CI lint/type/test stages for `ruff`, `mypy`, and `pytest` (`mypy` step is non-blocking while existing baseline type issues are being resolved).
+- Added a coverage quality gate enforcing at least `80%` total coverage in CI (`--cov-fail-under=80`).
+- Added dependency caching for Poetry environments via `actions/setup-python` cache configuration.
+
+### Changed
+
+- Bumped project version to `0.8.17`.
+
 ## [0.8.16] - 2026-02-24
 
 ### Changed
