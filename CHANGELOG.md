@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.10] - 2026-02-24
+
+### Added
+
+- Added a dedicated backlog subfolder `project/backlog/pdf-fixture-replacement/` to track phased replacement of restricted test fixture usage.
+- Added `TASK-046` to define migration from `tests/files/zero_to_one.pdf` to a synthetic, repository-owned canonical PDF fixture.
+- Added `TASK-047` to centralize canonical PDF fixture path usage in tests through shared helper/fixture resolution.
+- Added `TASK-048` to decouple path-only tests from unnecessary real PDF fixture dependency.
+- Added `TASK-049` to update repository documentation and artifact examples to the new canonical fixture.
+- Added `TASK-050` to introduce a guardrail against reintroducing restricted fixture filename references.
+
+### Changed
+
+- Bumped project version to `0.8.10`.
+
 ## [0.8.9] - 2026-02-24
 
 ### Added
