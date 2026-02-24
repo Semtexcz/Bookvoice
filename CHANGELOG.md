@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.23] - 2026-02-24
+
+### Fixed
+
+- Fixed GitHub Actions Windows CI by avoiding `actions/setup-python` Poetry caching on Windows (which requires `poetry` on `PATH` during setup) and installing Poetry after Python on Windows runners.
+
+### Changed
+
+- Bumped project version to `0.8.23`.
+
 ## [0.8.22] - 2026-02-24
 
 ### Added

@@ -29,15 +29,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Poetry
+      - name: Install Poetry (non-Windows)
+        if: matrix.os != 'windows-latest'
         uses: snok/install-poetry@v1
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: poetry
+          cache: ${{ matrix.os == 'windows-latest' && 'pip' || 'poetry' }}
           cache-dependency-path: poetry.lock
+
+      - name: Install Poetry (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: snok/install-poetry@v1
 
       - name: Install dependencies
         run: poetry install --no-root
