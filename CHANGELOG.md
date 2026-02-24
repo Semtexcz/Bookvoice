@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.20] - 2026-02-24
+
+### Fixed
+
+- Fixed CI test import resolution by making `tests` an explicit Python package via `tests/__init__.py`, so `from tests.fixture_paths import ...` works reliably in GitHub Actions.
+
+### Changed
+
+- Bumped project version to `0.8.20`.
+
 ## [0.8.19] - 2026-02-24
 
 ### Fixed
