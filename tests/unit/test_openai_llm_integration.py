@@ -8,12 +8,12 @@ from pathlib import Path
 import wave
 
 import pytest
-import requests
 
 from bookvoice.config import BookvoiceConfig
 from bookvoice.errors import PipelineStageError
 from bookvoice.io.storage import ArtifactStore
 from bookvoice.llm.audio_rewriter import AudioRewriter
+from bookvoice.llm import openai_client as openai_http
 from bookvoice.llm.openai_client import OpenAIChatClient, OpenAIProviderError, OpenAISpeechClient
 from bookvoice.llm.translator import OpenAITranslator
 from bookvoice.models.datatypes import Chunk, RewriteResult, TranslationResult
@@ -35,7 +35,7 @@ class _MockRequestsResponse:
         """Raise HTTPError when the response status represents a failure."""
 
         if self.status_code >= 400:
-            raise requests.HTTPError(
+            raise openai_http.requests.HTTPError(
                 f"HTTP {self.status_code} error",
                 response=self,
             )
@@ -114,7 +114,7 @@ def test_openai_translator_provider_failure(monkeypatch: pytest.MonkeyPatch) -> 
     def _mock_post(_url: str, **_kwargs: object) -> _MockRequestsResponse:
         """Raise transport error for provider-failure path."""
 
-        raise requests.ConnectionError("network down")
+        raise openai_http.requests.ConnectionError("network down")
 
     monkeypatch.setattr("bookvoice.llm.openai_client.requests.post", _mock_post)
 
@@ -377,7 +377,7 @@ def test_openai_client_classifies_transport_error_as_timeout(
     def _mock_post(_url: str, **_kwargs: object) -> _MockRequestsResponse:
         """Raise deterministic timeout transport error."""
 
-        raise requests.Timeout("socket timed out")
+        raise openai_http.requests.Timeout("socket timed out")
 
     monkeypatch.setattr("bookvoice.llm.openai_client.requests.post", _mock_post)
     client = OpenAIChatClient(api_key="key")
@@ -399,7 +399,7 @@ def test_openai_client_classifies_transport_error_as_transport(
     def _mock_post(_url: str, **_kwargs: object) -> _MockRequestsResponse:
         """Raise deterministic non-timeout transport error."""
 
-        raise requests.ConnectionError("temporary DNS failure")
+        raise openai_http.requests.ConnectionError("temporary DNS failure")
 
     monkeypatch.setattr("bookvoice.llm.openai_client.requests.post", _mock_post)
     client = OpenAISpeechClient(api_key="key")

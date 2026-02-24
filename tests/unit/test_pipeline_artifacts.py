@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 from bookvoice.config import ProviderRuntimeConfig
 from bookvoice.models.datatypes import Chunk, RewriteResult, TranslationResult
 from bookvoice.pipeline.artifacts import rewrite_artifact_payload, translation_artifact_payload
@@ -54,33 +56,40 @@ def test_translation_and_rewrite_payload_builders_share_expected_schema() -> Non
         chapter_scope=chapter_scope,
         runtime_config=runtime_config,
     )
+    translations_payload_dict = cast(dict[str, Any], translations_payload)
+    rewrites_payload_dict = cast(dict[str, Any], rewrites_payload)
+    translations_list = cast(list[dict[str, Any]], translations_payload_dict["translations"])
+    rewrites_list = cast(list[dict[str, Any]], rewrites_payload_dict["rewrites"])
+    translation_metadata = cast(dict[str, Any], translations_payload_dict["metadata"])
+    rewrite_metadata = cast(dict[str, Any], rewrites_payload_dict["metadata"])
+    rewrite_translation = cast(dict[str, Any], rewrites_list[0]["translation"])
 
-    assert set(translations_payload.keys()) == {"translations", "metadata"}
-    assert set(translations_payload["translations"][0].keys()) == {
+    assert set(translations_payload_dict.keys()) == {"translations", "metadata"}
+    assert set(translations_list[0].keys()) == {
         "chunk",
         "translated_text",
         "provider",
         "model",
     }
-    assert set(translations_payload["metadata"].keys()) == {
+    assert set(translation_metadata.keys()) == {
         "chapter_scope",
         "provider",
         "model",
     }
-    assert set(rewrites_payload.keys()) == {"rewrites", "metadata"}
-    assert set(rewrites_payload["rewrites"][0].keys()) == {
+    assert set(rewrites_payload_dict.keys()) == {"rewrites", "metadata"}
+    assert set(rewrites_list[0].keys()) == {
         "translation",
         "rewritten_text",
         "provider",
         "model",
     }
-    assert set(rewrites_payload["rewrites"][0]["translation"].keys()) == {
+    assert set(rewrite_translation.keys()) == {
         "chunk",
         "translated_text",
         "provider",
         "model",
     }
-    assert set(rewrites_payload["metadata"].keys()) == {
+    assert set(rewrite_metadata.keys()) == {
         "chapter_scope",
         "provider",
         "model",

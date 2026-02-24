@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.8] - 2026-02-24
+
+### Fixed
+
+- Fixed `mypy` failures in test suites by removing direct untyped `requests` imports from OpenAI integration/cache tests and reusing the typed OpenAI transport module import path.
+- Fixed rate-limiter test double typing by making `_RecordingRateLimiter` a `RateLimiter` subtype compatible with OpenAI client constructor contracts.
+- Fixed payload-schema assertions in artifact tests by adding explicit typed casts for dictionary/list payload shapes returned as `dict[str, object]`.
+- Fixed resume integration monkeypatch helper signatures to match `BookvoicePipeline._tts` and `BookvoicePipeline._merge` method contracts.
+
+### Changed
+
+- Bumped project version to `0.8.8`.
+
+## [0.8.7] - 2026-02-24
+
+### Added
+
+- Added static type checks to the test workflow by enabling `pytest-mypy` and adding `mypy` configuration for `bookvoice` and `tests`.
+- Added `mypy` and `pytest-mypy` to development dependencies managed by Poetry.
+
+### Changed
+
+- Updated default `pytest` options to include `--mypy`, so `poetry run pytest` runs both tests and type checks.
+- Bumped project version to `0.8.7`.
+
 ## [0.8.6] - 2026-02-24
 
 ### Added

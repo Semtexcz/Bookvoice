@@ -6,9 +6,9 @@ import json
 from pathlib import Path
 
 import pytest
-import requests
 
 from bookvoice.config import BookvoiceConfig
+from bookvoice.llm import openai_client as openai_http
 from bookvoice.llm.cache import ResponseCache
 from bookvoice.llm.openai_client import OpenAIChatClient, OpenAIProviderError, OpenAISpeechClient
 from bookvoice.llm.rate_limiter import RateLimiter
@@ -29,15 +29,16 @@ class _MockRequestsResponse:
         """Raise HTTP error when status code indicates failure."""
 
         if self.status_code >= 400:
-            raise requests.HTTPError(f"HTTP {self.status_code}", response=self)
+            raise openai_http.requests.HTTPError(f"HTTP {self.status_code}", response=self)
 
 
-class _RecordingRateLimiter:
+class _RecordingRateLimiter(RateLimiter):
     """Rate limiter test double that records acquire keys."""
 
     def __init__(self) -> None:
         """Initialize recording storage."""
 
+        super().__init__(min_interval_seconds=0.0)
         self.keys: list[str] = []
 
     def acquire(self, key: str) -> None:
@@ -114,7 +115,7 @@ def test_openai_client_retries_transient_timeout(monkeypatch: pytest.MonkeyPatch
 
         calls["count"] += 1
         if calls["count"] == 1:
-            raise requests.Timeout("socket timed out")
+            raise openai_http.requests.Timeout("socket timed out")
         return _MockRequestsResponse(
             payload=json.dumps({"choices": [{"message": {"content": "ok"}}]}).encode("utf-8")
         )

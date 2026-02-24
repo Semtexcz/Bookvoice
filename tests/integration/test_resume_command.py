@@ -7,6 +7,9 @@ import pytest
 from typer.testing import CliRunner
 
 from bookvoice.cli import app
+from bookvoice.config import BookvoiceConfig, ProviderRuntimeConfig
+from bookvoice.io.storage import ArtifactStore
+from bookvoice.models.datatypes import AudioPart, RewriteResult
 from bookvoice.pipeline import BookvoicePipeline
 
 
@@ -119,14 +122,28 @@ def test_resume_command_fully_reuses_existing_audio_outputs(
     build_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     assert build_result.exit_code == 0, build_result.output
 
-    def _unexpected_tts(*_: object, **__: object) -> list[object]:
+    def _unexpected_tts(
+        self: BookvoicePipeline,
+        rewrites: list[RewriteResult],
+        config: BookvoiceConfig,
+        store: ArtifactStore,
+        runtime_config: ProviderRuntimeConfig | None = None,
+    ) -> list[AudioPart]:
         """Fail test when resume unexpectedly executes TTS."""
 
+        _ = (self, rewrites, config, store, runtime_config)
         raise AssertionError("TTS should not run during full-resume artifact reuse.")
 
-    def _unexpected_merge(*_: object, **__: object) -> Path:
+    def _unexpected_merge(
+        self: BookvoicePipeline,
+        audio_parts: list[AudioPart],
+        config: BookvoiceConfig,
+        store: ArtifactStore,
+        output_path: Path | None = None,
+    ) -> Path:
         """Fail test when resume unexpectedly executes merge."""
 
+        _ = (self, audio_parts, config, store, output_path)
         raise AssertionError("Merge should not run during full-resume artifact reuse.")
 
     monkeypatch.setattr("bookvoice.pipeline.BookvoicePipeline._tts", _unexpected_tts)
@@ -161,17 +178,29 @@ def test_resume_replays_tts_and_merge_when_audio_files_are_missing(
     tts_calls = {"count": 0}
     merge_calls = {"count": 0}
 
-    def _counting_tts(self: BookvoicePipeline, *args: object, **kwargs: object) -> list[object]:
+    def _counting_tts(
+        self: BookvoicePipeline,
+        rewrites: list[RewriteResult],
+        config: BookvoiceConfig,
+        store: ArtifactStore,
+        runtime_config: ProviderRuntimeConfig | None = None,
+    ) -> list[AudioPart]:
         """Count TTS calls while delegating to original synthesis logic."""
 
         tts_calls["count"] += 1
-        return original_tts(self, *args, **kwargs)
+        return original_tts(self, rewrites, config, store, runtime_config)
 
-    def _counting_merge(self: BookvoicePipeline, *args: object, **kwargs: object) -> Path:
+    def _counting_merge(
+        self: BookvoicePipeline,
+        audio_parts: list[AudioPart],
+        config: BookvoiceConfig,
+        store: ArtifactStore,
+        output_path: Path | None = None,
+    ) -> Path:
         """Count merge calls while delegating to original merge logic."""
 
         merge_calls["count"] += 1
-        return original_merge(self, *args, **kwargs)
+        return original_merge(self, audio_parts, config, store, output_path)
 
     monkeypatch.setattr("bookvoice.pipeline.BookvoicePipeline._tts", _counting_tts)
     monkeypatch.setattr("bookvoice.pipeline.BookvoicePipeline._merge", _counting_merge)
