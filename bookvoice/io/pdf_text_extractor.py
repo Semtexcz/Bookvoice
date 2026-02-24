@@ -22,8 +22,13 @@ class PdfTextExtractor:
     def extract(self, pdf_path: Path) -> str:
         """Extract all text from a PDF file."""
 
-        output = self._run_pdftotext(pdf_path)
-        text = output.replace("\f", "\n").strip()
+        try:
+            output = self._run_pdftotext(pdf_path)
+            text = output.replace("\f", "\n").strip()
+        except PdfExtractionError as exc:
+            if not self._is_missing_binary_error(exc):
+                raise
+            text = self._extract_with_pypdf(pdf_path).strip()
         if not text:
             raise PdfExtractionError(
                 f"No extractable text found in PDF: {pdf_path}. "
@@ -34,11 +39,22 @@ class PdfTextExtractor:
     def extract_pages(self, pdf_path: Path) -> list[str]:
         """Extract text per page from a PDF file."""
 
-        page_count = self._page_count(pdf_path)
+        try:
+            page_count = self._page_count(pdf_path)
+        except PdfExtractionError as exc:
+            if not self._is_missing_binary_error(exc):
+                raise
+            return self._extract_pages_with_pypdf(pdf_path)
+
         pages: list[str] = []
         for page in range(1, page_count + 1):
-            page_text = self._run_pdftotext(pdf_path, first_page=page, last_page=page)
-            pages.append(page_text.replace("\f", "\n").strip())
+            try:
+                page_text = self._run_pdftotext(pdf_path, first_page=page, last_page=page)
+                pages.append(page_text.replace("\f", "\n").strip())
+            except PdfExtractionError as exc:
+                if not self._is_missing_binary_error(exc):
+                    raise
+                return self._extract_pages_with_pypdf(pdf_path)
         return pages
 
     def _run_pdftotext(
@@ -95,3 +111,33 @@ class PdfTextExtractor:
                 f"Could not determine page count for PDF: {pdf_path}"
             )
         return int(match.group(1))
+
+    def _extract_with_pypdf(self, pdf_path: Path) -> str:
+        """Extract full-document text using `pypdf` as a deterministic fallback."""
+
+        return "\n".join(self._extract_pages_with_pypdf(pdf_path)).strip()
+
+    def _extract_pages_with_pypdf(self, pdf_path: Path) -> list[str]:
+        """Extract per-page text with `pypdf` when system PDF tools are unavailable."""
+
+        if not pdf_path.exists():
+            raise PdfExtractionError(f"Input PDF not found: {pdf_path}")
+        try:
+            from pypdf import PdfReader
+        except ImportError as exc:
+            raise PdfExtractionError(
+                "The `pypdf` package is required for fallback PDF extraction but was not found."
+            ) from exc
+
+        reader = PdfReader(str(pdf_path))
+        pages: list[str] = []
+        for page in reader.pages:
+            extracted_text = page.extract_text()
+            pages.append((extracted_text or "").replace("\f", "\n").strip())
+        return pages
+
+    def _is_missing_binary_error(self, error: PdfExtractionError) -> bool:
+        """Return whether extraction failed due to unavailable external PDF binaries."""
+
+        detail = str(error)
+        return detail.endswith("command is required but was not found.")

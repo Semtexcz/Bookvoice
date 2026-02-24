@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.21] - 2026-02-24
+
+### Fixed
+
+- Added deterministic fallback PDF extraction via `pypdf` when external `pdftotext`/`pdfinfo` binaries are unavailable, so chapter-outline and integration pipeline tests no longer fail in minimal CI environments.
+- Restored expected chapter-source behavior for outline-based splits by ensuring outline extraction can read per-page text without system PDF utilities.
+- Added unit coverage in `tests/unit/test_pdf_text_extractor.py` for both full-document and per-page fallback paths.
+
+### Changed
+
+- Bumped project version to `0.8.21`.
+
 ## [0.8.20] - 2026-02-24
 
 ### Fixed
