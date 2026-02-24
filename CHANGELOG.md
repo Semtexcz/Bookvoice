@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.24] - 2026-02-24
+
+### Added
+
+- Added Windows distribution backlog tasks (`TASK-052`..`TASK-056`) under `project/backlog/2026-02-24-windows-installer/` covering PyInstaller builds, bundled dependencies (`ffmpeg`/Poppler `pdftotext`), an Inno Setup installer, GitHub Release automation, and Windows user documentation.
+
+### Changed
+
+- Bumped project version to `0.8.24`.
+
 ## [0.8.23] - 2026-02-24
 
 ### Fixed
