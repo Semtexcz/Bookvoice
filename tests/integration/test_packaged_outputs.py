@@ -40,7 +40,7 @@ def test_build_creates_deterministic_packaged_outputs_and_manifest_references(
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
     result = runner.invoke(
         app,
         [
@@ -110,7 +110,7 @@ def test_resume_reuses_packaged_outputs_without_reencoding(
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
     build_result = runner.invoke(
         app,
         [
@@ -147,7 +147,7 @@ def test_tts_only_replays_with_packaging_metadata_and_outputs(
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
     build_result = runner.invoke(
         app,
         [
@@ -197,7 +197,7 @@ def test_build_source_numbering_preserves_selected_chapter_indices(
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
     result = runner.invoke(
         app,
         [

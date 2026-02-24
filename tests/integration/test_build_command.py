@@ -48,7 +48,7 @@ def test_build_command_creates_outputs(tmp_path: Path) -> None:
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
 
@@ -96,7 +96,7 @@ def test_build_command_cost_summary_is_deterministic(tmp_path: Path) -> None:
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     first_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     second_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
@@ -127,7 +127,7 @@ def test_build_command_emits_progress_and_phase_logs(tmp_path: Path) -> None:
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
 

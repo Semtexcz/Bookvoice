@@ -158,7 +158,7 @@ def test_pipeline_surfaces_config_validation_errors(tmp_path: Path) -> None:
 
     pipeline = BookvoicePipeline()
     config = BookvoiceConfig(
-        input_pdf=Path("tests/files/zero_to_one.pdf"),
+        input_pdf=Path("tests/files/canonical_synthetic_fixture.pdf"),
         output_dir=tmp_path / "out",
         provider_tts="unsupported",
     )

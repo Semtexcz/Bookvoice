@@ -47,7 +47,7 @@ def _manifest_stub() -> RunManifest:
         run_id="run-test",
         config_hash="cfg-test",
         book=BookMeta(
-            source_pdf=Path("tests/files/zero_to_one.pdf"),
+            source_pdf=Path("tests/files/canonical_synthetic_fixture.pdf"),
             title="Zero to One",
             author="Author",
             language="en",
@@ -67,7 +67,7 @@ def _write_runtime_config_yaml(tmp_path: Path, output_dir: Path) -> Path:
     config_path.write_text(
         "\n".join(
             [
-                "input_pdf: tests/files/zero_to_one.pdf",
+                "input_pdf: tests/files/canonical_synthetic_fixture.pdf",
                 f"output_dir: {output_dir}",
                 "provider_translator: openai",
                 "provider_rewriter: openai",
@@ -112,7 +112,7 @@ def test_build_interactive_provider_setup_hides_api_key_and_applies_models(
         app,
         [
             "build",
-            str(Path("tests/files/zero_to_one.pdf")),
+            str(Path("tests/files/canonical_synthetic_fixture.pdf")),
             "--out",
             str(tmp_path / "out"),
             "--interactive-provider-setup",
@@ -164,7 +164,7 @@ def test_build_non_interactive_runtime_precedence_cli_over_secure_over_env(
         app,
         [
             "build",
-            str(Path("tests/files/zero_to_one.pdf")),
+            str(Path("tests/files/canonical_synthetic_fixture.pdf")),
             "--out",
             str(tmp_path / "out"),
             "--model-translate",
@@ -224,7 +224,7 @@ def test_build_non_interactive_runtime_falls_back_to_env_when_cli_and_secure_mis
         app,
         [
             "build",
-            str(Path("tests/files/zero_to_one.pdf")),
+            str(Path("tests/files/canonical_synthetic_fixture.pdf")),
             "--out",
             str(tmp_path / "out"),
         ],
@@ -281,7 +281,7 @@ def test_build_command_loads_yaml_config_defaults_and_allows_cli_field_overrides
     )
 
     assert result.exit_code == 0, result.output
-    assert captured_config["input_pdf"] == Path("tests/files/zero_to_one.pdf")
+    assert captured_config["input_pdf"] == Path("tests/files/canonical_synthetic_fixture.pdf")
     assert captured_config["output_dir"] == tmp_path / "out-cli"
     assert captured_config["chapter_selection"] == "1"
     assert captured_config["rewrite_bypass"] is False
@@ -368,7 +368,7 @@ def test_translate_only_non_interactive_runtime_precedence_cli_over_secure_over_
         app,
         [
             "translate-only",
-            str(Path("tests/files/zero_to_one.pdf")),
+            str(Path("tests/files/canonical_synthetic_fixture.pdf")),
             "--out",
             str(tmp_path / "out"),
             "--model-translate",
@@ -425,7 +425,7 @@ def test_translate_only_command_loads_yaml_config_defaults(
     )
 
     assert result.exit_code == 0, result.output
-    assert captured_config["input_pdf"] == Path("tests/files/zero_to_one.pdf")
+    assert captured_config["input_pdf"] == Path("tests/files/canonical_synthetic_fixture.pdf")
     assert captured_config["output_dir"] == tmp_path / "out-from-config"
     assert captured_config["chapter_selection"] == "2-4"
     assert captured_config["rewrite_bypass"] is True

@@ -28,7 +28,7 @@ def test_build_command_processes_only_selected_chapters(
     monkeypatch.setattr("bookvoice.pipeline.BookvoicePipeline._split_chapters", _multi_chapter_split_stub)
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     result = runner.invoke(
         app,
@@ -71,7 +71,7 @@ def test_build_command_rejects_invalid_chapter_selection(
     monkeypatch.setattr("bookvoice.pipeline.BookvoicePipeline._split_chapters", _multi_chapter_split_stub)
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     result = runner.invoke(
         app,
@@ -91,7 +91,7 @@ def test_resume_command_keeps_selected_scope_when_regenerating_artifacts(
     monkeypatch.setattr("bookvoice.pipeline.BookvoicePipeline._split_chapters", _multi_chapter_split_stub)
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     build_result = runner.invoke(
         app,

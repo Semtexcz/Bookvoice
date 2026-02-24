@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.12] - 2026-02-24
+
+### Changed
+
+- Kept `tests/files/zero_to_one.pdf` as a local-only fixture file and added it to `.gitignore` so it is not published in repository history updates.
+- Preserved migration to `tests/files/canonical_synthetic_fixture.pdf` as the active canonical test fixture.
+- Bumped project version to `0.8.12`.
+
+## [0.8.11] - 2026-02-24
+
+### Added
+
+- Added a new repository-owned canonical PDF fixture `tests/files/canonical_synthetic_fixture.pdf` with deterministic multi-chapter synthetic content and outline entries.
+- Added deterministic fixture generation script `tests/files/generate_canonical_synthetic_fixture.py` to document provenance and allow reproducible regeneration.
+
+### Changed
+
+- Replaced active test references to `tests/files/zero_to_one.pdf` with `tests/files/canonical_synthetic_fixture.pdf` across integration and unit suites.
+- Updated `tests/README.md` to reference the synthetic canonical fixture.
+- Marked `TASK-046` as done and moved it from `project/backlog/pdf-fixture-replacement/` to `project/done/`.
+- Bumped project version to `0.8.11`.
+
+### Fixed
+
+- Removed direct runtime dependency on `tests/files/zero_to_one.pdf` from active tests while preserving deterministic pipeline integration coverage.
+
 ## [0.8.10] - 2026-02-24
 
 ### Added

@@ -60,7 +60,7 @@ def test_build_normalizes_drop_caps_and_repairs_sentence_boundaries(
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     assert result.exit_code == 0, result.output

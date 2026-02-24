@@ -17,7 +17,7 @@ def test_config_loader_from_yaml_loads_valid_config_and_normalizes_values(
     config_path = tmp_path / "bookvoice.yml"
     config_path.write_text(
         """
-input_pdf: " tests/files/zero_to_one.pdf "
+input_pdf: " tests/files/canonical_synthetic_fixture.pdf "
 output_dir: " out "
 language: " cs "
 provider_translator: " openai "
@@ -40,7 +40,7 @@ extra:
 
     config = ConfigLoader.from_yaml(config_path)
 
-    assert config.input_pdf == Path("tests/files/zero_to_one.pdf")
+    assert config.input_pdf == Path("tests/files/canonical_synthetic_fixture.pdf")
     assert config.output_dir == Path("out")
     assert config.language == "cs"
     assert config.provider_translator == "openai"
@@ -115,7 +115,7 @@ def test_config_loader_from_env_loads_runtime_values_and_normalizes_blanks() -> 
     """Environment loader should parse runtime keys and normalize blank strings."""
 
     env = {
-        "BOOKVOICE_INPUT_PDF": " tests/files/zero_to_one.pdf ",
+        "BOOKVOICE_INPUT_PDF": " tests/files/canonical_synthetic_fixture.pdf ",
         "BOOKVOICE_OUTPUT_DIR": " out ",
         "BOOKVOICE_PROVIDER_TRANSLATOR": " openai ",
         "BOOKVOICE_PROVIDER_REWRITER": " openai ",
@@ -131,7 +131,7 @@ def test_config_loader_from_env_loads_runtime_values_and_normalizes_blanks() -> 
 
     config = ConfigLoader.from_env(env)
 
-    assert config.input_pdf == Path("tests/files/zero_to_one.pdf")
+    assert config.input_pdf == Path("tests/files/canonical_synthetic_fixture.pdf")
     assert config.output_dir == Path("out")
     assert config.provider_translator == "openai"
     assert config.provider_rewriter == "openai"

@@ -16,7 +16,7 @@ def test_translate_only_command_creates_expected_artifacts_without_audio(
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     result = runner.invoke(
         app,

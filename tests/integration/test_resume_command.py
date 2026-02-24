@@ -30,7 +30,7 @@ def test_resume_command_recovers_from_interrupted_run(tmp_path: Path) -> None:
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     build_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     assert build_result.exit_code == 0, build_result.output
@@ -75,7 +75,7 @@ def test_resume_preserves_translation_and_rewrite_payload_schema(tmp_path: Path)
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     build_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     assert build_result.exit_code == 0, build_result.output
@@ -117,7 +117,7 @@ def test_resume_command_fully_reuses_existing_audio_outputs(
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     build_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     assert build_result.exit_code == 0, build_result.output
@@ -162,7 +162,7 @@ def test_resume_replays_tts_and_merge_when_audio_files_are_missing(
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     build_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     assert build_result.exit_code == 0, build_result.output
@@ -217,7 +217,7 @@ def test_resume_fails_for_mixed_missing_and_stale_critical_artifacts(tmp_path: P
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     build_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     assert build_result.exit_code == 0, build_result.output
@@ -242,7 +242,7 @@ def test_resume_fails_for_cross_artifact_payload_mismatch(tmp_path: Path) -> Non
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     build_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     assert build_result.exit_code == 0, build_result.output

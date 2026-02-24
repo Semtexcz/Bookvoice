@@ -13,7 +13,7 @@ def test_chapters_only_command_writes_split_artifacts_only(tmp_path: Path) -> No
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     result = runner.invoke(app, ["chapters-only", str(fixture_pdf), "--out", str(out_dir)])
 

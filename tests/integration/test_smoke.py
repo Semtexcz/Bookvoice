@@ -14,7 +14,7 @@ def test_build_smoke_creates_manifest_and_audio(tmp_path: Path) -> None:
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
 

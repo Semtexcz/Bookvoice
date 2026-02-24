@@ -80,7 +80,7 @@ def test_build_command_emits_segmented_part_artifacts(
     )
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     assert result.exit_code == 0, result.output
@@ -162,7 +162,7 @@ def test_resume_command_keeps_segmented_part_identifiers_stable(
     )
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     build_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     assert build_result.exit_code == 0, build_result.output

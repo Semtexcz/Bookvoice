@@ -17,7 +17,7 @@ def test_tts_only_command_replays_tts_merge_without_upstream_stages(
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     build_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     assert build_result.exit_code == 0, build_result.output
@@ -65,7 +65,7 @@ def test_tts_only_command_reports_missing_rewrites_prerequisite(tmp_path: Path) 
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     build_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     assert build_result.exit_code == 0, build_result.output
@@ -87,7 +87,7 @@ def test_tts_only_command_reports_corrupted_chunk_metadata_prerequisite(
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/zero_to_one.pdf")
+    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
 
     build_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     assert build_result.exit_code == 0, build_result.output
