@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.13] - 2026-02-24
+
+### Changed
+
+- Expanded `tests/files/canonical_synthetic_fixture.pdf` into a larger, book-like synthetic fixture with realistic front matter (`Preface`, `Table of Contents`) and longer multi-page chapter content.
+- Updated `tests/files/generate_canonical_synthetic_fixture.py` to deterministically generate the richer structure while preserving stable outline chapter entries used by tests.
+- Bumped project version to `0.8.13`.
+
 ## [0.8.12] - 2026-02-24
 
 ### Changed

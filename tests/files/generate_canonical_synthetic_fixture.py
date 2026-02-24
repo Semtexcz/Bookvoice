@@ -17,6 +17,7 @@ FONT_SIZE = 12
 LEFT_MARGIN = 72
 TOP_Y = 780
 LINE_HEIGHT = 16
+MAX_LINES_PER_PAGE = 39
 
 
 def _escape_pdf_text(value: str) -> str:
@@ -29,6 +30,12 @@ def _page_lines(title: str, body: list[str]) -> list[str]:
     """Build deterministic page lines with a chapter heading and body paragraphs."""
 
     return [title, ""] + body
+
+
+def _paginate_lines(lines: list[str], max_lines: int = MAX_LINES_PER_PAGE) -> list[list[str]]:
+    """Split text lines into deterministic page slices of at most ``max_lines`` each."""
+
+    return [lines[index : index + max_lines] for index in range(0, len(lines), max_lines)]
 
 
 def _add_text_page(writer: PdfWriter, lines: list[str]) -> None:
@@ -68,62 +75,125 @@ def _add_text_page(writer: PdfWriter, lines: list[str]) -> None:
     page[NameObject("/Contents")] = writer._add_object(stream)
 
 
+def _build_front_matter_lines(chapter_titles: list[str]) -> list[list[str]]:
+    """Return deterministic front matter pages for title, legal notice, preface, and TOC."""
+
+    title_page = [
+        "A Practical Atlas of Synthetic Systems",
+        "",
+        "A repository-owned synthetic fixture for deterministic tests.",
+        "Prepared for the Bookvoice project integration and unit suites.",
+        "",
+        "Author: Synthetic Editorial Committee",
+        "Edition: Canonical Test Edition",
+        "Publication Year: 2026",
+    ]
+    legal_page = [
+        "Copyright and Reproduction Notice",
+        "",
+        "This PDF contains synthetic text authored only for this repository.",
+        "No external publication is quoted, copied, transformed, or redistributed.",
+        "All names, institutions, and settings are fictional and non-identifying.",
+        "",
+        "License Notice",
+        "The fixture may be stored and redistributed with this repository.",
+        "It is intended solely for deterministic software testing workflows.",
+    ]
+    preface_page = [
+        "Preface",
+        "",
+        "This fixture emulates a realistic book layout with front matter and chapters.",
+        "Its purpose is to test extraction, chapter planning, chunking, and manifests.",
+        "Paragraph structure intentionally varies to simulate technical narrative prose.",
+        "Section titles and chapter headings remain deterministic across regenerations.",
+        "The text length is intentionally larger than prior fixtures for better coverage.",
+    ]
+
+    toc_page = ["Table of Contents", "", "Front Matter"]
+    toc_page.append("  Preface ............................................................ iii")
+    toc_page.append("  Usage Notes ....................................................... iv")
+    toc_page.append("")
+    toc_page.append("Part I: Foundations")
+    for chapter_index, chapter_title in enumerate(chapter_titles, start=1):
+        toc_page.append(
+            f"  {chapter_title} .................................................... {chapter_index + 4}"
+        )
+    toc_page.append("")
+    toc_page.append("Appendix")
+    toc_page.append("  Glossary of Synthetic Terms ....................................... 99")
+
+    return [title_page, legal_page, preface_page, toc_page]
+
+
+def _chapter_body(chapter_number: int, chapter_slug: str) -> list[str]:
+    """Return deterministic long-form chapter body text for a realistic fixture."""
+
+    lines: list[str] = []
+    for section_index in range(1, 6):
+        lines.append(f"{chapter_number}.{section_index} {chapter_slug} Section {section_index}")
+        lines.append(
+            "The editorial board records observations in a strictly repeatable narrative format."
+        )
+        lines.append(
+            "Each paragraph references synthetic operations, synthetic teams, and synthetic audits."
+        )
+        lines.append(
+            "Deterministic wording keeps chapter extraction and chunk boundaries stable across runs."
+        )
+        lines.append(
+            "No sentence in this fixture depends on external corpora, websites, or copyrighted books."
+        )
+        lines.append(
+            "Operational cadence is expressed as morning review, midday execution, and evening recap."
+        )
+        lines.append(
+            "Quality checkpoints include source verification, checksum review, and handoff signoff."
+        )
+        lines.append(
+            "Every section closes by reaffirming repository-owned and reusable test-fixture content."
+        )
+        lines.append(
+            "Resume workflows rely on deterministic identifiers for chunks, parts, and artifacts."
+        )
+        lines.append(
+            "The chapter vocabulary is intentionally broad enough to emulate real-world prose variation."
+        )
+        lines.append("")
+    return lines
+
+
 def generate_fixture(output_path: Path = OUTPUT_PATH) -> Path:
     """Generate the canonical synthetic fixture and return its path."""
 
     writer = PdfWriter()
-
-    chapter_pages = [
-        _page_lines(
-            "Chapter 1: Orchard Ledger",
-            [
-                "Every week the orchard council logs weather, soil, and harvest totals.",
-                "The records are synthetic and written only for this repository.",
-                "A repeatable fixture keeps integration tests stable across machines.",
-                "Deterministic chapter text helps chunking and chapter selection checks.",
-            ],
-        ),
-        _page_lines(
-            "Chapter 2: River Workshop",
-            [
-                "Engineers at the river workshop calibrate pumps with scripted routines.",
-                "Each calibration report includes start time, stop time, and checksum.",
-                "No external publication is quoted, copied, or transformed in this text.",
-                "This chapter exists to provide predictable multi-chapter pipeline input.",
-            ],
-        ),
-        _page_lines(
-            "Chapter 3: Lantern Assembly",
-            [
-                "Night crews assemble lantern frames and verify every bolt torque value.",
-                "Inspection rows are grouped by shift and signed with deterministic IDs.",
-                "When tests request chapters two to three, this page remains selectable.",
-                "The canonical fixture is short by design to keep test runtime low.",
-            ],
-        ),
-        _page_lines(
-            "Chapter 4: Harbor Summary",
-            [
-                "At quarter end, the harbor team compiles a concise operational summary.",
-                "The summary references only synthetic locations and synthetic personnel.",
-                "Pipeline smoke tests rely on this final section for non-empty output.",
-                "All content in this PDF is repository-owned and safe to redistribute.",
-            ],
-        ),
+    chapter_titles = [
+        "Chapter 1: Orchard Ledger",
+        "Chapter 2: River Workshop",
+        "Chapter 3: Lantern Assembly",
+        "Chapter 4: Harbor Summary",
+    ]
+    chapter_slugs = [
+        "Orchard-Ledger",
+        "River-Workshop",
+        "Lantern-Assembly",
+        "Harbor-Summary",
     ]
 
-    for lines in chapter_pages:
-        _add_text_page(writer, lines)
+    for front_matter_lines in _build_front_matter_lines(chapter_titles):
+        _add_text_page(writer, front_matter_lines)
 
-    for page_index, title in enumerate(
-        [
-            "Chapter 1: Orchard Ledger",
-            "Chapter 2: River Workshop",
-            "Chapter 3: Lantern Assembly",
-            "Chapter 4: Harbor Summary",
-        ]
+    chapter_start_pages: list[int] = []
+    for chapter_number, (chapter_title, chapter_slug) in enumerate(
+        zip(chapter_titles, chapter_slugs),
+        start=1,
     ):
-        writer.add_outline_item(title, page_number=page_index)
+        chapter_start_pages.append(len(writer.pages))
+        chapter_lines = _page_lines(chapter_title, _chapter_body(chapter_number, chapter_slug))
+        for page_lines in _paginate_lines(chapter_lines):
+            _add_text_page(writer, page_lines)
+
+    for chapter_start_page, chapter_title in zip(chapter_start_pages, chapter_titles):
+        writer.add_outline_item(chapter_title, page_number=chapter_start_page)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("wb") as handle:
