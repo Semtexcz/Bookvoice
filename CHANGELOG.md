@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.25] - 2026-02-24
+
+### Added
+
+- Added a dedicated module entrypoint for frozen execution at `bookvoice/__main__.py`.
+- Added Windows PyInstaller build definition at `packaging/windows/pyinstaller/bookvoice.spec` for producing one-folder `bookvoice.exe` output.
+- Added maintainer documentation for Windows executable builds and smoke checks in `docs/WINDOWS_PYINSTALLER.md`.
+- Added CI smoke coverage on `windows-latest` (Python `3.13`) to build `bookvoice.exe` via PyInstaller and validate command help for `build`, `resume`, `translate-only`, `tts-only`, `list-chapters`, and `credentials`.
+
+### Changed
+
+- Updated `README.md` with a Windows distributable build quick path and reference to maintainer instructions.
+- Completed `TASK-052` and moved it to `project/done/2026-02-24-task-052-windows-pyinstaller-cli-build.md`.
+- Bumped project version to `0.8.25`.
+
 ## [0.8.24] - 2026-02-24
 
 ### Added

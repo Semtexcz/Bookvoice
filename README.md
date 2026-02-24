@@ -76,6 +76,18 @@ poetry install
 poetry run bookvoice --help
 ```
 
+### Windows distributable build (maintainers)
+
+Build and smoke-check a self-contained `bookvoice.exe` using PyInstaller:
+
+```bash
+poetry run python -m pip install pyinstaller
+poetry run pyinstaller --noconfirm --clean packaging/windows/pyinstaller/bookvoice.spec --distpath dist/windows/pyinstaller --workpath build/windows/pyinstaller
+./dist/windows/pyinstaller/bookvoice/bookvoice.exe --help
+```
+
+See detailed maintainer instructions in `docs/WINDOWS_PYINSTALLER.md`.
+
 ### 3. Provide API key (recommended)
 
 ```bash
