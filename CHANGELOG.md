@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.9] - 2026-02-24
+
+### Added
+
+- Added a repository-level contribution guide in `CONTRIBUTION` with explicit pull request rules aligned with `AGENTS.md`.
+- Added a mandatory pre-PR checklist covering test execution (`poetry run pytest`), Conventional Commit message format, Semantic Versioning bump requirements, and required `CHANGELOG.md` updates.
+
+### Changed
+
+- Bumped project version to `0.8.9`.
+
 ## [0.8.8] - 2026-02-24
 
 ### Fixed
