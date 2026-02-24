@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.27] - 2026-02-24
+
+### Fixed
+
+- Fixed Windows `bookvoice.exe --help` startup in PyInstaller builds by explicitly bundling Rich unicode data modules (`rich._unicode_data.unicode*-*-*`) required by Typer/Rich help rendering at runtime.
+
+### Changed
+
+- Updated `packaging/windows/pyinstaller/bookvoice.spec` to include `rich._unicode_data` hidden imports derived from Rich version table metadata.
+- Bumped project version to `0.8.27`.
+
 ## [0.8.26] - 2026-02-24
 
 ### Fixed

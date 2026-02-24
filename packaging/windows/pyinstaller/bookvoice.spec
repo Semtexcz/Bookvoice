@@ -5,12 +5,17 @@ from __future__ import annotations
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_submodules
+from rich._unicode_data._versions import VERSIONS
 
 
 _PROJECT_ROOT = Path(SPECPATH).resolve().parents[2]
 _ENTRYPOINT = _PROJECT_ROOT / "bookvoice" / "__main__.py"
 
 hiddenimports = collect_submodules("keyring.backends")
+hiddenimports += collect_submodules("rich._unicode_data")
+hiddenimports += [
+    f"rich._unicode_data.unicode{version.replace('.', '-')}" for version in VERSIONS
+]
 
 a = Analysis(
     [str(_ENTRYPOINT)],
