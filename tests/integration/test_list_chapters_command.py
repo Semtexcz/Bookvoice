@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from tests.fixture_paths import canonical_content_pdf_fixture_path
+
 from typer.testing import CliRunner
 
 from bookvoice.cli import app
@@ -12,7 +14,7 @@ def test_list_chapters_command_lists_from_artifact(tmp_path: Path) -> None:
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
+    fixture_pdf = canonical_content_pdf_fixture_path()
 
     chapters_result = runner.invoke(
         app, ["chapters-only", str(fixture_pdf), "--out", str(out_dir)]

@@ -2,6 +2,8 @@
 
 import io
 from pathlib import Path
+
+from tests.fixture_paths import canonical_content_pdf_fixture_path
 import wave
 
 import pytest
@@ -158,7 +160,7 @@ def test_pipeline_surfaces_config_validation_errors(tmp_path: Path) -> None:
 
     pipeline = BookvoicePipeline()
     config = BookvoiceConfig(
-        input_pdf=Path("tests/files/canonical_synthetic_fixture.pdf"),
+        input_pdf=canonical_content_pdf_fixture_path(),
         output_dir=tmp_path / "out",
         provider_tts="unsupported",
     )

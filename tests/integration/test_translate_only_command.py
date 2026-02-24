@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+from tests.fixture_paths import canonical_content_pdf_fixture_path
+
 from pytest import MonkeyPatch
 from typer.testing import CliRunner
 
@@ -16,7 +18,7 @@ def test_translate_only_command_creates_expected_artifacts_without_audio(
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
+    fixture_pdf = canonical_content_pdf_fixture_path()
 
     result = runner.invoke(
         app,

@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+from tests.fixture_paths import canonical_content_pdf_fixture_path
+
 from typer.testing import CliRunner
 
 from bookvoice.cli import app
@@ -13,7 +15,7 @@ def test_chapters_only_command_writes_split_artifacts_only(tmp_path: Path) -> No
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
+    fixture_pdf = canonical_content_pdf_fixture_path()
 
     result = runner.invoke(app, ["chapters-only", str(fixture_pdf), "--out", str(out_dir)])
 

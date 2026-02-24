@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.14] - 2026-02-24
+
+### Changed
+
+- Completed `TASK-047` by centralizing canonical test PDF fixture path resolution through shared test helpers (`tests/fixture_paths.py`) and suite-level pytest fixtures (`tests/conftest.py`).
+- Replaced hardcoded `Path("tests/files/canonical_synthetic_fixture.pdf")` usages across integration and affected unit tests with `canonical_content_pdf_fixture_path()` helper calls.
+- Marked `TASK-047` as done and moved it from `project/backlog/pdf-fixture-replacement/` to `project/done/`.
+- Bumped project version to `0.8.14`.
+
 ## [0.8.13] - 2026-02-24
 
 ### Changed

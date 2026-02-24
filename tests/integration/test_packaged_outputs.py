@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from tests.fixture_paths import canonical_content_pdf_fixture_path
+
 import pytest
 from typer.testing import CliRunner
 
@@ -40,7 +42,7 @@ def test_build_creates_deterministic_packaged_outputs_and_manifest_references(
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
+    fixture_pdf = canonical_content_pdf_fixture_path()
     result = runner.invoke(
         app,
         [
@@ -110,7 +112,7 @@ def test_resume_reuses_packaged_outputs_without_reencoding(
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
+    fixture_pdf = canonical_content_pdf_fixture_path()
     build_result = runner.invoke(
         app,
         [
@@ -147,7 +149,7 @@ def test_tts_only_replays_with_packaging_metadata_and_outputs(
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
+    fixture_pdf = canonical_content_pdf_fixture_path()
     build_result = runner.invoke(
         app,
         [
@@ -197,7 +199,7 @@ def test_build_source_numbering_preserves_selected_chapter_indices(
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
+    fixture_pdf = canonical_content_pdf_fixture_path()
     result = runner.invoke(
         app,
         [

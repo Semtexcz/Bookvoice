@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.fixture_paths import canonical_content_pdf_fixture_path
+
 import pytest
 
 from bookvoice.config import ConfigLoader, RuntimeConfigSources
@@ -40,7 +42,7 @@ extra:
 
     config = ConfigLoader.from_yaml(config_path)
 
-    assert config.input_pdf == Path("tests/files/canonical_synthetic_fixture.pdf")
+    assert config.input_pdf == canonical_content_pdf_fixture_path()
     assert config.output_dir == Path("out")
     assert config.language == "cs"
     assert config.provider_translator == "openai"
@@ -131,7 +133,7 @@ def test_config_loader_from_env_loads_runtime_values_and_normalizes_blanks() -> 
 
     config = ConfigLoader.from_env(env)
 
-    assert config.input_pdf == Path("tests/files/canonical_synthetic_fixture.pdf")
+    assert config.input_pdf == canonical_content_pdf_fixture_path()
     assert config.output_dir == Path("out")
     assert config.provider_translator == "openai"
     assert config.provider_rewriter == "openai"

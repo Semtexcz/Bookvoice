@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from tests.fixture_paths import canonical_content_pdf_fixture_path
+
 from pytest import MonkeyPatch
 from typer.testing import CliRunner
 
@@ -14,7 +16,7 @@ def test_build_smoke_creates_manifest_and_audio(tmp_path: Path) -> None:
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
+    fixture_pdf = canonical_content_pdf_fixture_path()
 
     result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
 

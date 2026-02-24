@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from tests.fixture_paths import canonical_content_pdf_fixture_path
+
 from pytest import MonkeyPatch
 from typer.testing import CliRunner
 
@@ -80,7 +82,7 @@ def test_build_command_emits_segmented_part_artifacts(
     )
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
+    fixture_pdf = canonical_content_pdf_fixture_path()
 
     result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     assert result.exit_code == 0, result.output
@@ -162,7 +164,7 @@ def test_resume_command_keeps_segmented_part_identifiers_stable(
     )
     runner = CliRunner()
     out_dir = tmp_path / "out"
-    fixture_pdf = Path("tests/files/canonical_synthetic_fixture.pdf")
+    fixture_pdf = canonical_content_pdf_fixture_path()
 
     build_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
     assert build_result.exit_code == 0, build_result.output
