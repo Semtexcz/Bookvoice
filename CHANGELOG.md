@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.22] - 2026-02-24
+
+### Added
+
+- Added Windows (`windows-latest`) coverage to the GitHub Actions CI matrix so `poetry run pytest` also runs on Windows runners.
+
+### Changed
+
+- Bumped project version to `0.8.22`.
+
 ## [0.8.21] - 2026-02-24
 
 ### Fixed
