@@ -1,6 +1,6 @@
 ---
 task: TASK-053
-status: "backlog"
+status: "done"
 priority: P2
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Bundle `ffmpeg` and `pdftotext` for Windows distribution
 
 Task: TASK-053
-Status: backlog
+Status: done
 Priority: P2
 Type: feature
 Author:
@@ -26,13 +26,13 @@ To keep the Windows install friction low, these tools should be shipped alongsid
 
 ## Definition of Done
 
-- [ ] Add a distribution layout that includes `ffmpeg.exe` and `pdftotext.exe` next to `bookvoice.exe` (or under a deterministic `bin/` folder shipped with the app).
-- [ ] Update runtime invocation logic to resolve these tools in the following deterministic order:
+- [x] Add a distribution layout that includes `ffmpeg.exe` and `pdftotext.exe` next to `bookvoice.exe` (or under a deterministic `bin/` folder shipped with the app).
+- [x] Update runtime invocation logic to resolve these tools in the following deterministic order:
   1) bundled app directory (for example `./bin/ffmpeg.exe`, `./bin/pdftotext.exe`)
   2) system `PATH`
-- [ ] Ensure missing-tool errors remain stage-scoped and actionable (for example `extract` hints `pdftotext`, `package` hints `ffmpeg`).
-- [ ] Add a small unit/integration test that validates tool-resolution precedence (bundled path beats PATH) without executing provider calls.
-- [ ] Add required third-party license notices to the Windows distribution artifacts (Poppler/ffmpeg licensing requirements reviewed and complied with).
+- [x] Ensure missing-tool errors remain stage-scoped and actionable (for example `extract` hints `pdftotext`, `package` hints `ffmpeg`).
+- [x] Add a small unit/integration test that validates tool-resolution precedence (bundled path beats PATH) without executing provider calls.
+- [x] Add required third-party license notices to the Windows distribution artifacts (Poppler/ffmpeg licensing requirements reviewed and complied with).
 
 ## Notes
 

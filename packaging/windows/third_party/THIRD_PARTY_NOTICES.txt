@@ -1,0 +1,17 @@
+Bookvoice Windows distribution bundles third-party binaries.
+
+Bundled components
+- ffmpeg 7.1.1
+  - Project: https://ffmpeg.org/
+  - License family: GNU LGPL v2.1 or later / GNU GPL v2 or later (build-dependent)
+  - Distribution note: Ship the exact upstream license text and preserve attribution.
+
+- Poppler tools (pdftotext, pdfinfo) 24.08.0
+  - Project: https://poppler.freedesktop.org/
+  - License family: GNU GPL v2 or later
+  - Distribution note: Ship the exact upstream license text and preserve attribution.
+
+Compliance checklist
+- Keep binary source/version provenance in release artifacts.
+- Include upstream license texts in `licenses/`.
+- Keep this notice file aligned with bundled versions.

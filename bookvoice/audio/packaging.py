@@ -16,6 +16,7 @@ import subprocess
 from ..errors import PipelineStageError
 from ..models.datatypes import AudioPart, PackagedAudio
 from ..parsing import normalize_optional_string, parse_permissive_boolean
+from ..runtime_tools import resolve_executable
 from ..text.slug import slugify_audio_title
 
 
@@ -239,7 +240,7 @@ class AudioPackager:
 
         codec, bitrate = self._encoding_profile(format_id)
         command = [
-            "ffmpeg",
+            resolve_executable("ffmpeg"),
             "-y",
             "-hide_banner",
             "-loglevel",

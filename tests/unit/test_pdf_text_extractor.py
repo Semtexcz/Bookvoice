@@ -18,7 +18,7 @@ def test_extract_falls_back_to_pypdf_when_pdftotext_is_missing(
     def _run_missing_pdftotext(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
         _ = kwargs
         command = args[0]
-        if isinstance(command, list) and command and command[0] == "pdftotext":
+        if isinstance(command, list) and command and "pdftotext" in str(command[0]).lower():
             raise FileNotFoundError("pdftotext")
         raise AssertionError("extract() should only call pdftotext on this path")
 
@@ -38,7 +38,7 @@ def test_extract_pages_falls_back_to_pypdf_when_pdfinfo_is_missing(
     def _run_missing_pdfinfo(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
         _ = kwargs
         command = args[0]
-        if isinstance(command, list) and command and command[0] == "pdfinfo":
+        if isinstance(command, list) and command and "pdfinfo" in str(command[0]).lower():
             raise FileNotFoundError("pdfinfo")
         raise AssertionError("extract_pages() should not call pdftotext when pdfinfo is missing")
 

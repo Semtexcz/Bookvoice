@@ -11,6 +11,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from ..runtime_tools import resolve_executable
+
 
 class PdfExtractionError(RuntimeError):
     """Raised when text extraction from PDF cannot be completed."""
@@ -63,7 +65,7 @@ class PdfTextExtractor:
         if not pdf_path.exists():
             raise PdfExtractionError(f"Input PDF not found: {pdf_path}")
 
-        command = ["pdftotext", "-enc", "UTF-8"]
+        command = [resolve_executable("pdftotext"), "-enc", "UTF-8"]
         if first_page is not None:
             command.extend(["-f", str(first_page)])
         if last_page is not None:
@@ -91,7 +93,7 @@ class PdfTextExtractor:
     def _page_count(self, pdf_path: Path) -> int:
         try:
             result = subprocess.run(
-                ["pdfinfo", str(pdf_path)],
+                [resolve_executable("pdfinfo"), str(pdf_path)],
                 check=False,
                 capture_output=True,
                 text=True,

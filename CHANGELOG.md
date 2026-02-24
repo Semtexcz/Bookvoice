@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.28] - 2026-02-24
+
+### Added
+
+- Added deterministic runtime executable resolution helper (`bookvoice/runtime_tools.py`) with bundled-app precedence (`./bin`, app root) before `PATH`.
+- Added unit coverage in `tests/unit/test_runtime_tools.py` to validate bundled executable precedence over PATH without invoking provider APIs.
+- Added Windows third-party bundle scaffolding under `packaging/windows/third_party/` including pinned dependency metadata and third-party notice/license artifacts.
+
+### Changed
+
+- Updated PDF and audio packaging runtime invocation to resolve `pdftotext`, `pdfinfo`, and `ffmpeg` via bundled-first lookup before PATH.
+- Updated Windows PyInstaller spec (`packaging/windows/pyinstaller/bookvoice.spec`) to package vendored binaries into `bin/` and notices/licenses into `licenses/`.
+- Updated `docs/WINDOWS_PYINSTALLER.md` with bundled dependency inputs, output layout, and deterministic runtime lookup order.
+- Completed `TASK-053`, marked it done, and moved it to `project/done/2026-02-24-task-053-windows-bundled-dependencies-ffmpeg-poppler.md`.
+- Bumped project version to `0.8.28`.
+
 ## [0.8.27] - 2026-02-24
 
 ### Fixed
