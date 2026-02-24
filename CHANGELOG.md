@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.29] - 2026-02-24
+
+### Changed
+
+- Added explicit binary source provenance URLs for Windows third-party tooling in `packaging/windows/third_party/README.md`:
+  - ffmpeg: `https://www.gyan.dev/ffmpeg/builds/`
+  - Poppler: `https://github.com/oschwartz10612/poppler-windows/releases`
+- Bumped project version to `0.8.29`.
+
 ## [0.8.28] - 2026-02-24
 
 ### Added

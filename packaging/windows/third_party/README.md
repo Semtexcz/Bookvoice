@@ -17,5 +17,10 @@ This folder defines deterministic, pinned external binaries that are packaged wi
 - ffmpeg: `7.1.1` (Windows x64 static build)
 - Poppler: `24.08.0` (Windows x64 build, tools `pdftotext.exe`, `pdfinfo.exe`)
 
+## Binary sources
+
+- ffmpeg builds: https://www.gyan.dev/ffmpeg/builds/
+- Poppler Windows releases: https://github.com/oschwartz10612/poppler-windows/releases
+
 Maintain pinned version updates explicitly in this file, `THIRD_PARTY_NOTICES.txt`,
 and release notes.
