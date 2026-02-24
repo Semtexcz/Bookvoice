@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.19] - 2026-02-24
+
+### Fixed
+
+- Fixed GitHub Actions CI ordering in `.github/workflows/ci.yml` by installing Poetry before `actions/setup-python` uses `cache: poetry`, preventing failures where the `poetry` executable is missing from `PATH`.
+
+### Changed
+
+- Bumped project version to `0.8.19`.
+
 ## [0.8.18] - 2026-02-24
 
 ### Added

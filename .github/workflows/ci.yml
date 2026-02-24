@@ -22,15 +22,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: poetry
           cache-dependency-path: poetry.lock
-
-      - name: Install Poetry
-        run: pip install poetry
 
       - name: Install dependencies
         run: poetry install --no-root
