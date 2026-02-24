@@ -236,7 +236,7 @@ Environment keys:
 Example `bookvoice.yaml`:
 
 ```yaml
-input_pdf: tests/files/zero_to_one.pdf
+input_pdf: tests/files/canonical_synthetic_fixture.pdf
 output_dir: out
 provider_translator: openai
 provider_rewriter: openai
@@ -248,6 +248,9 @@ tts_voice: echo
 rewrite_bypass: false
 chapter_selection: 1-3
 ```
+
+For deterministic local verification, prefer the repository-owned synthetic PDF fixture
+at `tests/files/canonical_synthetic_fixture.pdf`.
 
 `ConfigLoader.from_env` supported keys:
 

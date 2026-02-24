@@ -1,6 +1,8 @@
 # Test Fixtures
 
 - `tests/files/canonical_synthetic_fixture.pdf` is the canonical PDF fixture for Bookvoice tests.
+- The fixture is synthetic and repository-owned, so it is safe to redistribute with the project.
+- Integration tests use this fixture to keep content-dependent behavior deterministic across environments.
 - Use this file for smoke/integration scenarios that require a text-based PDF input.
 - Unit tests live in `tests/unit/`.
 - Integration tests live in `tests/integration/`.

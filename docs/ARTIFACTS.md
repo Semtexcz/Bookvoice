@@ -337,8 +337,8 @@ Minimal shape:
   "run_id": "run-1a2b3c4d5e6f",
   "config_hash": "1a2b3c...",
   "book": {
-    "source_pdf": "tests/files/zero_to_one.pdf",
-    "title": "zero_to_one",
+    "source_pdf": "tests/files/canonical_synthetic_fixture.pdf",
+    "title": "canonical_synthetic_fixture",
     "author": null,
     "language": "cs"
   },
@@ -368,6 +368,9 @@ Minimal shape:
   }
 }
 ```
+
+When using repository fixtures in examples or local verification, prefer the synthetic,
+repository-owned `tests/files/canonical_synthetic_fixture.pdf` for deterministic behavior.
 
 ## Chapters-Only Output
 

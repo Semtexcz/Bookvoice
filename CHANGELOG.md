@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.16] - 2026-02-24
+
+### Changed
+
+- Completed `TASK-049` by replacing stale documentation fixture references from `tests/files/zero_to_one.pdf` to `tests/files/canonical_synthetic_fixture.pdf` in `README.md` and `docs/ARTIFACTS.md`.
+- Updated `tests/README.md` to explicitly document that the canonical fixture is synthetic, repository-owned, redistribution-safe, and intended for deterministic content-dependent integration coverage.
+- Aligned artifact and config examples with the canonical integration fixture path helper contract.
+- Verified project documentation targets no longer contain stale `zero_to_one.pdf` references.
+- Marked `TASK-049` as done and moved it from `project/backlog/pdf-fixture-replacement/` to `project/done/`.
+- Bumped project version to `0.8.16`.
+
 ## [0.8.15] - 2026-02-24
 
 ### Changed
