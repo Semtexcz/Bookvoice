@@ -2,13 +2,13 @@
 
 from pathlib import Path
 
-from tests.fixture_paths import canonical_content_pdf_fixture_path
-
 from pytest import MonkeyPatch
 from typer.testing import CliRunner
 
 from bookvoice.cli import app
 from bookvoice.models.datatypes import BookMeta, RunManifest
+
+_PATH_ONLY_INPUT_PDF = Path("tests/files/path_only_placeholder.pdf")
 
 
 class InMemoryCredentialStore:
@@ -49,7 +49,7 @@ def _manifest_stub() -> RunManifest:
         run_id="run-test",
         config_hash="cfg-test",
         book=BookMeta(
-            source_pdf=canonical_content_pdf_fixture_path(),
+            source_pdf=_PATH_ONLY_INPUT_PDF,
             title="Zero to One",
             author="Author",
             language="en",
@@ -69,7 +69,7 @@ def _write_runtime_config_yaml(tmp_path: Path, output_dir: Path) -> Path:
     config_path.write_text(
         "\n".join(
             [
-                "input_pdf: tests/files/canonical_synthetic_fixture.pdf",
+                f"input_pdf: {_PATH_ONLY_INPUT_PDF}",
                 f"output_dir: {output_dir}",
                 "provider_translator: openai",
                 "provider_rewriter: openai",
@@ -114,7 +114,7 @@ def test_build_interactive_provider_setup_hides_api_key_and_applies_models(
         app,
         [
             "build",
-            str(canonical_content_pdf_fixture_path()),
+            str(_PATH_ONLY_INPUT_PDF),
             "--out",
             str(tmp_path / "out"),
             "--interactive-provider-setup",
@@ -166,7 +166,7 @@ def test_build_non_interactive_runtime_precedence_cli_over_secure_over_env(
         app,
         [
             "build",
-            str(canonical_content_pdf_fixture_path()),
+            str(_PATH_ONLY_INPUT_PDF),
             "--out",
             str(tmp_path / "out"),
             "--model-translate",
@@ -226,7 +226,7 @@ def test_build_non_interactive_runtime_falls_back_to_env_when_cli_and_secure_mis
         app,
         [
             "build",
-            str(canonical_content_pdf_fixture_path()),
+            str(_PATH_ONLY_INPUT_PDF),
             "--out",
             str(tmp_path / "out"),
         ],
@@ -283,7 +283,7 @@ def test_build_command_loads_yaml_config_defaults_and_allows_cli_field_overrides
     )
 
     assert result.exit_code == 0, result.output
-    assert captured_config["input_pdf"] == canonical_content_pdf_fixture_path()
+    assert captured_config["input_pdf"] == _PATH_ONLY_INPUT_PDF
     assert captured_config["output_dir"] == tmp_path / "out-cli"
     assert captured_config["chapter_selection"] == "1"
     assert captured_config["rewrite_bypass"] is False
@@ -370,7 +370,7 @@ def test_translate_only_non_interactive_runtime_precedence_cli_over_secure_over_
         app,
         [
             "translate-only",
-            str(canonical_content_pdf_fixture_path()),
+            str(_PATH_ONLY_INPUT_PDF),
             "--out",
             str(tmp_path / "out"),
             "--model-translate",
@@ -427,7 +427,7 @@ def test_translate_only_command_loads_yaml_config_defaults(
     )
 
     assert result.exit_code == 0, result.output
-    assert captured_config["input_pdf"] == canonical_content_pdf_fixture_path()
+    assert captured_config["input_pdf"] == _PATH_ONLY_INPUT_PDF
     assert captured_config["output_dir"] == tmp_path / "out-from-config"
     assert captured_config["chapter_selection"] == "2-4"
     assert captured_config["rewrite_bypass"] is True

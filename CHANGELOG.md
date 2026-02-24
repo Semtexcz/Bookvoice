@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.15] - 2026-02-24
+
+### Changed
+
+- Completed `TASK-048` by auditing canonical PDF fixture references and separating path-only tests from content-dependent coverage.
+- Updated path-only tests in `tests/unit/test_config_loader.py`, `tests/unit/test_provider_factory_and_config.py`, and `tests/integration/test_cli_provider_credentials.py` to use synthetic/path-literal PDF values instead of `canonical_content_pdf_fixture_path()`.
+- Kept content-dependent integration tests bound to the canonical fixture helper introduced in `TASK-047`.
+- Marked `TASK-048` as done and moved it from `project/backlog/pdf-fixture-replacement/` to `project/done/`.
+- Bumped project version to `0.8.15`.
+
 ## [0.8.14] - 2026-02-24
 
 ### Changed

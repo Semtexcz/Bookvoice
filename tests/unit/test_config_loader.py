@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tests.fixture_paths import canonical_content_pdf_fixture_path
-
 import pytest
 
 from bookvoice.config import ConfigLoader, RuntimeConfigSources
@@ -17,9 +15,10 @@ def test_config_loader_from_yaml_loads_valid_config_and_normalizes_values(
     """YAML loader should parse valid payloads and normalize typed/blank values."""
 
     config_path = tmp_path / "bookvoice.yml"
+    expected_input_pdf = Path("tests/files/path_only_placeholder.pdf")
     config_path.write_text(
-        """
-input_pdf: " tests/files/canonical_synthetic_fixture.pdf "
+        f"""
+input_pdf: " {expected_input_pdf} "
 output_dir: " out "
 language: " cs "
 provider_translator: " openai "
@@ -42,7 +41,7 @@ extra:
 
     config = ConfigLoader.from_yaml(config_path)
 
-    assert config.input_pdf == canonical_content_pdf_fixture_path()
+    assert config.input_pdf == expected_input_pdf
     assert config.output_dir == Path("out")
     assert config.language == "cs"
     assert config.provider_translator == "openai"
@@ -116,8 +115,9 @@ chunk_size_chars: x
 def test_config_loader_from_env_loads_runtime_values_and_normalizes_blanks() -> None:
     """Environment loader should parse runtime keys and normalize blank strings."""
 
+    expected_input_pdf = Path("tests/files/path_only_placeholder.pdf")
     env = {
-        "BOOKVOICE_INPUT_PDF": " tests/files/canonical_synthetic_fixture.pdf ",
+        "BOOKVOICE_INPUT_PDF": f" {expected_input_pdf} ",
         "BOOKVOICE_OUTPUT_DIR": " out ",
         "BOOKVOICE_PROVIDER_TRANSLATOR": " openai ",
         "BOOKVOICE_PROVIDER_REWRITER": " openai ",
@@ -133,7 +133,7 @@ def test_config_loader_from_env_loads_runtime_values_and_normalizes_blanks() -> 
 
     config = ConfigLoader.from_env(env)
 
-    assert config.input_pdf == canonical_content_pdf_fixture_path()
+    assert config.input_pdf == expected_input_pdf
     assert config.output_dir == Path("out")
     assert config.provider_translator == "openai"
     assert config.provider_rewriter == "openai"
