@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.40] - 2026-02-25
+
+### Added
+
+- Added backlog task `TASK-057` at `project/backlog/2026-02-25-task-057-windows-code-signing-and-smartscreen-reputation.md` to track Windows code-signing pipeline work for `bookvoice.exe` and installer artifacts, timestamping, CI secret handling, and SmartScreen mitigation documentation.
+
+### Changed
+
+- Bumped project version to `0.8.40`.
+
 ## [0.8.39] - 2026-02-25
 
 ### Changed
