@@ -15,7 +15,8 @@ Download from this repository's GitHub `Releases` page.
 
 1. Run the installer executable.
 2. Complete the setup wizard.
-3. Launch `Bookvoice CLI` from the Start Menu.
+3. Keep `Add Bookvoice to the user PATH` enabled (recommended).
+4. Launch `Bookvoice Command Line` from the Start Menu.
 
 Default install location:
 
@@ -34,6 +35,14 @@ From PowerShell in the install/extract folder:
 ```powershell
 .\bookvoice.exe --help
 .\bookvoice.exe list-chapters "C:\path\to\book.pdf"
+```
+
+If you installed via the setup wizard with the default `PATH` option enabled,
+you can also run Bookvoice from any new terminal session:
+
+```powershell
+bookvoice --help
+bookvoice list-chapters "C:\path\to\book.pdf"
 ```
 
 ## Output location and `--out`

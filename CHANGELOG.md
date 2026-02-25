@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.39] - 2026-02-25
+
+### Changed
+
+- Updated Windows Inno Setup installer behavior in `packaging/windows/inno/bookvoice.iss`:
+  - Start Menu and optional desktop shortcuts now open a persistent command prompt (`cmd /K`) in the install directory instead of a transient help script window.
+  - Added an installer task `Add Bookvoice to the user PATH`, enabled by default.
+  - Added install/uninstall-safe user PATH management for `{app}` with a registry marker to remove only installer-managed entries during uninstall.
+- Updated Windows documentation in `docs/WINDOWS_USER_GUIDE.md` and `docs/WINDOWS_INNO_SETUP.md` to reflect the new command-line shortcut behavior and default PATH option.
+- Bumped project version to `0.8.39`.
+
 ## [0.8.38] - 2026-02-25
 
 ### Changed

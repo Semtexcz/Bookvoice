@@ -34,9 +34,10 @@ The script defaults to:
 ## Installer Behavior
 
 - Creates Start Menu entries:
-  - `Bookvoice CLI` (opens a console with `bookvoice --help`)
+  - `Bookvoice Command Line` (opens `cmd` with `/K` in the install directory and runs `bookvoice.exe --help`)
   - `Uninstall Bookvoice`
-- Optionally creates a desktop shortcut (`Bookvoice CLI`)
+- Optionally creates a desktop shortcut (`Bookvoice Command Line`)
+- Includes an `Add Bookvoice to the user PATH` task (enabled by default)
 - Registers a standard uninstaller entry in Windows Apps/Programs
 
 ## Validation
