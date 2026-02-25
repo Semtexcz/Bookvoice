@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.31] - 2026-02-25
+
+### Added
+
+- Added a tag-triggered Windows release workflow at `.github/workflows/windows-release.yml` that builds PyInstaller one-folder output, produces a versioned portable ZIP (`bookvoice-windows-x64-vX.Y.Z.zip`), builds a versioned Inno Setup installer (`bookvoice-windows-x64-vX.Y.Z-setup.exe`), and publishes both assets to GitHub Releases.
+- Added release smoke checks in the Windows release workflow for local-only commands (`bookvoice.exe --help` and `bookvoice.exe list-chapters tests/files/canonical_synthetic_fixture.pdf`) to avoid provider/API dependencies.
+
+### Changed
+
+- Completed `TASK-055`, marked it done, and moved it to `project/done/2026-02-24-task-055-github-actions-windows-release-assets.md`.
+- Bumped project version to `0.8.31`.
+
 ## [0.8.30] - 2026-02-25
 
 ### Added

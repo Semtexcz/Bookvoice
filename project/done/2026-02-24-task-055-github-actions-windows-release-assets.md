@@ -1,6 +1,6 @@
 ---
 task: TASK-055
-status: "backlog"
+status: "done"
 priority: P2
 type: chore
 ---
@@ -8,7 +8,7 @@ type: chore
 # GitHub Actions: build Windows release assets (EXE + installer)
 
 Task: TASK-055
-Status: backlog
+Status: done
 Priority: P2
 Type: chore
 Author:
@@ -21,18 +21,17 @@ Windows deliverables should be built reproducibly and published to GitHub Releas
 
 ## Definition of Done
 
-- [ ] Add a GitHub Actions workflow job that runs on Windows and builds:
+- [x] Add a GitHub Actions workflow job that runs on Windows and builds:
   - a zipped portable distribution (folder layout including bundled tools)
   - the Inno Setup installer `.exe`
-- [ ] Configure workflow to publish artifacts to GitHub Releases (triggered by tags).
-- [ ] Ensure release artifacts include a version in filename (for example `bookvoice-windows-x64-vX.Y.Z.zip`).
-- [ ] Add a minimal verification step in the workflow:
+- [x] Configure workflow to publish artifacts to GitHub Releases (triggered by tags).
+- [x] Ensure release artifacts include a version in filename (for example `bookvoice-windows-x64-vX.Y.Z.zip`).
+- [x] Add a minimal verification step in the workflow:
   - run `bookvoice.exe --help`
   - run a non-provider command that exercises local tooling checks
-- [ ] Ensure secrets are not required for the release build (no provider calls).
+- [x] Ensure secrets are not required for the release build (no provider calls).
 
 ## Notes
 
 - Code signing is out of scope for now.
 - Keep the workflow deterministic and pinned (explicit action versions).
-

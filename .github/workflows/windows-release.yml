@@ -1,0 +1,95 @@
+name: Windows Release Assets
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows-release-assets:
+    name: Build Windows EXE and Installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: poetry.lock
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Install dependencies
+        run: poetry install --no-root
+
+      - name: Install build tools
+        run: poetry run python -m pip install pyinstaller
+
+      - name: Build Windows bookvoice.exe (PyInstaller onedir)
+        run: poetry run pyinstaller --noconfirm --clean packaging/windows/pyinstaller/bookvoice.spec --distpath dist/windows/pyinstaller --workpath build/windows/pyinstaller
+
+      - name: Derive release version from tag
+        shell: pwsh
+        run: |
+          $version = "${env:GITHUB_REF_NAME}" -replace '^v', ''
+          if (-not $version) {
+            throw "Could not derive version from tag '${env:GITHUB_REF_NAME}'."
+          }
+          "RELEASE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Smoke check Windows executable local commands
+        shell: pwsh
+        run: |
+          $exe = "dist/windows/pyinstaller/bookvoice/bookvoice.exe"
+          & $exe --help | Out-Null
+          & $exe list-chapters "tests/files/canonical_synthetic_fixture.pdf" | Out-Null
+
+      - name: Build portable ZIP distribution
+        shell: pwsh
+        run: |
+          $version = "${env:RELEASE_VERSION}"
+          $portableName = "bookvoice-windows-x64-v$version"
+          $portableRoot = "dist/windows/release/$portableName"
+          $zipPath = "dist/windows/release/$portableName.zip"
+          New-Item -ItemType Directory -Force -Path "dist/windows/release" | Out-Null
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $portableRoot
+          Copy-Item -Recurse -Force "dist/windows/pyinstaller/bookvoice" $portableRoot
+          if (Test-Path $zipPath) {
+            Remove-Item -Force $zipPath
+          }
+          Compress-Archive -Path "$portableRoot/*" -DestinationPath $zipPath -CompressionLevel Optimal
+
+      - name: Install Inno Setup 6
+        shell: pwsh
+        run: choco install innosetup --no-progress --yes
+
+      - name: Build Inno Setup installer
+        shell: pwsh
+        run: >
+          ISCC.exe packaging\windows\inno\bookvoice.iss
+          /DMyAppVersion=${{ env.RELEASE_VERSION }}
+          /DSourceDir=dist\windows\pyinstaller\bookvoice
+          /DOutputDir=dist\windows\installer
+
+      - name: Upload CI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bookvoice-windows-release-assets-v${{ env.RELEASE_VERSION }}
+          path: |
+            dist/windows/release/bookvoice-windows-x64-v${{ env.RELEASE_VERSION }}.zip
+            dist/windows/installer/bookvoice-windows-x64-v${{ env.RELEASE_VERSION }}-setup.exe
+
+      - name: Publish assets to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/windows/release/bookvoice-windows-x64-v${{ env.RELEASE_VERSION }}.zip
+            dist/windows/installer/bookvoice-windows-x64-v${{ env.RELEASE_VERSION }}-setup.exe
