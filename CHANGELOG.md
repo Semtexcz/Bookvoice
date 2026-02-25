@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.37] - 2026-02-25
+
+### Changed
+
+- Revised `docs/ROADMAP.md` to align current priorities with active backlog reality:
+  - switched milestones from stale version labels to capability milestones (`M1`..`M4`),
+  - promoted typing-gate and pricing work into the next reliability milestone,
+  - split CEFR language-learning controls into a dedicated phase,
+  - added explicit compatibility planning for packaging control migration.
+- Updated `TASK-043` to remove duplicated CEFR scope and keep ownership focused on packaging/output controls and compatibility requirements.
+- Clarified `TASK-044` as the single owner for language-proficiency (`A0`-`C2`) behavior, explicitly orthogonal to packaging controls.
+- Reprioritized `TASK-051` from `P2` to `P1` and replaced the missing `TASK-050` reference with the concrete CI workflow file it targets.
+- Bumped project version to `0.8.37`.
+
 ## [0.8.36] - 2026-02-25
 
 ### Added

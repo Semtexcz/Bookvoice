@@ -17,13 +17,12 @@ Related: TASK-039, TASK-041, TASK-042, TASK-040
 
 ## Problem
 
-Users currently cannot request final audiobook format explicitly, and output-language control is not tracked as part of this CLI/config surface. Packaging settings and produced outputs must be controlled through CLI/config with clear precedence and reflected in manifest metadata.
+Users currently cannot request final audiobook packaging behavior through one cohesive CLI/config surface. Packaging settings and produced outputs must be controlled through CLI/config with clear precedence and reflected in manifest metadata.
 
 ## Definition of Done
 
 - [ ] Add explicit output-format controls (`wav`, `mp3`, `m4a`, or multi-target policy) to CLI and runtime config.
 - [ ] Add explicit output-language control in CLI/config (for example `--language`) so users can change target output language per run with deterministic precedence.
-- [ ] Add explicit output-language proficiency level control in CLI/config (for example `--language-level A0..C2`) for simplified-learning output variants.
 - [ ] Add explicit encoding controls (for example bitrate/profile) with deterministic defaults.
 - [ ] Add explicit packaging layout controls:
   - chapter-split deliverables (one chapter per output file),
@@ -32,13 +31,14 @@ Users currently cannot request final audiobook format explicitly, and output-lan
 - [ ] Add explicit naming mode control (`reader_friendly` vs `deterministic`) with clear defaults.
 - [ ] Integrate packaging options with existing config precedence model (`CLI > secure/env/file/default`).
 - [ ] Persist resolved output-language selection in manifest `extra` for replay/audit visibility.
-- [ ] Persist resolved output-language proficiency level in manifest `extra` for replay/audit visibility.
 - [ ] Persist packaging intent and emitted packaged artifact paths in manifest `extra`.
 - [ ] Keep backward compatibility: no format flag still produces deterministic WAV output.
+- [ ] Define compatibility behavior for existing packaging flags (`--package-mode` values such as `none`, `aac`, `mp3`, `both`) to avoid breaking current users.
 - [ ] Add integration coverage for CLI/config precedence and deterministic artifact references.
 - [ ] Update `README.md` and `docs/ARTIFACTS.md` with usage examples and compatibility notes.
 
 ## Notes
 
 - Reuse conventions established by `TASK-040` for config loading and precedence.
+- Language-proficiency (`A0`-`C2`) behavior is owned by `TASK-044` and should remain out of scope here.
 - Keep surface minimal; avoid introducing ambiguous aliases for format values.

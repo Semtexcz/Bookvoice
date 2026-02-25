@@ -1,7 +1,7 @@
 ---
 task: TASK-051
 status: "backlog"
-priority: P2
+priority: P1
 type: chore
 ---
 
@@ -9,11 +9,11 @@ type: chore
 
 Task: TASK-051
 Status: backlog
-Priority: P2
+Priority: P1
 Type: chore
 Author:
 Created: 2026-02-24
-Related: TASK-050
+Related: .github/workflows/ci.yml
 
 ## Problem
 

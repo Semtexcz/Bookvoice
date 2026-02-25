@@ -31,6 +31,6 @@ Users learning a language need explicit control over output complexity. Current 
 
 ## Notes
 
-- Keep this feature orthogonal to packaging format controls.
+- Keep this feature orthogonal to packaging format controls in `TASK-043`.
 - Avoid ambiguous aliases; supported levels should match CEFR labels exactly.
 - Default behavior must remain backward compatible when no level is provided.
