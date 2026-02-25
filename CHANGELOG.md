@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.33] - 2026-02-25
+
+### Fixed
+
+- Fixed Windows release workflow bootstrap in `.github/workflows/windows-release.yml` by explicitly installing Poetry with `python -m pip install poetry==1.8.5` before invoking `python -m poetry ...`, resolving `No module named poetry` failures on GitHub Windows runners.
+
+### Changed
+
+- Bumped project version to `0.8.33`.
+
 ## [0.8.32] - 2026-02-25
 
 ### Fixed
