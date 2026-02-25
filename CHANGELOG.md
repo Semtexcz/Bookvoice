@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.32] - 2026-02-25
+
+### Fixed
+
+- Fixed Windows release workflow Poetry invocation in `.github/workflows/windows-release.yml` by switching command steps to `python -m poetry ...`, avoiding PATH resolution failures where `poetry` is not recognized on PowerShell runners.
+
+### Changed
+
+- Bumped project version to `0.8.32`.
+
 ## [0.8.31] - 2026-02-25
 
 ### Added
