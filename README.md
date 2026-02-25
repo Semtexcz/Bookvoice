@@ -89,6 +89,13 @@ poetry run pyinstaller --noconfirm --clean packaging/windows/pyinstaller/bookvoi
 See detailed maintainer instructions in `docs/WINDOWS_PYINSTALLER.md`.
 For Inno Setup installer packaging, see `docs/WINDOWS_INNO_SETUP.md`.
 
+### Windows install and troubleshooting (end users)
+
+If you are installing Bookvoice on Windows from GitHub Releases (portable ZIP or
+installer), use:
+
+- `docs/WINDOWS_USER_GUIDE.md`
+
 ### 3. Provide API key (recommended)
 
 ```bash

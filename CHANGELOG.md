@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.36] - 2026-02-25
+
+### Added
+
+- Added end-user Windows documentation at `docs/WINDOWS_USER_GUIDE.md` covering GitHub Releases installation paths (portable ZIP and installer), runtime command usage, explicit output-directory handling with `--out`, API key setup via secure keyring storage vs `OPENAI_API_KEY`, and troubleshooting for missing `pdftotext`/`ffmpeg`, packaging codec failures, and antivirus false positives.
+
+### Changed
+
+- Updated `README.md` with a dedicated Windows end-user section linking to `docs/WINDOWS_USER_GUIDE.md`.
+- Completed `TASK-056`, marked it done, and moved it to `project/done/2026-02-24-task-056-windows-user-docs-and-troubleshooting.md`.
+- Bumped project version to `0.8.36`.
+
 ## [0.8.35] - 2026-02-25
 
 ### Fixed

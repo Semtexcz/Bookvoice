@@ -1,6 +1,6 @@
 ---
 task: TASK-056
-status: "backlog"
+status: "done"
 priority: P3
 type: docs
 ---
@@ -8,7 +8,7 @@ type: docs
 # Windows user documentation and troubleshooting
 
 Task: TASK-056
-Status: backlog
+Status: done
 Priority: P3
 Type: docs
 Author:
@@ -21,14 +21,13 @@ Windows users need clear guidance on installation, prerequisites (if any), and c
 
 ## Definition of Done
 
-- [ ] Add a Windows-specific section to documentation describing:
+- [x] Add a Windows-specific section to documentation describing:
   - how to install from GitHub Releases (portable zip and installer)
   - where outputs are written and how to set `--out`
   - how to provide an API key securely (keyring vs environment variable)
-- [ ] Add troubleshooting guidance for:
+- [x] Add troubleshooting guidance for:
   - `pdftotext` missing/not found
   - `ffmpeg` missing/not found
   - encoding/codec issues during packaging
   - antivirus false positives and recommended mitigations
-- [ ] Keep documentation aligned with actual bundled behavior (no references to Poetry for end-users).
-
+- [x] Keep documentation aligned with actual bundled behavior (no references to Poetry for end-users).
