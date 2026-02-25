@@ -62,3 +62,4 @@ dist/windows/pyinstaller/bookvoice/bookvoice.exe credentials --help
 
 - The current build uses one-folder mode for easier debugging of bundled files.
 - Runtime tool lookup order is deterministic: bundled app folder first (`./bin`), then system `PATH`.
+- For installer wizard packaging (`.exe`) built from this output, follow `docs/WINDOWS_INNO_SETUP.md`.

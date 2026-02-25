@@ -1,6 +1,6 @@
 ---
 task: TASK-054
-status: "backlog"
+status: "done"
 priority: P2
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Windows installer wizard via Inno Setup
 
 Task: TASK-054
-Status: backlog
+Status: done
 Priority: P2
 Type: feature
 Author:
@@ -21,18 +21,17 @@ Even with a zipped distribution, many Windows users prefer an installation wizar
 
 ## Definition of Done
 
-- [ ] Add an Inno Setup script that installs Bookvoice to a standard location (per-user install is acceptable).
-- [ ] The installer includes:
+- [x] Add an Inno Setup script that installs Bookvoice to a standard location (per-user install is acceptable).
+- [x] The installer includes:
   - `bookvoice.exe`
   - bundled `ffmpeg` + `pdftotext` (per `TASK-053`)
   - required license files/notices
-- [ ] Create Start Menu shortcuts (at minimum: "Bookvoice (CLI)" opening a terminal with usage instructions or linking to docs).
-- [ ] Add an uninstaller entry.
-- [ ] Ensure upgrades are supported (install over an existing version without manual cleanup).
-- [ ] Validate the installed app can run `bookvoice --help` and `bookvoice list-chapters <pdf>` (no provider calls required).
+- [x] Create Start Menu shortcuts (at minimum: "Bookvoice (CLI)" opening a terminal with usage instructions or linking to docs).
+- [x] Add an uninstaller entry.
+- [x] Ensure upgrades are supported (install over an existing version without manual cleanup).
+- [x] Validate the installed app can run `bookvoice --help` and `bookvoice list-chapters <pdf>` (no provider calls required).
 
 ## Notes
 
 - Do not require admin rights unless absolutely necessary.
 - Do not implement auto-updates; distribution is GitHub Releases only.
-

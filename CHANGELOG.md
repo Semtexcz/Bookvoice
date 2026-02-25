@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.30] - 2026-02-25
+
+### Added
+
+- Added an Inno Setup installer definition at `packaging/windows/inno/bookvoice.iss` for per-user Windows installation of Bookvoice with a stable `AppId`, Start Menu shortcuts, and standard uninstaller registration.
+- Added CLI helper launcher script `packaging/windows/inno/bookvoice-cli-help.cmd` used by installer shortcuts to open a terminal and show Bookvoice usage guidance.
+- Added maintainer documentation at `docs/WINDOWS_INNO_SETUP.md` covering installer build command, artifact location, and installed-app validation commands.
+
+### Changed
+
+- Updated `README.md` and `docs/WINDOWS_PYINSTALLER.md` with links to Inno Setup installer maintainer instructions.
+- Completed `TASK-054`, marked it done, and moved it to `project/done/2026-02-24-task-054-windows-inno-setup-installer.md`.
+- Bumped project version to `0.8.30`.
+
 ## [0.8.29] - 2026-02-24
 
 ### Changed
