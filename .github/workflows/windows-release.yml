@@ -73,11 +73,10 @@ jobs:
 
       - name: Build Inno Setup installer
         shell: pwsh
-        run: >
-          ISCC.exe packaging\windows\inno\bookvoice.iss
-          /DMyAppVersion=${{ env.RELEASE_VERSION }}
-          /DSourceDir=dist\windows\pyinstaller\bookvoice
-          /DOutputDir=dist\windows\installer
+        run: |
+          $sourceDir = Join-Path $env:GITHUB_WORKSPACE "dist\windows\pyinstaller\bookvoice"
+          $outputDir = Join-Path $env:GITHUB_WORKSPACE "dist\windows\installer"
+          ISCC.exe packaging\windows\inno\bookvoice.iss /DMyAppVersion=${{ env.RELEASE_VERSION }} "/DSourceDir=$sourceDir" "/DOutputDir=$outputDir"
 
       - name: Upload CI artifacts
         uses: actions/upload-artifact@v4

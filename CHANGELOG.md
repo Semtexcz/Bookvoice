@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.35] - 2026-02-25
+
+### Fixed
+
+- Fixed Inno Setup source/output path resolution in `.github/workflows/windows-release.yml` by passing absolute `/DSourceDir` and `/DOutputDir` values derived from `${{ github.workspace }}`, resolving `No files found matching ... packaging\windows\inno\dist\...` failures on Windows runners.
+
+### Changed
+
+- Bumped project version to `0.8.35`.
+
 ## [0.8.34] - 2026-02-25
 
 ### Fixed
