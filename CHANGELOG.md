@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.34] - 2026-02-25
+
+### Fixed
+
+- Fixed Windows release workflow Poetry compatibility in `.github/workflows/windows-release.yml` by upgrading bootstrap installation from Poetry `1.8.5` to `2.0.0`, resolving `[tool.poetry] section not found` failures for the PEP 621-based `pyproject.toml`.
+
+### Changed
+
+- Bumped project version to `0.8.34`.
+
 ## [0.8.33] - 2026-02-25
 
 ### Fixed
