@@ -1,35 +1,49 @@
 @startuml
-title Chapter Split + Chunking Activity (TASK-004 scope)
+title Chapter Split + Chunk Planning Activity
 
 start
-:Input cleaned text;
+:Input cleaned text + source PDF + chunk_size_chars;
 
 if (Text empty?) then (yes)
-  :Return [] chapters;
-  :Return [] chunks;
+  :Return [] chapters and [] chunks;
   stop
 else (no)
-  :ChapterSplitter.split(text);
-  note right
-    Current MVP behavior:
-    one chapter
-    index=1
-    title="Chapter 1"
-  end note
 endif
 
-:For each chapter;
-if (target_size <= 0?) then (yes)
-  :Return [] chunks;
+:Try PdfOutlineChapterExtractor.extract(source_pdf);
+if (Outline chapters available?) then (yes)
+  :Use outline chapters;
+  :chapter_source = "pdf_outline";
+else (no)
+  :Fallback ChapterSplitter.split(cleaned_text);
+  :chapter_source = "text_heuristic";
+endif
+
+:Resolve selected chapters from chapter_selection;
+:Build normalized structure units;
+if (Outline structure available?) then (yes)
+  :Use outline structure;
+else (no)
+  :ChapterStructureNormalizer.from_chapters(...);
+endif
+
+if (chunk_size_chars <= 0?) then (yes)
+  :Return selected chapters and [] chunks;
   stop
 else (no)
-  :Initialize chunk_index = 0;
-  :Iterate by target_size;
-  :Create Chunk with offsets
-  (char_start, char_end);
-  :Increment chunk_index;
 endif
 
+if (Selected structure units exist?) then (yes)
+  :TextBudgetSegmentPlanner.plan(units, budget);
+  :Convert planned segments to chunks;
+else (no)
+  :Fallback Chunker.to_chunks(selected_chapters, budget);
+  :Decorate chunks with deterministic part metadata;
+endif
+
+:SentenceBoundaryRepairer.repair(chunks, budget);
+:Persist chunk metadata
+(planner strategy, repairs count);
 :Return deterministic chunk list;
 stop
 

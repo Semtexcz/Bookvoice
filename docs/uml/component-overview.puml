@@ -7,35 +7,57 @@ title Bookvoice - Component Overview
 allowmixing
 
 component "bookvoice.cli" as CLI
-component "bookvoice.pipeline (BookvoicePipeline)" as PIPELINE
+component "bookvoice.pipeline.orchestrator (BookvoicePipeline)" as PIPELINE
+component "bookvoice.pipeline.runtime (PipelineRuntimeMixin)" as PIPE_RUNTIME
+component "bookvoice.pipeline.execution (PipelineExecutionMixin)" as PIPE_EXEC
+component "bookvoice.pipeline.chapter_scope (PipelineChapterScopeMixin)" as PIPE_SCOPE
+component "bookvoice.pipeline.manifesting (PipelineManifestMixin)" as PIPE_MANIFEST
+component "bookvoice.pipeline.telemetry (PipelineTelemetryMixin)" as PIPE_TELEMETRY
 component "bookvoice.config (BookvoiceConfig)" as CONFIG
 component "bookvoice.io.pdf_text_extractor (PdfTextExtractor)" as EXTRACTOR
+component "bookvoice.io.pdf_outline_extractor (PdfOutlineChapterExtractor)" as OUTLINE
 component "bookvoice.io.chapter_splitter (ChapterSplitter)" as SPLITTER
 component "bookvoice.io.storage (ArtifactStore)" as STORE
 component "bookvoice.text.cleaners (TextCleaner)" as CLEANER
 component "bookvoice.text.chunking (Chunker)" as CHUNKER
+component "bookvoice.text.chunking (SentenceBoundaryRepairer)" as REPAIR
+component "bookvoice.text.structure (ChapterStructureNormalizer)" as STRUCTURE
+component "bookvoice.text.segment_planner (TextBudgetSegmentPlanner)" as PLANNER
 component "bookvoice.llm.translator (OpenAITranslator)" as TRANSLATOR
+component "bookvoice.llm.audio_rewriter (DeterministicBypassRewriter)" as BYPASS
 component "bookvoice.llm.audio_rewriter (AudioRewriter)" as REWRITER
 component "bookvoice.tts.synthesizer (OpenAITTSSynthesizer)" as SYNTH
 component "bookvoice.tts.voices (VoiceProfile)" as VOICE
 component "bookvoice.audio.postprocess (AudioPostProcessor)" as POST
 component "bookvoice.audio.merger (AudioMerger)" as MERGER
+component "bookvoice.audio.packaging (AudioPackager)" as PACKAGER
 component "bookvoice.models.datatypes" as MODELS
 
 CLI --> CONFIG
 CLI --> PIPELINE
 
 PIPELINE --> CONFIG
+PIPELINE --> PIPE_RUNTIME
+PIPELINE --> PIPE_EXEC
+PIPELINE --> PIPE_SCOPE
+PIPELINE --> PIPE_MANIFEST
+PIPELINE --> PIPE_TELEMETRY
 PIPELINE --> EXTRACTOR
+PIPELINE --> OUTLINE
 PIPELINE --> CLEANER
 PIPELINE --> SPLITTER
+PIPELINE --> STRUCTURE
+PIPELINE --> PLANNER
 PIPELINE --> CHUNKER
+PIPELINE --> REPAIR
 PIPELINE --> TRANSLATOR
 PIPELINE --> REWRITER
+PIPELINE --> BYPASS
 PIPELINE --> SYNTH
 PIPELINE --> VOICE
 PIPELINE --> POST
 PIPELINE --> MERGER
+PIPELINE --> PACKAGER
 PIPELINE --> STORE
 PIPELINE --> MODELS
 

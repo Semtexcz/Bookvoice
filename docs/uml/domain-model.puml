@@ -24,15 +24,22 @@ class Chunk {
   +text: str
   +char_start: int
   +char_end: int
+  +part_index: int?
+  +part_title: str?
+  +part_id: str?
+  +source_order_indices: tuple[int,...]
+  +boundary_strategy: str
 }
 
 class TranslationResult {
+  +chunk: Chunk
   +translated_text: str
   +provider: str
   +model: str
 }
 
 class RewriteResult {
+  +translation: TranslationResult
   +rewritten_text: str
   +provider: str
   +model: str
@@ -43,19 +50,68 @@ class AudioPart {
   +chunk_index: int
   +path: Path
   +duration_seconds: float
+  +part_index: int?
+  +part_title: str?
+  +part_id: str?
+  +source_order_indices: tuple[int,...]
+  +provider: str?
+  +model: str?
+  +voice: str?
+}
+
+class PackagedAudio {
+  +output_kind: str
+  +format: str
+  +chapter_index: int?
+  +chapter_number: int?
+  +chapter_title: str?
+  +path: Path
+  +source_part_filenames: tuple[str,...]
+}
+
+class ChapterStructureUnit {
+  +order_index: int
+  +chapter_index: int
+  +chapter_title: str
+  +subchapter_index: int?
+  +subchapter_title: str?
+  +text: str
+  +char_start: int
+  +char_end: int
+  +source: str
+}
+
+class PlannedSegment {
+  +order_index: int
+  +chapter_index: int
+  +segment_index: int
+  +chapter_title: str
+  +text: str
+  +char_start: int
+  +char_end: int
+  +source_order_indices: tuple[int,...]
+}
+
+class SegmentPlan {
+  +budget_chars: int
+  +budget_ceiling_chars: int
+  +segments: tuple[PlannedSegment,...]
 }
 
 class RunManifest {
   +run_id: str
   +config_hash: str
+  +book: BookMeta
   +merged_audio_path: Path
   +total_llm_cost_usd: float
   +total_tts_cost_usd: float
+  +total_cost_usd: float
   +extra: Mapping[str, str]
 }
 
 TranslationResult --> Chunk : chunk
 RewriteResult --> TranslationResult : translation
+SegmentPlan --> PlannedSegment : segments
 RunManifest --> BookMeta : book
 
 @enduml

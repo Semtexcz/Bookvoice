@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.38] - 2026-02-25
+
+### Changed
+
+- Updated UML sources under `docs/uml/` to match the current codebase architecture:
+  - aligned component diagram with `bookvoice.pipeline.orchestrator` and pipeline mixins,
+  - refreshed domain model diagram to include current datatypes (`PackagedAudio`, structure planning models, and extended `Chunk`/`AudioPart` fields),
+  - revised `BookvoicePipeline.run` sequence to include outline fallback, structure planning, sentence-boundary repair, packaging, and artifact persistence,
+  - replaced outdated chapter/chunk activity with the current outline-first deterministic fallback flow.
+- Updated `docs/uml/README.md` descriptions to reflect the revised diagrams.
+- Bumped project version to `0.8.38`.
+
 ## [0.8.37] - 2026-02-25
 
 ### Changed

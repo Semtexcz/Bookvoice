@@ -4,10 +4,10 @@ PlantUML source files for Bookvoice architecture and flow.
 
 ## Files
 
-- `docs/uml/component-overview.puml`: Component-level module dependencies.
-- `docs/uml/pipeline-sequence.puml`: End-to-end sequence of `BookvoicePipeline.run`.
-- `docs/uml/domain-model.puml`: Core dataclasses in `bookvoice/models/datatypes.py`.
-- `docs/uml/chapter-chunk-activity.puml`: Activity flow for chapter split and chunk generation.
+- `docs/uml/component-overview.puml`: Current module/component dependencies around `bookvoice.pipeline.orchestrator.BookvoicePipeline` and pipeline mixins.
+- `docs/uml/pipeline-sequence.puml`: End-to-end `BookvoicePipeline.run` sequence including outline fallback, chunk planning, postprocessing, merge, package, and manifest persistence.
+- `docs/uml/domain-model.puml`: Core dataclasses in `bookvoice/models/datatypes.py` including structure-planning and packaged-output types.
+- `docs/uml/chapter-chunk-activity.puml`: Activity flow for chapter resolution and chunk planning (outline-first with deterministic fallback).
 
 ## Render (optional)
 

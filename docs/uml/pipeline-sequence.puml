@@ -7,34 +7,55 @@ participant "BookvoicePipeline" as PIPE
 participant "ArtifactStore" as STORE
 participant "PdfTextExtractor" as EXTRACT
 participant "TextCleaner" as CLEAN
+participant "PdfOutlineChapterExtractor" as OUTLINE
 participant "ChapterSplitter" as SPLIT
-participant "Chunker" as CHUNK
+participant "ChapterStructureNormalizer" as NORMALIZE
+participant "TextBudgetSegmentPlanner" as PLAN
+participant "SentenceBoundaryRepairer" as REPAIR
 participant "OpenAITranslator" as TRANSLATE
 participant "AudioRewriter" as REWRITE
 participant "OpenAITTSSynthesizer" as TTS
 participant "AudioPostProcessor" as POST
 participant "AudioMerger" as MERGE
+participant "AudioPackager" as PACKAGE
 
 User -> CLI: bookvoice build input.pdf --out out/
 CLI -> PIPE: run(config)
 
-PIPE -> PIPE: _config_hash(config)
-PIPE -> STORE: ArtifactStore(output_dir/run_id)
+PIPE -> PIPE: _prepare_run(config)
+PIPE -> STORE: ArtifactStore(output_dir/run-<hash-prefix>)
 
 PIPE -> EXTRACT: extract(input_pdf)
 EXTRACT --> PIPE: raw_text
 PIPE -> STORE: save_text("text/raw.txt", raw_text)
 
-PIPE -> CLEAN: clean(raw_text)
-CLEAN --> PIPE: clean_text
+PIPE -> CLEAN: clean_with_report(raw_text)
+CLEAN --> PIPE: clean_text + clean_metadata
 PIPE -> STORE: save_text("text/clean.txt", clean_text)
 
-PIPE -> SPLIT: split(clean_text)
-SPLIT --> PIPE: chapters[]
+PIPE -> OUTLINE: extract(input_pdf)
+OUTLINE --> PIPE: outline chapters or fallback status
+alt outline chapters available
+  PIPE --> PIPE: chapter_source = "pdf_outline"
+else outline unavailable
+  PIPE -> SPLIT: split(clean_text)
+  SPLIT --> PIPE: chapters[]
+  PIPE --> PIPE: chapter_source = "text_heuristic"
+end
+PIPE -> OUTLINE: extract_structure(input_pdf)
+OUTLINE --> PIPE: structure units?
+alt no usable outline structure
+  PIPE -> NORMALIZE: from_chapters(chapters)
+  NORMALIZE --> PIPE: normalized_structure[]
+end
 PIPE -> STORE: save_json("text/chapters.json", ...)
 
-PIPE -> CHUNK: to_chunks(chapters, chunk_size_chars)
-CHUNK --> PIPE: chunks[]
+PIPE -> PLAN: plan(selected_structure_units, budget_chars)
+PLAN --> PIPE: segment_plan
+PIPE -> PLAN: to_chunks(segment_plan)
+PLAN --> PIPE: chunks[]
+PIPE -> REPAIR: repair(chunks, target_size)
+REPAIR --> PIPE: repaired_chunks[] + metadata
 PIPE -> STORE: save_json("text/chunks.json", ...)
 
 loop each chunk
@@ -64,6 +85,10 @@ end
 
 PIPE -> MERGE: merge(audio_parts, output_path)
 MERGE --> PIPE: merged_audio_path
+
+PIPE -> PACKAGE: package(audio_parts, merged_audio_path, options)
+PACKAGE --> PIPE: packaged_outputs[]
+PIPE -> STORE: save_json("audio/packaged.json", ...)
 
 PIPE -> STORE: save_json("run_manifest.json", manifest)
 PIPE --> CLI: RunManifest
