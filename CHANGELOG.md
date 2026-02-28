@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.41] - 2026-02-28
+
+### Added
+
+- Added Linux Debian packaging backlog tasks under `project/backlog/2026-02-28-linux-deb-packaging/`:
+  - `TASK-058` for defining the Ubuntu LTS and Debian-family packaging target, support policy, and install layout.
+  - `TASK-059` for implementing the `.deb` package build, dependency declarations, and package validation.
+  - `TASK-060` for adding CI/release automation for versioned Linux `.deb` artifacts.
+  - `TASK-061` for documenting Linux installation, upgrade, and troubleshooting guidance for end users.
+
+### Changed
+
+- Bumped project version to `0.8.41`.
+
 ## [0.8.40] - 2026-02-25
 
 ### Added
