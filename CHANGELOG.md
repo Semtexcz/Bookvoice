@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1] - 2026-03-08
+
+### Changed
+
+- Reorganized `README.md` for a user-first reading flow:
+  - moved practical usage guidance (`install`, `credentials`, `build`, command reference, outputs, troubleshooting) to the top,
+  - moved implementation-oriented and maintainer-focused content (`current status`, pipeline internals, Windows distributable build) to a dedicated section later in the document.
+- Bumped project version to `0.9.1`.
+
 ## [0.9.0] - 2026-03-08
 
 ### Added

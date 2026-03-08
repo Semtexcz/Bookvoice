@@ -1,68 +1,20 @@
 # bookvoice
 
-`bookvoice` is a deterministic, pay-as-you-go pipeline for converting text-based PDF books into Czech audiobook outputs.
+`bookvoice` is a deterministic, pay-as-you-go CLI pipeline that converts text-based PDF books into audiobook outputs.
+
+## What You Can Use It For
+
+- Convert a PDF book into deterministic audio outputs (`wav`, optional `m4a`/`mp3`).
+- Process the whole book or only selected chapters.
+- Resume interrupted runs from a manifest.
+- Keep reproducible artifacts for audit, replay, and troubleshooting.
 
 What it is not:
 
 - It is not a DRM bypass tool.
 - It is not intended for copyrighted material without proper rights.
 
-## Current Status
-
-Implemented today:
-
-- Real OpenAI translation (`chat/completions`).
-- Real OpenAI rewrite-for-audio (`chat/completions`), plus `--rewrite-bypass`.
-- Real OpenAI TTS per segmented part (`audio/speech`) with deterministic `<chapter>_<part>_<title-slug>.wav` naming.
-- Structure-aware segment planning with chapter-local merging and paragraph-preferred boundaries (`chunk_size_chars` default `1800`, planner hard ceiling `9300` chars).
-- Resumable artifact-driven pipeline with run manifest and cost summary.
-- Chapter listing and chapter-scope processing (`--chapters`).
-- Secure API-key storage via `keyring` (`bookvoice credentials`).
-
-Still intentionally limited:
-
-- Packaging and metadata tagging rely on local `ffmpeg` runtime and codec/container support.
-
-## Chunk Boundary Guarantees
-
-- Fallback chapter chunking now targets sentence-complete boundaries and prefers `.` before `!`/`?`.
-- If no boundary exists near the target size, the chunker extends forward to the next sentence boundary within a bounded safety margin.
-- If no sentence boundary exists within that margin (for example very long punctuation-free text), the chunker performs a deterministic forced split and marks the chunk with `boundary_strategy = "forced_split_no_sentence_boundary"`.
-- During cleanup, decorative drop-cap initials split across lines (for example `E` + `VERY`) are conservatively merged when safe guards pass.
-- When deterministic splitting still lands mid-sentence, chunk-boundary repair can carry the minimum continuation prefix from the next chunk to complete the sentence.
-
-Current limitation:
-
-- Drop-cap merging is conservative by design and can miss borderline layouts to avoid incorrect merges.
-
-## Pipeline Overview
-
-```text
-PDF Input
-  |
-  v
-[Extract Text] --> [Clean/Normalize] --> [Split Chapters] --> [Plan Segments + Chunk]
-  |                                                     |
-  |                                                     v
-  |                                               [Translate]
-  |                                                     |
-  |                                                     v
-  |                                              [Rewrite for Audio]
-  |                                                     |
-  v                                                     v
-Artifacts + Cache <-------------------------------- [TTS Synthesis]
-                                                        |
-                                                        v
-                                           [Postprocess + Merge + Tags]
-                                                        |
-                                                        v
-                                      [Optional Chapter Packaging: M4A/MP3]
-                                                        |
-                                                        v
-                                               Run Manifest + Outputs
-```
-
-## Quickstart
+## Quick Start (Users)
 
 ### 1. Install
 
@@ -76,39 +28,25 @@ poetry install
 poetry run bookvoice --help
 ```
 
-### Windows distributable build (maintainers)
-
-Build and smoke-check a self-contained `bookvoice.exe` using PyInstaller:
-
-```bash
-poetry run python -m pip install pyinstaller
-poetry run pyinstaller --noconfirm --clean packaging/windows/pyinstaller/bookvoice.spec --distpath dist/windows/pyinstaller --workpath build/windows/pyinstaller
-./dist/windows/pyinstaller/bookvoice/bookvoice.exe --help
-```
-
-See detailed maintainer instructions in `docs/WINDOWS_PYINSTALLER.md`.
-For Inno Setup installer packaging, see `docs/WINDOWS_INNO_SETUP.md`.
-
-### Windows install and troubleshooting (end users)
-
-If you are installing Bookvoice on Windows from GitHub Releases (portable ZIP or
-installer), use:
-
-- `docs/WINDOWS_USER_GUIDE.md`
-
 ### 3. Provide API key (recommended)
 
 ```bash
 poetry run bookvoice credentials --set-api-key
 ```
 
-### 4. Run build
+### 4. Run full build
 
 ```bash
 poetry run bookvoice build input.pdf --out out/
 ```
 
-## Core Commands
+### 5. Optional: use config file
+
+```bash
+poetry run bookvoice build --config bookvoice.yaml
+```
+
+## Core User Commands
 
 ### Build (full pipeline)
 
@@ -385,7 +323,81 @@ Filename examples:
 - `resume failed at stage resume-manifest`: manifest missing or malformed JSON.
 - `resume failed at stage resume-artifacts`: artifact JSON is missing/corrupted; remove broken artifact and rerun `resume`.
 
-## Development
+## Windows End-User Installation
+
+If you install Bookvoice on Windows from GitHub Releases (portable ZIP or installer), use:
+
+- `docs/WINDOWS_USER_GUIDE.md`
+
+## Developer and Maintainer Notes
+
+### Current Status
+
+Implemented today:
+
+- Real OpenAI translation (`chat/completions`).
+- Real OpenAI rewrite-for-audio (`chat/completions`), plus `--rewrite-bypass`.
+- Real OpenAI TTS per segmented part (`audio/speech`) with deterministic `<chapter>_<part>_<title-slug>.wav` naming.
+- Structure-aware segment planning with chapter-local merging and paragraph-preferred boundaries (`chunk_size_chars` default `1800`, planner hard ceiling `9300` chars).
+- Resumable artifact-driven pipeline with run manifest and cost summary.
+- Chapter listing and chapter-scope processing (`--chapters`).
+- Secure API-key storage via `keyring` (`bookvoice credentials`).
+
+Still intentionally limited:
+
+- Packaging and metadata tagging rely on local `ffmpeg` runtime and codec/container support.
+
+### Chunk Boundary Guarantees
+
+- Fallback chapter chunking now targets sentence-complete boundaries and prefers `.` before `!`/`?`.
+- If no boundary exists near the target size, the chunker extends forward to the next sentence boundary within a bounded safety margin.
+- If no sentence boundary exists within that margin (for example very long punctuation-free text), the chunker performs a deterministic forced split and marks the chunk with `boundary_strategy = "forced_split_no_sentence_boundary"`.
+- During cleanup, decorative drop-cap initials split across lines (for example `E` + `VERY`) are conservatively merged when safe guards pass.
+- When deterministic splitting still lands mid-sentence, chunk-boundary repair can carry the minimum continuation prefix from the next chunk to complete the sentence.
+
+Current limitation:
+
+- Drop-cap merging is conservative by design and can miss borderline layouts to avoid incorrect merges.
+
+### Pipeline Overview
+
+```text
+PDF Input
+  |
+  v
+[Extract Text] --> [Clean/Normalize] --> [Split Chapters] --> [Plan Segments + Chunk]
+  |                                                     |
+  |                                                     v
+  |                                               [Translate]
+  |                                                     |
+  |                                                     v
+  |                                              [Rewrite for Audio]
+  |                                                     |
+  v                                                     v
+Artifacts + Cache <-------------------------------- [TTS Synthesis]
+                                                        |
+                                                        v
+                                           [Postprocess + Merge + Tags]
+                                                        |
+                                                        v
+                                      [Optional Chapter Packaging: M4A/MP3]
+                                                        |
+                                                        v
+                                               Run Manifest + Outputs
+```
+
+### Windows distributable build (maintainers)
+
+Build and smoke-check a self-contained `bookvoice.exe` using PyInstaller:
+
+```bash
+poetry run python -m pip install pyinstaller
+poetry run pyinstaller --noconfirm --clean packaging/windows/pyinstaller/bookvoice.spec --distpath dist/windows/pyinstaller --workpath build/windows/pyinstaller
+./dist/windows/pyinstaller/bookvoice/bookvoice.exe --help
+```
+
+See detailed maintainer instructions in `docs/WINDOWS_PYINSTALLER.md`.
+For Inno Setup installer packaging, see `docs/WINDOWS_INNO_SETUP.md`.
 
 ### Test suite
 
