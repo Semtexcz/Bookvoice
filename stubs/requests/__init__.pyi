@@ -28,6 +28,9 @@ class HTTPError(RequestException):
 
 
 class Response(ResponseLike):
+    content: bytes
+    status_code: int
+
     def raise_for_status(self) -> None: ...
 
 

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.3] - 2026-03-08
+
+### Changed
+
+- Updated the local `requests` stub so `Response` explicitly declares `content` and `status_code`, preventing abstract-attribute diagnostics under strict mypy protocol checks.
+- Bumped project version to `0.9.3`.
+
 ## [0.9.2] - 2026-03-08
 
 ### Added
