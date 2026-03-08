@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] - 2026-03-08
+
+### Added
+
+- Added explicit CLI/config output controls for packaging and language selection:
+  - `--language` for per-run output language override.
+  - `--output-format` (`wav`, `m4a`, `mp3`, `m4a,mp3`) as the primary packaging format intent.
+  - `--package-chapters/--no-package-chapters`, `--package-naming`, `--package-encoding-bitrate`, and `--package-encoding-profile`.
+- Added YAML/environment packaging configuration support in `ConfigLoader` for:
+  `output_format`, `package_mode`, `package_chapters`, `package_chapter_numbering`,
+  `package_keep_merged`, `package_naming`, `package_encoding_bitrate`, and
+  `package_encoding_profile`.
+- Added manifest metadata keys for replay/audit visibility:
+  `output_language`, `packaging_output_format`, `packaging_chapter_outputs`,
+  `packaging_naming_mode`, `packaging_encoding_bitrate`, `packaging_encoding_profile`,
+  and emitted packaged paths under `packaging_emitted_*`.
+- Added integration coverage for CLI/config precedence of language and packaging intent,
+  and unit/integration coverage for new packaging option resolution behavior.
+
+### Changed
+
+- Extended packaged output resolution to support deterministic naming modes and explicit
+  encoding profile/bitrate defaults while preserving existing `--package-mode` compatibility.
+- Updated `README.md` and `docs/ARTIFACTS.md` with new CLI/config usage examples,
+  precedence notes, and compatibility guidance for legacy `--package-mode`.
+- Completed `TASK-043`, marked it done, and moved it to
+  `project/done/2026-02-22-task-043-cli-output-format-controls-and-manifest-packaging-metadata.md`.
+- Bumped project version to `0.9.0`.
+
 ## [0.8.41] - 2026-02-28
 
 ### Added

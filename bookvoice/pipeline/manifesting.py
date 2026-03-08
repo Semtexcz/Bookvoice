@@ -47,7 +47,7 @@ class PipelineManifestMixin:
                 total_llm_cost_usd=cost_summary["llm_cost_usd"],
                 total_tts_cost_usd=cost_summary["tts_cost_usd"],
                 total_cost_usd=cost_summary["total_cost_usd"],
-                extra=artifact_paths,
+                extra={**artifact_paths, "output_language": config.language},
             )
             manifest_path = store.save_json(Path("run_manifest.json"), manifest_payload(manifest))
             return RunManifest(

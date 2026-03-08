@@ -18,12 +18,16 @@ def _fake_encode_chapter(
     format_id: str,
     output_path: Path,
     tag_payload: object | None = None,
+    encoding_bitrate: str = "128k",
+    encoding_profile: str = "balanced",
 ) -> None:
     """Write deterministic placeholder bytes for encoded chapter outputs."""
 
     _ = self
     _ = chapter_parts
     _ = tag_payload
+    _ = encoding_bitrate
+    _ = encoding_profile
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(f"encoded-{format_id}".encode("utf-8"))
 
@@ -49,6 +53,31 @@ def _build_part(
     )
 
 
+def _options(
+    *,
+    output_format: str = "m4a",
+    formats: tuple[str, ...] = ("m4a",),
+    chapter_outputs_enabled: bool = True,
+    chapter_numbering_mode: str = "source",
+    naming_mode: str = "deterministic",
+    encoding_bitrate: str = "128k",
+    encoding_profile: str = "balanced",
+    keep_merged_deliverable: bool = True,
+) -> PackagingOptions:
+    """Build packaging options with deterministic defaults for tests."""
+
+    return PackagingOptions(
+        output_format=output_format,
+        formats=formats,
+        chapter_outputs_enabled=chapter_outputs_enabled,
+        chapter_numbering_mode=chapter_numbering_mode,
+        naming_mode=naming_mode,
+        encoding_bitrate=encoding_bitrate,
+        encoding_profile=encoding_profile,
+        keep_merged_deliverable=keep_merged_deliverable,
+    )
+
+
 def test_package_uses_source_numbering_for_deterministic_chapter_filenames(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -69,11 +98,7 @@ def test_package_uses_source_numbering_for_deterministic_chapter_filenames(
         audio_parts=audio_parts,
         merged_path=merged_path,
         output_root=tmp_path / "package",
-        options=PackagingOptions(
-            formats=("m4a",),
-            chapter_numbering_mode="source",
-            keep_merged_deliverable=True,
-        ),
+        options=_options(),
     )
 
     chapter_entries = [item for item in outputs if item.output_kind == "chapter"]
@@ -102,7 +127,8 @@ def test_package_uses_sequential_numbering_for_selected_chapters(
         audio_parts=audio_parts,
         merged_path=tmp_path / "bookvoice_merged.wav",
         output_root=tmp_path / "package",
-        options=PackagingOptions(
+        options=_options(
+            output_format="mp3",
             formats=("mp3",),
             chapter_numbering_mode="sequential",
             keep_merged_deliverable=False,
@@ -137,10 +163,9 @@ def test_package_mode_none_does_not_emit_packaged_outputs(
         audio_parts=[],
         merged_path=merged_path,
         output_root=tmp_path / "package",
-        options=PackagingOptions(
+        options=_options(
+            output_format="wav",
             formats=tuple(),
-            chapter_numbering_mode="source",
-            keep_merged_deliverable=True,
         ),
     )
 
@@ -275,3 +300,32 @@ def test_encode_chapter_writes_deterministic_m4a_mp4_metadata_arguments(
     assert "track=3/3" in joined_command
     assert "description=scope=all;indices=1,2,3;source_index=3;chapter_number=3;numbering=source" in joined_command
     assert "comment=sample.pdf#run-xyz999" in joined_command
+
+
+def test_resolve_options_supports_new_output_format_and_legacy_mode_compatibility() -> None:
+    """Packager option resolver should support both new and legacy format controls."""
+
+    packager = AudioPackager()
+    from_output_format = packager.resolve_options({"packaging_output_format": "m4a,mp3"})
+    from_legacy_mode = packager.resolve_options({"packaging_mode": "both"})
+
+    assert from_output_format.output_format == "both"
+    assert from_output_format.formats == ("m4a", "mp3")
+    assert from_legacy_mode.output_format == "both"
+    assert from_legacy_mode.formats == ("m4a", "mp3")
+
+
+def test_resolve_options_accepts_reader_friendly_naming_and_profile_defaults() -> None:
+    """Profile and naming settings should resolve deterministic defaults when bitrate is absent."""
+
+    options = AudioPackager().resolve_options(
+        {
+            "packaging_output_format": "mp3",
+            "packaging_naming_mode": "reader_friendly",
+            "packaging_encoding_profile": "voice",
+        }
+    )
+
+    assert options.naming_mode == "reader_friendly"
+    assert options.encoding_profile == "voice"
+    assert options.encoding_bitrate == "96k"

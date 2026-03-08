@@ -363,6 +363,14 @@ class ConfigLoader:
             "chunk_size_chars",
             "chapter_selection",
             "resume",
+            "output_format",
+            "package_mode",
+            "package_chapters",
+            "package_chapter_numbering",
+            "package_keep_merged",
+            "package_naming",
+            "package_encoding_bitrate",
+            "package_encoding_profile",
             "extra",
         }
     )
@@ -435,6 +443,47 @@ class ConfigLoader:
             ConfigLoader._optional_env_boolean(env_map, "BOOKVOICE_REWRITE_BYPASS") or False
         )
         api_key = ConfigLoader._optional_env_string(env_map, "OPENAI_API_KEY")
+        output_format = ConfigLoader._optional_env_string(env_map, "BOOKVOICE_OUTPUT_FORMAT")
+        package_mode = ConfigLoader._optional_env_string(env_map, "BOOKVOICE_PACKAGE_MODE")
+        package_chapters = ConfigLoader._optional_env_boolean(
+            env_map, "BOOKVOICE_PACKAGE_CHAPTERS"
+        )
+        package_chapter_numbering = ConfigLoader._optional_env_string(
+            env_map, "BOOKVOICE_PACKAGE_CHAPTER_NUMBERING"
+        )
+        package_keep_merged = ConfigLoader._optional_env_boolean(
+            env_map, "BOOKVOICE_PACKAGE_KEEP_MERGED"
+        )
+        package_naming = ConfigLoader._optional_env_string(
+            env_map, "BOOKVOICE_PACKAGE_NAMING_MODE"
+        )
+        package_encoding_bitrate = ConfigLoader._optional_env_string(
+            env_map, "BOOKVOICE_PACKAGE_ENCODING_BITRATE"
+        )
+        package_encoding_profile = ConfigLoader._optional_env_string(
+            env_map, "BOOKVOICE_PACKAGE_ENCODING_PROFILE"
+        )
+        packaging_extra: dict[str, str] = {}
+        if output_format is not None:
+            packaging_extra["packaging_output_format"] = output_format
+        if package_mode is not None:
+            packaging_extra["packaging_mode"] = package_mode
+        if package_chapters is not None:
+            packaging_extra["packaging_chapter_outputs"] = (
+                "true" if package_chapters else "false"
+            )
+        if package_chapter_numbering is not None:
+            packaging_extra["packaging_chapter_numbering"] = package_chapter_numbering
+        if package_keep_merged is not None:
+            packaging_extra["packaging_keep_merged"] = (
+                "true" if package_keep_merged else "false"
+            )
+        if package_naming is not None:
+            packaging_extra["packaging_naming_mode"] = package_naming
+        if package_encoding_bitrate is not None:
+            packaging_extra["packaging_encoding_bitrate"] = package_encoding_bitrate
+        if package_encoding_profile is not None:
+            packaging_extra["packaging_encoding_profile"] = package_encoding_profile
 
         runtime_env = {
             key: value
@@ -460,6 +509,7 @@ class ConfigLoader:
             chapter_selection=chapter_selection,
             resume=resume,
             runtime_sources=RuntimeConfigSources(env=runtime_env),
+            extra=packaging_extra,
         )
         config.validate()
         return config
@@ -540,6 +590,50 @@ class ConfigLoader:
             default=False,
         )
         extra = ConfigLoader._optional_string_map(payload, "extra", source_label)
+        output_format = ConfigLoader._optional_non_empty_string(
+            payload, "output_format", source_label
+        )
+        package_mode = ConfigLoader._optional_non_empty_string(payload, "package_mode", source_label)
+        package_chapters = ConfigLoader._optional_boolean(
+            payload,
+            "package_chapters",
+            source_label,
+            default=True,
+        )
+        package_chapter_numbering = ConfigLoader._optional_non_empty_string(
+            payload, "package_chapter_numbering", source_label
+        )
+        package_keep_merged = ConfigLoader._optional_boolean(
+            payload,
+            "package_keep_merged",
+            source_label,
+            default=True,
+        )
+        package_naming = ConfigLoader._optional_non_empty_string(
+            payload, "package_naming", source_label
+        )
+        package_encoding_bitrate = ConfigLoader._optional_non_empty_string(
+            payload, "package_encoding_bitrate", source_label
+        )
+        package_encoding_profile = ConfigLoader._optional_non_empty_string(
+            payload, "package_encoding_profile", source_label
+        )
+        if output_format is not None:
+            extra["packaging_output_format"] = output_format
+        if package_mode is not None:
+            extra["packaging_mode"] = package_mode
+        if "package_chapters" in payload:
+            extra["packaging_chapter_outputs"] = "true" if package_chapters else "false"
+        if package_chapter_numbering is not None:
+            extra["packaging_chapter_numbering"] = package_chapter_numbering
+        if "package_keep_merged" in payload:
+            extra["packaging_keep_merged"] = "true" if package_keep_merged else "false"
+        if package_naming is not None:
+            extra["packaging_naming_mode"] = package_naming
+        if package_encoding_bitrate is not None:
+            extra["packaging_encoding_bitrate"] = package_encoding_bitrate
+        if package_encoding_profile is not None:
+            extra["packaging_encoding_profile"] = package_encoding_profile
 
         config = BookvoiceConfig(
             input_pdf=input_pdf,

@@ -433,6 +433,109 @@ def test_translate_only_command_loads_yaml_config_defaults(
     assert captured_config["rewrite_bypass"] is True
 
 
+def test_build_output_language_and_packaging_precedence_cli_over_env_over_config(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Build should resolve output-language and packaging intent via CLI > env > config."""
+
+    captured_language = ""
+    captured_extra: dict[str, str] = {}
+    config_path = tmp_path / "bookvoice.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                f"input_pdf: {_PATH_ONLY_INPUT_PDF}",
+                f"output_dir: {tmp_path / 'out-from-config'}",
+                "language: de",
+                "output_format: m4a",
+                "package_chapter_numbering: source",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    def _fake_run(self, config):  # type: ignore[no-untyped-def]
+        """Capture command-level values for language and packaging assertions."""
+
+        nonlocal captured_language, captured_extra
+        captured_language = config.language
+        captured_extra = dict(config.extra)
+        return _manifest_stub()
+
+    monkeypatch.setattr("bookvoice.cli.BookvoicePipeline.run", _fake_run)
+    monkeypatch.setattr(
+        "bookvoice.cli.create_credential_store",
+        lambda: InMemoryCredentialStore(),
+    )
+    monkeypatch.setenv("BOOKVOICE_LANGUAGE", "fr")
+    monkeypatch.setenv("BOOKVOICE_OUTPUT_FORMAT", "mp3")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "build",
+            "--config",
+            str(config_path),
+            "--language",
+            "en",
+            "--output-format",
+            "m4a,mp3",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured_language == "en"
+    assert captured_extra["packaging_output_format"] == "m4a,mp3"
+    assert captured_extra["packaging_chapter_numbering"] == "source"
+
+
+def test_build_output_language_and_packaging_precedence_env_over_config(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Build should apply env values when CLI output controls are not provided."""
+
+    captured_language = ""
+    captured_extra: dict[str, str] = {}
+    config_path = tmp_path / "bookvoice.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                f"input_pdf: {_PATH_ONLY_INPUT_PDF}",
+                f"output_dir: {tmp_path / 'out-from-config'}",
+                "language: de",
+                "output_format: m4a",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    def _fake_run(self, config):  # type: ignore[no-untyped-def]
+        """Capture resolved env-vs-config winners for assertions."""
+
+        nonlocal captured_language, captured_extra
+        captured_language = config.language
+        captured_extra = dict(config.extra)
+        return _manifest_stub()
+
+    monkeypatch.setattr("bookvoice.cli.BookvoicePipeline.run", _fake_run)
+    monkeypatch.setattr(
+        "bookvoice.cli.create_credential_store",
+        lambda: InMemoryCredentialStore(),
+    )
+    monkeypatch.setenv("BOOKVOICE_LANGUAGE", "fr")
+    monkeypatch.setenv("BOOKVOICE_OUTPUT_FORMAT", "mp3")
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["build", "--config", str(config_path)])
+
+    assert result.exit_code == 0, result.output
+    assert captured_language == "fr"
+    assert captured_extra["packaging_output_format"] == "mp3"
+
+
 def test_credentials_command_supports_set_clear_and_status(
     monkeypatch: MonkeyPatch,
 ) -> None:

@@ -22,12 +22,16 @@ def _fake_encode_chapter(
     format_id: str,
     output_path: Path,
     tag_payload: object | None = None,
+    encoding_bitrate: str = "128k",
+    encoding_profile: str = "balanced",
 ) -> None:
     """Write deterministic placeholder bytes for packaged outputs in tests."""
 
     _ = self
     _ = chapter_parts
     _ = tag_payload
+    _ = encoding_bitrate
+    _ = encoding_profile
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(f"packaged-{format_id}".encode("utf-8"))
 
@@ -50,10 +54,16 @@ def test_build_creates_deterministic_packaged_outputs_and_manifest_references(
             str(fixture_pdf),
             "--out",
             str(out_dir),
-            "--package-mode",
-            "both",
+            "--language",
+            "en",
+            "--output-format",
+            "m4a,mp3",
             "--package-chapter-numbering",
             "sequential",
+            "--package-naming",
+            "deterministic",
+            "--package-encoding-profile",
+            "voice",
             "--package-keep-merged",
         ],
     )
@@ -61,8 +71,13 @@ def test_build_creates_deterministic_packaged_outputs_and_manifest_references(
     assert result.exit_code == 0, result.output
     manifest_path = next(out_dir.glob("run-*/run_manifest.json"))
     manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest_payload["extra"]["output_language"] == "en"
+    assert manifest_payload["extra"]["packaging_output_format"] == "both"
     assert manifest_payload["extra"]["packaging_mode"] == "both"
     assert manifest_payload["extra"]["packaging_chapter_numbering"] == "sequential"
+    assert manifest_payload["extra"]["packaging_naming_mode"] == "deterministic"
+    assert manifest_payload["extra"]["packaging_encoding_profile"] == "voice"
+    assert manifest_payload["extra"]["packaging_encoding_bitrate"] == "96k"
     assert manifest_payload["extra"]["packaging_keep_merged"] == "true"
     assert manifest_payload["extra"]["packaging_tags_schema"] == "bookvoice-packaged-v1"
     assert manifest_payload["extra"]["packaging_tags_enabled"] == "true"
@@ -76,6 +91,10 @@ def test_build_creates_deterministic_packaged_outputs_and_manifest_references(
 
     packaged_path = Path(manifest_payload["extra"]["packaged_audio"])
     assert packaged_path.exists()
+    assert manifest_payload["extra"]["packaging_emitted_count"] == str(
+        len(json.loads(packaged_path.read_text(encoding="utf-8"))["packaged_audio"])
+    )
+    assert manifest_payload["extra"]["packaging_emitted_paths_csv"]
     packaged_payload = json.loads(packaged_path.read_text(encoding="utf-8"))
     assert packaged_payload["metadata"]["packaging_tags_schema"] == "bookvoice-packaged-v1"
     assert packaged_payload["metadata"]["packaging_tags_enabled"] == "true"

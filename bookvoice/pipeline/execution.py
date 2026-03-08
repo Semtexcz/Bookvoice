@@ -536,17 +536,22 @@ class PipelineExecutionMixin:
     def _packaging_manifest_metadata(self, options: PackagingOptions) -> dict[str, str]:
         """Serialize packaging options for manifest persistence."""
 
-        if not options.formats:
+        if options.output_format == "wav":
             mode = "none"
-        elif options.formats == ("m4a",):
+        elif options.output_format == "m4a":
             mode = "aac"
-        elif options.formats == ("mp3",):
+        elif options.output_format == "mp3":
             mode = "mp3"
         else:
             mode = "both"
         return {
+            "packaging_output_format": options.output_format,
             "packaging_mode": mode,
+            "packaging_chapter_outputs": "true" if options.chapter_outputs_enabled else "false",
             "packaging_chapter_numbering": options.chapter_numbering_mode,
+            "packaging_naming_mode": options.naming_mode,
+            "packaging_encoding_bitrate": options.encoding_bitrate,
+            "packaging_encoding_profile": options.encoding_profile,
             "packaging_keep_merged": "true" if options.keep_merged_deliverable else "false",
         }
 
@@ -596,7 +601,7 @@ class PipelineExecutionMixin:
 
         context = self._packaging_tag_context(audio_parts=audio_parts, config=config, store=store)
         chapter_count = len({item.chapter_index for item in audio_parts})
-        enabled = "true" if options.formats != tuple() else "false"
+        enabled = "true" if options.chapter_outputs_enabled and options.formats != tuple() else "false"
         return {
             "packaging_tags_schema": "bookvoice-packaged-v1",
             "packaging_tags_enabled": enabled,

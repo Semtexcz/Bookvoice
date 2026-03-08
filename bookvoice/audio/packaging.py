@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 import shutil
 import subprocess
 
@@ -25,13 +26,23 @@ class PackagingOptions:
     """Resolved packaging options for one run.
 
     Attributes:
-        formats: Ordered packaged output formats (`m4a`, `mp3`), empty when disabled.
+        output_format: Canonical output format intent (`wav`, `m4a`, `mp3`, `both`).
+        formats: Ordered packaged chapter output formats (`m4a`, `mp3`), empty when disabled.
+        chapter_outputs_enabled: Whether chapter-split packaged outputs are enabled.
         chapter_numbering_mode: Chapter numbering mode (`source` or `sequential`).
+        naming_mode: Chapter filename policy (`deterministic` or `reader_friendly`).
+        encoding_bitrate: Target packaged audio bitrate token (`96k`, `128k`, etc.).
+        encoding_profile: Target packaging profile (`balanced`, `voice`, or `music`).
         keep_merged_deliverable: Whether to include full merged WAV in package outputs.
     """
 
+    output_format: str
     formats: tuple[str, ...]
+    chapter_outputs_enabled: bool
     chapter_numbering_mode: str
+    naming_mode: str
+    encoding_bitrate: str
+    encoding_profile: str
     keep_merged_deliverable: bool
 
 
@@ -78,36 +89,43 @@ class AudioPackager:
 
     _VALID_FORMATS = frozenset({"m4a", "mp3"})
     _VALID_NUMBERING_MODES = frozenset({"source", "sequential"})
+    _VALID_NAMING_MODES = frozenset({"deterministic", "reader_friendly"})
+    _VALID_ENCODING_PROFILES = frozenset({"balanced", "voice", "music"})
+    _PROFILE_DEFAULT_BITRATE = {
+        "balanced": "128k",
+        "voice": "96k",
+        "music": "160k",
+    }
+    _VALID_BITRATE_PATTERN = re.compile(r"^\d{2,3}k$")
 
     def resolve_options(self, extra: dict[str, str]) -> PackagingOptions:
         """Resolve packaging options from config/manifest `extra` values."""
 
-        mode = normalize_optional_string(extra.get("packaging_mode")) or "none"
+        mode = normalize_optional_string(extra.get("packaging_output_format")) or normalize_optional_string(
+            extra.get("packaging_mode")
+        ) or "wav"
+        chapter_outputs_raw = extra.get("packaging_chapter_outputs")
         numbering_mode = (
             normalize_optional_string(extra.get("packaging_chapter_numbering")) or "source"
         ).lower()
+        naming_mode = (
+            normalize_optional_string(extra.get("packaging_naming_mode")) or "deterministic"
+        ).lower()
+        encoding_profile = (
+            normalize_optional_string(extra.get("packaging_encoding_profile")) or "balanced"
+        ).lower()
+        encoding_bitrate = normalize_optional_string(extra.get("packaging_encoding_bitrate"))
         keep_merged_raw = extra.get("packaging_keep_merged")
+        parsed_chapter_outputs = parse_permissive_boolean(chapter_outputs_raw)
+        chapter_outputs_enabled = (
+            True if parsed_chapter_outputs is None else parsed_chapter_outputs
+        )
         parsed_keep_merged = parse_permissive_boolean(keep_merged_raw)
         keep_merged = True if parsed_keep_merged is None else parsed_keep_merged
 
-        normalized_mode = mode.lower()
-        if normalized_mode == "none":
-            formats: tuple[str, ...] = tuple()
-        elif normalized_mode in {"aac", "m4a"}:
-            formats = ("m4a",)
-        elif normalized_mode == "mp3":
-            formats = ("mp3",)
-        elif normalized_mode in {"both", "all"}:
-            formats = ("m4a", "mp3")
-        else:
-            raise PipelineStageError(
-                stage="package",
-                detail=(
-                    "Unsupported packaging mode "
-                    f"`{mode}`. Supported: `none`, `aac`, `mp3`, `both`."
-                ),
-                hint="Use `--package-mode` with one of: `none`, `aac`, `mp3`, `both`.",
-            )
+        normalized_mode, formats = self._resolve_output_format(mode)
+        if not chapter_outputs_enabled:
+            formats = tuple()
 
         if numbering_mode not in self._VALID_NUMBERING_MODES:
             raise PipelineStageError(
@@ -118,11 +136,93 @@ class AudioPackager:
                 ),
                 hint="Use `--package-chapter-numbering` with `source` or `sequential`.",
             )
+        if naming_mode not in self._VALID_NAMING_MODES:
+            raise PipelineStageError(
+                stage="package",
+                detail=(
+                    "Unsupported naming mode "
+                    f"`{naming_mode}`. Supported: `deterministic`, `reader_friendly`."
+                ),
+                hint="Use `--package-naming` with `deterministic` or `reader_friendly`.",
+            )
+        if encoding_profile not in self._VALID_ENCODING_PROFILES:
+            raise PipelineStageError(
+                stage="package",
+                detail=(
+                    "Unsupported encoding profile "
+                    f"`{encoding_profile}`. Supported: `balanced`, `voice`, `music`."
+                ),
+                hint="Use `--package-encoding-profile` with `balanced`, `voice`, or `music`.",
+            )
+
+        resolved_bitrate = encoding_bitrate or self._PROFILE_DEFAULT_BITRATE[encoding_profile]
+        if self._VALID_BITRATE_PATTERN.fullmatch(resolved_bitrate.lower()) is None:
+            raise PipelineStageError(
+                stage="package",
+                detail=(
+                    "Unsupported encoding bitrate "
+                    f"`{resolved_bitrate}`. Expected token like `96k` or `128k`."
+                ),
+                hint="Use `--package-encoding-bitrate` with a bitrate like `96k` or `128k`.",
+            )
 
         return PackagingOptions(
+            output_format=normalized_mode,
             formats=formats,
+            chapter_outputs_enabled=chapter_outputs_enabled,
             chapter_numbering_mode=numbering_mode,
+            naming_mode=naming_mode,
+            encoding_bitrate=resolved_bitrate.lower(),
+            encoding_profile=encoding_profile,
             keep_merged_deliverable=keep_merged,
+        )
+
+    def _resolve_output_format(self, value: str) -> tuple[str, tuple[str, ...]]:
+        """Resolve canonical output format and chapter-package format tuple from one value."""
+
+        normalized = value.strip().lower()
+        if normalized in {"wav", "none"}:
+            return "wav", tuple()
+        if normalized in {"m4a", "aac"}:
+            return "m4a", ("m4a",)
+        if normalized == "mp3":
+            return "mp3", ("mp3",)
+        if normalized in {"both", "all"}:
+            return "both", ("m4a", "mp3")
+        if "," in normalized:
+            tokens = {
+                token.strip()
+                for token in normalized.split(",")
+                if token.strip()
+            }
+            if not tokens:
+                raise PipelineStageError(
+                    stage="package",
+                    detail="Output format list cannot be empty.",
+                    hint="Use `--output-format` with `wav`, `m4a`, `mp3`, or `m4a,mp3`.",
+                )
+            if tokens.issubset({"wav"}):
+                return "wav", tuple()
+            if tokens.issubset({"m4a", "aac"}):
+                return "m4a", ("m4a",)
+            if tokens.issubset({"mp3"}):
+                return "mp3", ("mp3",)
+            if tokens.issubset({"m4a", "aac", "mp3", "wav"}):
+                if "mp3" in tokens and ("m4a" in tokens or "aac" in tokens):
+                    return "both", ("m4a", "mp3")
+                if "mp3" in tokens:
+                    return "mp3", ("mp3",)
+                return "m4a", ("m4a",)
+        raise PipelineStageError(
+            stage="package",
+            detail=(
+                "Unsupported output format "
+                f"`{value}`. Supported: `wav`, `m4a`, `mp3`, `both`, or `m4a,mp3`."
+            ),
+            hint=(
+                "Use `--output-format` for the new surface or keep legacy "
+                "`--package-mode` (`none`, `aac`, `mp3`, `both`)."
+            ),
         )
 
     def package(
@@ -141,48 +241,57 @@ class AudioPackager:
         chapter_groups = self._group_parts_by_chapter(audio_parts)
         chapter_total = len(chapter_groups)
 
-        for format_id in options.formats:
-            for sequence_number, chapter_entry in enumerate(chapter_groups, start=1):
-                chapter_index = chapter_entry[0]
-                chapter_parts = chapter_entry[1]
-                chapter_title = chapter_parts[0].part_title or f"chapter-{chapter_index:03d}"
-                chapter_number = (
-                    chapter_index
-                    if options.chapter_numbering_mode == "source"
-                    else sequence_number
-                )
-                output_path = output_root / self._chapter_filename(
-                    chapter_number=chapter_number,
-                    chapter_title=chapter_title,
-                    format_id=format_id,
-                )
-                tag_payload = self._chapter_tag_payload(
-                    chapter_title=chapter_title,
-                    chapter_index=chapter_index,
-                    chapter_number=chapter_number,
-                    chapter_total=chapter_total,
-                    numbering_mode=options.chapter_numbering_mode,
-                    context=tag_context,
-                )
-                self._encode_chapter(
-                    chapter_parts=chapter_parts,
-                    format_id=format_id,
-                    output_path=output_path,
-                    tag_payload=tag_payload,
-                )
-                packaged_outputs.append(
-                    PackagedAudio(
-                        output_kind="chapter",
-                        format=format_id,
-                        chapter_index=chapter_index,
+        if options.chapter_outputs_enabled:
+            for format_id in options.formats:
+                for sequence_number, chapter_entry in enumerate(chapter_groups, start=1):
+                    chapter_index = chapter_entry[0]
+                    chapter_parts = chapter_entry[1]
+                    chapter_title = chapter_parts[0].part_title or f"chapter-{chapter_index:03d}"
+                    chapter_number = (
+                        chapter_index
+                        if options.chapter_numbering_mode == "source"
+                        else sequence_number
+                    )
+                    output_path = output_root / self._chapter_filename(
                         chapter_number=chapter_number,
                         chapter_title=chapter_title,
-                        path=output_path,
-                        source_part_filenames=tuple(part.path.name for part in chapter_parts),
+                        format_id=format_id,
+                        naming_mode=options.naming_mode,
                     )
-                )
+                    tag_payload = self._chapter_tag_payload(
+                        chapter_title=chapter_title,
+                        chapter_index=chapter_index,
+                        chapter_number=chapter_number,
+                        chapter_total=chapter_total,
+                        numbering_mode=options.chapter_numbering_mode,
+                        context=tag_context,
+                    )
+                    self._encode_chapter(
+                        chapter_parts=chapter_parts,
+                        format_id=format_id,
+                        output_path=output_path,
+                        tag_payload=tag_payload,
+                        encoding_bitrate=options.encoding_bitrate,
+                        encoding_profile=options.encoding_profile,
+                    )
+                    packaged_outputs.append(
+                        PackagedAudio(
+                            output_kind="chapter",
+                            format=format_id,
+                            chapter_index=chapter_index,
+                            chapter_number=chapter_number,
+                            chapter_title=chapter_title,
+                            path=output_path,
+                            source_part_filenames=tuple(part.path.name for part in chapter_parts),
+                        )
+                    )
 
-        if options.formats and options.keep_merged_deliverable and merged_path.exists():
+        if (
+            options.chapter_outputs_enabled
+            and options.formats
+            and options.keep_merged_deliverable
+            and merged_path.exists()
+        ):
             merged_output_path = output_root / "bookvoice_merged.wav"
             shutil.copyfile(merged_path, merged_output_path)
             packaged_outputs.append(
@@ -207,11 +316,22 @@ class AudioPackager:
             grouped.setdefault(part.chapter_index, []).append(part)
         return [(index, grouped[index]) for index in sorted(grouped)]
 
-    def _chapter_filename(self, *, chapter_number: int, chapter_title: str, format_id: str) -> str:
+    def _chapter_filename(
+        self,
+        *,
+        chapter_number: int,
+        chapter_title: str,
+        format_id: str,
+        naming_mode: str,
+    ) -> str:
         """Build deterministic package filename for one chapter output."""
 
-        slug = slugify_audio_title(chapter_title)
         extension = format_id.lower()
+        if naming_mode == "reader_friendly":
+            safe_title = re.sub(r"[\\/:*?\"<>|]+", "-", chapter_title).strip()
+            normalized_title = " ".join(safe_title.split()) or "Untitled Chapter"
+            return f"{chapter_number:03d} - {normalized_title}.{extension}"
+        slug = slugify_audio_title(chapter_title)
         return f"chapter_{chapter_number:03d}_{slug}.{extension}"
 
     def _encode_chapter(
@@ -221,6 +341,8 @@ class AudioPackager:
         format_id: str,
         output_path: Path,
         tag_payload: PackagedTagPayload | None = None,
+        encoding_bitrate: str = "128k",
+        encoding_profile: str = "balanced",
     ) -> None:
         """Encode one chapter from ordered WAV parts into the target packaged format."""
 
@@ -238,7 +360,11 @@ class AudioPackager:
         )
         concat_path.write_text(concat_content + "\n", encoding="utf-8")
 
-        codec, bitrate = self._encoding_profile(format_id)
+        codec, bitrate = self._encoding_profile(
+            format_id,
+            encoding_bitrate=encoding_bitrate,
+            encoding_profile=encoding_profile,
+        )
         command = [
             resolve_executable("ffmpeg"),
             "-y",
@@ -298,12 +424,27 @@ class AudioPackager:
             if concat_path.exists():
                 concat_path.unlink()
 
-    def _encoding_profile(self, format_id: str) -> tuple[str, str]:
+    def _encoding_profile(
+        self,
+        format_id: str,
+        *,
+        encoding_bitrate: str,
+        encoding_profile: str,
+    ) -> tuple[str, str]:
         """Return explicit deterministic codec profile for one packaged format."""
 
+        if encoding_profile not in self._VALID_ENCODING_PROFILES:
+            raise PipelineStageError(
+                stage="package",
+                detail=(
+                    "Unsupported encoding profile "
+                    f"`{encoding_profile}`. Supported: `balanced`, `voice`, `music`."
+                ),
+                hint="Set `packaging_encoding_profile` to `balanced`, `voice`, or `music`.",
+            )
         if format_id == "m4a":
-            return "aac", "128k"
-        return "libmp3lame", "128k"
+            return "aac", encoding_bitrate
+        return "libmp3lame", encoding_bitrate
 
     def _chapter_tag_payload(
         self,
