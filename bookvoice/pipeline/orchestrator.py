@@ -156,6 +156,28 @@ class BookvoicePipeline(
                 return int(stripped)
         return default
 
+    @staticmethod
+    def _packaged_output_manifest_metadata(
+        packaged_outputs: list[PackagedAudio],
+    ) -> dict[str, str]:
+        """Build manifest metadata listing emitted packaged artifact paths."""
+
+        all_paths = [str(item.path) for item in packaged_outputs]
+        chapter_paths = [
+            str(item.path) for item in packaged_outputs if item.output_kind == "chapter"
+        ]
+        merged_paths = [
+            str(item.path) for item in packaged_outputs if item.output_kind == "merged"
+        ]
+        metadata: dict[str, str] = {
+            "packaging_emitted_count": str(len(packaged_outputs)),
+            "packaging_emitted_paths_csv": ",".join(all_paths),
+            "packaging_emitted_chapter_paths_csv": ",".join(chapter_paths),
+        }
+        if merged_paths:
+            metadata["packaging_emitted_merged_path"] = merged_paths[0]
+        return metadata
+
     def list_chapters_from_pdf(
         self, config: BookvoiceConfig
     ) -> tuple[list[Chapter], str, str]:
@@ -309,6 +331,7 @@ class BookvoicePipeline(
                 options=packaging_options,
             ),
         }
+        packaged_output_metadata = self._packaged_output_manifest_metadata(packaged_outputs)
         packaged_path = store.save_json(
             Path("audio/packaged.json"),
             packaged_audio_artifact_payload(packaged_outputs, chapter_scope, packaging_metadata),
@@ -342,6 +365,7 @@ class BookvoicePipeline(
                     ),
                     **part_mapping_metadata,
                     **packaging_metadata,
+                    **packaged_output_metadata,
                     **self._provider_call_manifest_metadata(),
                     **runtime_config.as_manifest_metadata(),
                     **chapter_scope,
@@ -548,6 +572,7 @@ class BookvoicePipeline(
                 options=packaging_options,
             ),
         }
+        packaged_output_metadata = self._packaged_output_manifest_metadata(packaged_outputs)
         state.paths.packaged = state.store.save_json(
             Path("audio/packaged.json"),
             packaged_audio_artifact_payload(
@@ -590,6 +615,7 @@ class BookvoicePipeline(
                     ),
                     **part_mapping_metadata,
                     **packaging_metadata,
+                    **packaged_output_metadata,
                     **self._provider_call_manifest_metadata(),
                     **state.runtime_config.as_manifest_metadata(),
                     **state.chapter_scope,
@@ -793,11 +819,36 @@ class BookvoicePipeline(
             tts_voice=manifest_string(normalized_extra, "tts_voice", "echo"),
             rewrite_bypass=manifest_bool(normalized_extra, "rewrite_bypass", False),
             extra={
+                "packaging_output_format": manifest_string(
+                    normalized_extra,
+                    "packaging_output_format",
+                    manifest_string(normalized_extra, "packaging_mode", "wav"),
+                ),
                 "packaging_mode": manifest_string(normalized_extra, "packaging_mode", "none"),
+                "packaging_chapter_outputs": (
+                    "true"
+                    if manifest_bool(normalized_extra, "packaging_chapter_outputs", True)
+                    else "false"
+                ),
                 "packaging_chapter_numbering": manifest_string(
                     normalized_extra,
                     "packaging_chapter_numbering",
                     "source",
+                ),
+                "packaging_naming_mode": manifest_string(
+                    normalized_extra,
+                    "packaging_naming_mode",
+                    "deterministic",
+                ),
+                "packaging_encoding_bitrate": manifest_string(
+                    normalized_extra,
+                    "packaging_encoding_bitrate",
+                    "128k",
+                ),
+                "packaging_encoding_profile": manifest_string(
+                    normalized_extra,
+                    "packaging_encoding_profile",
+                    "balanced",
                 ),
                 "packaging_keep_merged": (
                     "true"
@@ -1136,6 +1187,9 @@ class BookvoicePipeline(
                 options=packaging_options,
             ),
         }
+        packaged_output_metadata = self._packaged_output_manifest_metadata(
+            state.packaged_outputs
+        )
         if not state.paths.packaged.exists():
             state.paths.packaged = state.store.save_json(
                 Path("audio/packaged.json"),
@@ -1171,6 +1225,7 @@ class BookvoicePipeline(
                 ),
                 **part_mapping_metadata,
                 **packaging_metadata,
+                **packaged_output_metadata,
                 **self._provider_call_manifest_metadata(),
                 **state.runtime_config.as_manifest_metadata(),
                 **state.chapter_scope,

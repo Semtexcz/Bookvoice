@@ -259,10 +259,16 @@ Minimal shape:
 ### `audio/package/chapter_<NNN>_<chapter-title-slug>.<ext>`
 
 - Optional chapter-split packaged deliverables emitted by package stage.
-- `ext` is `m4a` (AAC) and/or `mp3` based on packaging mode.
+- `ext` is `m4a` (AAC) and/or `mp3` based on resolved `packaging_output_format`.
 - Numbering mode is configurable:
   - `source`: `NNN` mirrors source chapter index.
   - `sequential`: `NNN` follows selected chapter order.
+- Naming mode is configurable:
+  - `deterministic`: `chapter_<NNN>_<chapter-title-slug>.<ext>`
+  - `reader_friendly`: `<NNN> - <Chapter Title>.<ext>`
+- Encoding controls are explicit and persisted:
+  - `packaging_encoding_profile`: `balanced`, `voice`, or `music`.
+  - `packaging_encoding_bitrate`: explicit bitrate token like `96k` or `128k`.
 - Packaging is additive: deterministic merged WAV remains the master artifact.
 - Packaged outputs are tagged with a canonical payload:
   - `title`: chapter title.
@@ -310,8 +316,13 @@ Minimal shape:
       "chapter_scope_mode": "all",
       "chapter_scope_label": "all"
     },
+    "packaging_output_format": "both",
     "packaging_mode": "both",
+    "packaging_chapter_outputs": "true",
     "packaging_chapter_numbering": "source",
+    "packaging_naming_mode": "deterministic",
+    "packaging_encoding_bitrate": "128k",
+    "packaging_encoding_profile": "balanced",
     "packaging_keep_merged": "true",
     "packaging_tags_schema": "bookvoice-packaged-v1",
     "packaging_tags_enabled": "true",
@@ -355,6 +366,16 @@ Minimal shape:
     "translations": "out/run-.../text/translations.json",
     "rewrites": "out/run-.../text/rewrites.json",
     "audio_parts": "out/run-.../audio/parts.json",
+    "output_language": "cs",
+    "packaging_output_format": "both",
+    "packaging_chapter_outputs": "true",
+    "packaging_naming_mode": "deterministic",
+    "packaging_encoding_bitrate": "128k",
+    "packaging_encoding_profile": "balanced",
+    "packaging_emitted_count": "3",
+    "packaging_emitted_paths_csv": "out/run-.../audio/package/chapter_001_chapter-1.m4a,...",
+    "packaging_emitted_chapter_paths_csv": "out/run-.../audio/package/chapter_001_chapter-1.m4a,...",
+    "packaging_emitted_merged_path": "out/run-.../audio/package/bookvoice_merged.wav",
     "manifest_path": "out/run-.../run_manifest.json",
     "provider_translator": "openai",
     "provider_rewriter": "openai",

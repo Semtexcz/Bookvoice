@@ -127,9 +127,20 @@ Common options:
 - `--interactive-provider-setup`: prompts provider/model/voice values.
 - `--store-api-key/--no-store-api-key`.
 - `--rewrite-bypass/--no-rewrite-bypass`.
-- `--package-mode`: `none`, `aac`, `mp3`, `both`.
+- `--language`: output language for translate/rewrite/tts (for example `cs`, `en`).
+- `--output-format`: `wav`, `m4a`, `mp3`, or `m4a,mp3`.
+- `--package-mode`: legacy compatibility mode (`none`, `aac`, `mp3`, `both`).
+- `--package-chapters/--no-package-chapters`.
 - `--package-chapter-numbering`: `source` or `sequential`.
+- `--package-naming`: `deterministic` or `reader_friendly`.
+- `--package-encoding-bitrate`: explicit target bitrate (`96k`, `128k`, `160k`).
+- `--package-encoding-profile`: `balanced`, `voice`, or `music`.
 - `--package-keep-merged/--no-package-keep-merged`.
+
+Compatibility note:
+
+- `--package-mode` remains supported for existing users and maps to the new output-format intent.
+- When no output-format flag is provided, deterministic WAV output remains the default behavior.
 
 Runtime feedback during `build`:
 
@@ -233,6 +244,15 @@ Environment keys:
 - `BOOKVOICE_MODEL_TTS`
 - `BOOKVOICE_TTS_VOICE`
 - `BOOKVOICE_REWRITE_BYPASS`
+- `BOOKVOICE_LANGUAGE`
+- `BOOKVOICE_OUTPUT_FORMAT`
+- `BOOKVOICE_PACKAGE_MODE` (legacy compatibility)
+- `BOOKVOICE_PACKAGE_CHAPTERS`
+- `BOOKVOICE_PACKAGE_CHAPTER_NUMBERING`
+- `BOOKVOICE_PACKAGE_KEEP_MERGED`
+- `BOOKVOICE_PACKAGE_NAMING_MODE`
+- `BOOKVOICE_PACKAGE_ENCODING_BITRATE`
+- `BOOKVOICE_PACKAGE_ENCODING_PROFILE`
 
 `ConfigLoader.from_yaml` supported keys:
 
@@ -251,6 +271,14 @@ Environment keys:
 - `chunk_size_chars` (positive integer)
 - `chapter_selection`
 - `resume` (`true`/`false`, `1`/`0`, `yes`/`no`)
+- `output_format` (`wav`, `m4a`, `mp3`, `m4a,mp3`)
+- `package_mode` (legacy compatibility: `none`, `aac`, `mp3`, `both`)
+- `package_chapters` (`true`/`false`, `1`/`0`, `yes`/`no`)
+- `package_chapter_numbering` (`source`/`sequential`)
+- `package_keep_merged` (`true`/`false`, `1`/`0`, `yes`/`no`)
+- `package_naming` (`deterministic`/`reader_friendly`)
+- `package_encoding_bitrate` (for example `128k`)
+- `package_encoding_profile` (`balanced`/`voice`/`music`)
 - `extra` (string-to-string mapping)
 
 Example `bookvoice.yaml`:
@@ -267,6 +295,12 @@ model_tts: gpt-4o-mini-tts
 tts_voice: echo
 rewrite_bypass: false
 chapter_selection: 1-3
+language: cs
+output_format: m4a,mp3
+package_chapter_numbering: sequential
+package_naming: deterministic
+package_encoding_profile: voice
+package_keep_merged: true
 ```
 
 For deterministic local verification, prefer the repository-owned synthetic PDF fixture
@@ -288,6 +322,14 @@ at `tests/files/canonical_synthetic_fixture.pdf`.
 - `BOOKVOICE_MODEL_TTS`
 - `BOOKVOICE_TTS_VOICE`
 - `BOOKVOICE_REWRITE_BYPASS`
+- `BOOKVOICE_OUTPUT_FORMAT`
+- `BOOKVOICE_PACKAGE_MODE`
+- `BOOKVOICE_PACKAGE_CHAPTERS`
+- `BOOKVOICE_PACKAGE_CHAPTER_NUMBERING`
+- `BOOKVOICE_PACKAGE_KEEP_MERGED`
+- `BOOKVOICE_PACKAGE_NAMING_MODE`
+- `BOOKVOICE_PACKAGE_ENCODING_BITRATE`
+- `BOOKVOICE_PACKAGE_ENCODING_PROFILE`
 - `OPENAI_API_KEY`
 
 ## Artifacts You Can Expect
@@ -315,7 +357,7 @@ leading/trailing silence trimming followed by peak normalization to `95%`.
 Merged WAV outputs include RIFF `LIST/INFO` tags: `INAM` (title), `ISBJ`
 (chapter/part context), and `ICMT` (source identifier).
 When packaging is enabled, chapter-split AAC (`.m4a`) and/or MP3 outputs are emitted
-under `audio/package/` with deterministic `chapter_<NNN>_<slug>.<ext>` naming.
+under `audio/package/` with configurable naming (`deterministic` or `reader_friendly`).
 Chapter numbering can follow source indices or sequential ordering.
 Packaged chapter metadata tags are written deterministically for both formats:
 - Canonical payload: `title`, `album`, `track`, `chapter_context`, `source_identifier`.
@@ -324,7 +366,8 @@ Packaged chapter metadata tags are written deterministically for both formats:
 Player support for `description`/`publisher` may vary by platform; `title`/`album`/`track` remain primary.
 `run_manifest.json` `extra` includes compact chapter/part mapping and referenced
 structure indices for resume/rebuild stability, packaging intent metadata,
-packaged-tag summary metadata (`packaging_tags_*`), and packaged artifact references.
+resolved output language (`output_language`), packaged-tag summary metadata
+(`packaging_tags_*`), and emitted packaged artifact references (`packaging_emitted_*`).
 `text/chunks.json` includes planner metadata under `metadata.planner` and chunk-level
 `boundary_strategy` metadata.
 

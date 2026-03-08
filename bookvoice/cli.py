@@ -28,7 +28,7 @@ from .config import BookvoiceConfig, ConfigLoader, RuntimeConfigSources
 from .credentials import create_credential_store
 from .cli_runtime import resolve_provider_runtime_sources
 from .errors import PipelineStageError
-from .parsing import normalize_optional_string
+from .parsing import normalize_optional_string, parse_permissive_boolean
 from .pipeline import BookvoicePipeline
 from .telemetry.logger import RunLogger
 
@@ -92,14 +92,130 @@ def _resolve_command_base_config(
     input_pdf: Path | None,
     out: Path | None,
     chapters: str | None,
+    language: str | None,
     rewrite_bypass: bool | None,
+    output_format: str | None = None,
     package_mode: str | None = None,
+    package_chapters: bool | None = None,
     package_chapter_numbering: str | None = None,
+    package_naming: str | None = None,
+    package_encoding_bitrate: str | None = None,
+    package_encoding_profile: str | None = None,
     package_keep_merged: bool | None = None,
 ) -> BookvoiceConfig:
     """Resolve effective command config from YAML defaults and explicit CLI overrides."""
 
     loaded_config = _load_yaml_config(config_file)
+    env_values = os.environ
+
+    def _resolve_value(cli_value: str | None, env_key: str, file_value: str | None) -> str | None:
+        """Resolve optional string value with CLI > env > config-file precedence."""
+
+        cli_normalized = normalize_optional_string(cli_value)
+        if cli_normalized is not None:
+            return cli_normalized
+        env_normalized = normalize_optional_string(env_values.get(env_key))
+        if env_normalized is not None:
+            return env_normalized
+        return normalize_optional_string(file_value)
+
+    def _resolve_bool(
+        cli_value: bool | None,
+        env_key: str,
+        file_value: bool | None,
+        default: bool,
+    ) -> bool:
+        """Resolve bool value with CLI > env > config-file > default precedence."""
+
+        if cli_value is not None:
+            return cli_value
+        env_raw = env_values.get(env_key)
+        if env_raw is not None:
+            env_parsed = parse_permissive_boolean(env_raw)
+            if env_parsed is None:
+                raise PipelineStageError(
+                    stage="config",
+                    detail=(
+                        f"Environment variable `{env_key}` must be a boolean value "
+                        "(`true`/`false`, `1`/`0`, `yes`/`no`)."
+                    ),
+                    hint=f"Set `{env_key}` to a valid boolean token and rerun.",
+                )
+            return env_parsed
+        if file_value is not None:
+            return file_value
+        return default
+
+    file_language = loaded_config.language if loaded_config is not None else None
+    resolved_language = _resolve_value(language, "BOOKVOICE_LANGUAGE", file_language) or "cs"
+
+    loaded_extra = dict(loaded_config.extra) if loaded_config is not None else {}
+    resolved_extra = dict(loaded_extra)
+    resolved_output_format = _resolve_value(
+        output_format,
+        "BOOKVOICE_OUTPUT_FORMAT",
+        normalize_optional_string(loaded_extra.get("packaging_output_format")),
+    )
+    if resolved_output_format is None:
+        resolved_output_format = _resolve_value(
+            package_mode,
+            "BOOKVOICE_PACKAGE_MODE",
+            normalize_optional_string(loaded_extra.get("packaging_mode")),
+        )
+    if resolved_output_format is not None:
+        resolved_extra["packaging_output_format"] = resolved_output_format
+    if package_mode is not None:
+        resolved_extra["packaging_mode"] = package_mode
+
+    resolved_package_chapters = _resolve_bool(
+        package_chapters,
+        "BOOKVOICE_PACKAGE_CHAPTERS",
+        parse_permissive_boolean(loaded_extra.get("packaging_chapter_outputs")),
+        default=True,
+    )
+    resolved_extra["packaging_chapter_outputs"] = (
+        "true" if resolved_package_chapters else "false"
+    )
+
+    resolved_chapter_numbering = _resolve_value(
+        package_chapter_numbering,
+        "BOOKVOICE_PACKAGE_CHAPTER_NUMBERING",
+        normalize_optional_string(loaded_extra.get("packaging_chapter_numbering")),
+    )
+    if resolved_chapter_numbering is not None:
+        resolved_extra["packaging_chapter_numbering"] = resolved_chapter_numbering
+
+    resolved_naming_mode = _resolve_value(
+        package_naming,
+        "BOOKVOICE_PACKAGE_NAMING_MODE",
+        normalize_optional_string(loaded_extra.get("packaging_naming_mode")),
+    )
+    if resolved_naming_mode is not None:
+        resolved_extra["packaging_naming_mode"] = resolved_naming_mode
+
+    resolved_encoding_bitrate = _resolve_value(
+        package_encoding_bitrate,
+        "BOOKVOICE_PACKAGE_ENCODING_BITRATE",
+        normalize_optional_string(loaded_extra.get("packaging_encoding_bitrate")),
+    )
+    if resolved_encoding_bitrate is not None:
+        resolved_extra["packaging_encoding_bitrate"] = resolved_encoding_bitrate
+
+    resolved_encoding_profile = _resolve_value(
+        package_encoding_profile,
+        "BOOKVOICE_PACKAGE_ENCODING_PROFILE",
+        normalize_optional_string(loaded_extra.get("packaging_encoding_profile")),
+    )
+    if resolved_encoding_profile is not None:
+        resolved_extra["packaging_encoding_profile"] = resolved_encoding_profile
+
+    resolved_keep_merged = _resolve_bool(
+        package_keep_merged,
+        "BOOKVOICE_PACKAGE_KEEP_MERGED",
+        parse_permissive_boolean(loaded_extra.get("packaging_keep_merged")),
+        default=True,
+    )
+    resolved_extra["packaging_keep_merged"] = "true" if resolved_keep_merged else "false"
 
     if loaded_config is None:
         if input_pdf is None:
@@ -110,18 +226,10 @@ def _resolve_command_base_config(
             )
         resolved_output_dir = out if out is not None else Path("out")
         resolved_rewrite_bypass = rewrite_bypass if rewrite_bypass is not None else False
-        resolved_extra: dict[str, str] = {}
-        if package_mode is not None:
-            resolved_extra["packaging_mode"] = package_mode
-        if package_chapter_numbering is not None:
-            resolved_extra["packaging_chapter_numbering"] = package_chapter_numbering
-        if package_keep_merged is not None:
-            resolved_extra["packaging_keep_merged"] = (
-                "true" if package_keep_merged else "false"
-            )
         return BookvoiceConfig(
             input_pdf=input_pdf,
             output_dir=resolved_output_dir,
+            language=resolved_language,
             chapter_selection=chapters,
             rewrite_bypass=resolved_rewrite_bypass,
             extra=resolved_extra,
@@ -133,18 +241,11 @@ def _resolve_command_base_config(
     resolved_rewrite_bypass = (
         rewrite_bypass if rewrite_bypass is not None else loaded_config.rewrite_bypass
     )
-    resolved_extra = dict(loaded_config.extra)
-    if package_mode is not None:
-        resolved_extra["packaging_mode"] = package_mode
-    if package_chapter_numbering is not None:
-        resolved_extra["packaging_chapter_numbering"] = package_chapter_numbering
-    if package_keep_merged is not None:
-        resolved_extra["packaging_keep_merged"] = "true" if package_keep_merged else "false"
 
     return BookvoiceConfig(
         input_pdf=resolved_input_pdf,
         output_dir=resolved_output_dir,
-        language=loaded_config.language,
+        language=resolved_language,
         provider_translator=loaded_config.provider_translator,
         provider_rewriter=loaded_config.provider_rewriter,
         provider_tts=loaded_config.provider_tts,
@@ -284,6 +385,17 @@ def build_command(
             ),
         ),
     ] = None,
+    language: Annotated[
+        str | None,
+        typer.Option("--language", help="Output language code override (for example `cs`)."),
+    ] = None,
+    output_format: Annotated[
+        str | None,
+        typer.Option(
+            "--output-format",
+            help="Output format intent: `wav`, `m4a`, `mp3`, or multi-target `m4a,mp3`.",
+        ),
+    ] = None,
     package_mode: Annotated[
         str | None,
         typer.Option(
@@ -291,11 +403,39 @@ def build_command(
             help="Packaged output mode: `none`, `aac`, `mp3`, or `both`.",
         ),
     ] = None,
+    package_chapters: Annotated[
+        bool | None,
+        typer.Option(
+            "--package-chapters/--no-package-chapters",
+            help="Enable or disable chapter-split packaged outputs.",
+        ),
+    ] = None,
     package_chapter_numbering: Annotated[
         str | None,
         typer.Option(
             "--package-chapter-numbering",
             help="Number packaged chapter files by source index or sequential order.",
+        ),
+    ] = None,
+    package_naming: Annotated[
+        str | None,
+        typer.Option(
+            "--package-naming",
+            help="Packaged naming mode: `deterministic` or `reader_friendly`.",
+        ),
+    ] = None,
+    package_encoding_bitrate: Annotated[
+        str | None,
+        typer.Option(
+            "--package-encoding-bitrate",
+            help="Packaged encoding bitrate (for example `128k`).",
+        ),
+    ] = None,
+    package_encoding_profile: Annotated[
+        str | None,
+        typer.Option(
+            "--package-encoding-profile",
+            help="Packaged encoding profile (`balanced`, `voice`, or `music`).",
         ),
     ] = None,
     package_keep_merged: Annotated[
@@ -328,9 +468,15 @@ def build_command(
             input_pdf=input_pdf,
             out=out,
             chapters=chapters,
+            language=language,
             rewrite_bypass=rewrite_bypass,
+            output_format=output_format,
             package_mode=package_mode,
+            package_chapters=package_chapters,
             package_chapter_numbering=package_chapter_numbering,
+            package_naming=package_naming,
+            package_encoding_bitrate=package_encoding_bitrate,
+            package_encoding_profile=package_encoding_profile,
             package_keep_merged=package_keep_merged,
         )
         config = _apply_runtime_sources(
@@ -532,6 +678,10 @@ def translate_only_command(
             ),
         ),
     ] = None,
+    language: Annotated[
+        str | None,
+        typer.Option("--language", help="Output language code override (for example `cs`)."),
+    ] = None,
 ) -> None:
     """Run pipeline stages through translation and persist text artifacts."""
 
@@ -555,6 +705,7 @@ def translate_only_command(
             input_pdf=input_pdf,
             out=out,
             chapters=chapters,
+            language=language,
             rewrite_bypass=rewrite_bypass,
         )
         config = _apply_runtime_sources(
