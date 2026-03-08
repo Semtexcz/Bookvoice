@@ -185,8 +185,8 @@ class _OpenAIBaseClient:
     def _retry_delay_seconds(self, attempt: int) -> float:
         """Return bounded exponential backoff delay for a retry attempt."""
 
-        delay = self.retry_backoff_base_seconds * (2 ** max(0, attempt - 1))
-        return min(self.retry_backoff_max_seconds, delay)
+        delay = self.retry_backoff_base_seconds * (2.0 ** float(max(0, attempt - 1)))
+        return float(min(self.retry_backoff_max_seconds, delay))
 
     @staticmethod
     def _should_retry_provider_error(error: OpenAIProviderError) -> bool:

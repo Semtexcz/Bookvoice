@@ -21,7 +21,13 @@ Before opening a PR, ensure all items are complete:
    - Run the full test suite with:
      - `poetry run pytest`
    - If you add or change behavior, add or update tests.
-4. Versioning and release notes (mandatory for every code change):
+4. Typing:
+   - Keep `mypy` clean for both `bookvoice` and `tests`.
+   - Run:
+     - `poetry run mypy --config-file pyproject.toml --explicit-package-bases bookvoice tests`
+   - Prefer explicit type-safe parsing for JSON/YAML payloads instead of broad `Any` casts.
+   - Use `# type: ignore[...]` only when there is no practical typed alternative and include a clear reason.
+5. Versioning and release notes (mandatory for every code change):
    - Use a Conventional Commit message:
      - Format: `type(scope): short description`
      - Example: `fix(cli): handle empty input`
@@ -33,7 +39,7 @@ Before opening a PR, ensure all items are complete:
      - Add the new version section
      - Write clear human-readable notes
      - Use headings such as `Added`, `Changed`, and `Fixed`
-5. Scope control:
+6. Scope control:
    - Do not include unrelated changes in one PR.
    - Do not remove existing functionality unless explicitly requested.
    - Do not introduce breaking changes without documenting them.
@@ -56,6 +62,7 @@ If your PR implements a backlog task:
 ## Final PR Checklist
 
 - [ ] Tests pass with `poetry run pytest`
+- [ ] Mypy passes with `poetry run mypy --config-file pyproject.toml --explicit-package-bases bookvoice tests`
 - [ ] Version bumped in `pyproject.toml`
 - [ ] `CHANGELOG.md` updated with the new version entry
 - [ ] Commit message follows Conventional Commits

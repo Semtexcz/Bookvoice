@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.2] - 2026-03-08
+
+### Added
+
+- Added deterministic local typing stubs under `stubs/` for `requests` and `yaml`, and configured mypy to use them via `mypy_path = "stubs"` so type-checking remains stable in offline environments.
+- Added explicit typing guidance to `CONTRIBUTING.md`, including the mandatory mypy command and conventions for safe payload parsing.
+
+### Changed
+
+- Enabled blocking mypy enforcement in `.github/workflows/ci.yml` by removing `continue-on-error` from the mypy step.
+- Updated CI QA tool bootstrap to install `types-requests` and `types-PyYAML` alongside `mypy`, `pytest`, `pytest-cov`, and `ruff`.
+- Added `types-requests` and `types-PyYAML` to the `dev` optional dependency set in `pyproject.toml`.
+- Bumped project version to `0.9.2`.
+
+### Fixed
+
+- Resolved the existing mypy baseline errors across pipeline mixins, artifact payload parsing, PDF outline typing, telemetry logger typing, and credential/runtime helper typing.
+
 ## [0.9.1] - 2026-03-08
 
 ### Changed

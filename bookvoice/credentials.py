@@ -13,6 +13,7 @@ Key types:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import ModuleType
 
 
 _DEFAULT_SERVICE_NAME = "bookvoice"
@@ -50,7 +51,7 @@ class KeyringCredentialStore(CredentialStore):
     service_name: str = _DEFAULT_SERVICE_NAME
     account_name: str = _DEFAULT_ACCOUNT_NAME
 
-    def _load_keyring_module(self):
+    def _load_keyring_module(self) -> ModuleType | None:
         """Import and return the optional `keyring` module when installed."""
 
         try:
@@ -74,7 +75,7 @@ class KeyringCredentialStore(CredentialStore):
             value = keyring_module.get_password(self.service_name, self.account_name)
         except Exception:
             return None
-        if value is None:
+        if not isinstance(value, str):
             return None
         normalized = value.strip()
         if not normalized:

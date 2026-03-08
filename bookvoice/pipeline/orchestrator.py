@@ -361,7 +361,7 @@ class BookvoicePipeline(
                         int(clean_metadata.get("drop_cap_merges_count", 0))
                     ),
                     "sentence_boundary_repairs_count": str(
-                        int(chunk_metadata.get("sentence_boundary_repairs_count", 0))
+                        self._manifest_int(chunk_metadata, "sentence_boundary_repairs_count", 0)
                     ),
                     **part_mapping_metadata,
                     **packaging_metadata,
@@ -503,7 +503,7 @@ class BookvoicePipeline(
                         int(clean_metadata.get("drop_cap_merges_count", 0))
                     ),
                     "sentence_boundary_repairs_count": str(
-                        int(chunk_metadata.get("sentence_boundary_repairs_count", 0))
+                        self._manifest_int(chunk_metadata, "sentence_boundary_repairs_count", 0)
                     ),
                     "pipeline_mode": "translate_only",
                     **self._provider_call_manifest_metadata(),
@@ -1016,8 +1016,10 @@ class BookvoicePipeline(
         state.chunks, chunk_metadata = self._chunk(
             state.selected_chapters, state.normalized_structure, state.config
         )
-        state.sentence_boundary_repairs_count = int(
-            chunk_metadata.get("sentence_boundary_repairs_count", 0)
+        state.sentence_boundary_repairs_count = self._manifest_int(
+            chunk_metadata,
+            "sentence_boundary_repairs_count",
+            0,
         )
         state.paths.chunks = state.store.save_json(
             Path("text/chunks.json"),
