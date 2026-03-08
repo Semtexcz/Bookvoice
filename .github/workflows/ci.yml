@@ -48,13 +48,12 @@ jobs:
         run: poetry install --no-root
 
       - name: Install QA tools
-        run: poetry run python -m pip install mypy pytest pytest-cov ruff
+        run: poetry run python -m pip install mypy pytest pytest-cov ruff types-requests types-PyYAML
 
       - name: Ruff
         run: poetry run ruff check .
 
       - name: Mypy
-        continue-on-error: true
         run: poetry run mypy --config-file pyproject.toml --explicit-package-bases bookvoice tests
 
       - name: Pytest with coverage gate

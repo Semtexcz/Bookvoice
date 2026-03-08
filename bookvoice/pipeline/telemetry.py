@@ -9,13 +9,22 @@ Responsibilities:
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
+
+if TYPE_CHECKING:
+    from ..telemetry.logger import RunLogger
 
 _StageResult = TypeVar("_StageResult")
 
 
 class PipelineTelemetryMixin:
     """Provide stage-telemetry helper methods."""
+
+    _run_logger: RunLogger | None
+    _stage_progress_callback: Callable[[str, int, int], None] | None
+    _provider_retry_attempts: int
+    _provider_cache_hits: int
+    _provider_cache_misses: int
 
     _PHASE_SEQUENCE = (
         "extract",

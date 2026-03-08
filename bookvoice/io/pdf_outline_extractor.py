@@ -8,8 +8,10 @@ Responsibilities:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from ..models.datatypes import Chapter, ChapterStructureUnit
 from .pdf_text_extractor import PdfTextExtractor
@@ -154,7 +156,7 @@ class PdfOutlineChapterExtractor:
 
     def _outline_entry_from_item(
         self,
-        reader: object,
+        reader: Any,
         item: object,
         destination_type: type[object],
     ) -> _OutlineEntry | None:
@@ -177,7 +179,7 @@ class PdfOutlineChapterExtractor:
             return None
         return _OutlineEntry(title=title, page_index=page_index)
 
-    def _flatten_outline_items(self, items: list[object]) -> list[object]:
+    def _flatten_outline_items(self, items: Sequence[object]) -> list[object]:
         """Flatten nested list structures under a chapter into a deterministic sequence."""
 
         flattened: list[object] = []

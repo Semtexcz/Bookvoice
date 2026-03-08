@@ -1,6 +1,6 @@
 ---
 task: TASK-051
-status: "backlog"
+status: "done"
 priority: P1
 type: chore
 ---
@@ -8,7 +8,7 @@ type: chore
 # Resolve current mypy baseline errors and enforce blocking CI gate
 
 Task: TASK-051
-Status: backlog
+Status: done
 Priority: P1
 Type: chore
 Author:
@@ -21,11 +21,11 @@ The repository currently contains existing `mypy` baseline errors, so CI must ru
 
 ## Definition of Done
 
-- [ ] Fix all current `mypy` errors reported by `poetry run mypy --config-file pyproject.toml --explicit-package-bases bookvoice tests`.
-- [ ] Ensure required third-party type stubs are available in development and CI environments.
-- [ ] Update CI workflow to remove non-blocking behavior for the `mypy` step.
-- [ ] Verify CI passes with blocking `mypy`, `ruff`, and `pytest` coverage gate.
-- [ ] Document any relevant typing conventions or constraints introduced during fixes.
+- [x] Fix all current `mypy` errors reported by `poetry run mypy --config-file pyproject.toml --explicit-package-bases bookvoice tests`.
+- [x] Ensure required third-party type stubs are available in development and CI environments.
+- [x] Update CI workflow to remove non-blocking behavior for the `mypy` step.
+- [x] Verify CI passes with blocking `mypy`, `ruff`, and `pytest` coverage gate.
+- [x] Document any relevant typing conventions or constraints introduced during fixes.
 
 ## Notes
 

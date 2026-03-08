@@ -8,8 +8,9 @@ Responsibilities:
 from __future__ import annotations
 
 import sys
-from typing import TextIO
+from typing import Any, TextIO
 
+_loguru_logger: Any | None
 try:
     from loguru import logger as _loguru_logger
 except ImportError:

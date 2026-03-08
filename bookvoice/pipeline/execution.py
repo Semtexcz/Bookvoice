@@ -9,6 +9,7 @@ Responsibilities:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..audio.merger import AudioMerger
 from ..audio.packaging import AudioPackager, PackagedTagContext, PackagingOptions
@@ -42,6 +43,17 @@ from ..tts.voices import VoiceProfile
 
 class PipelineExecutionMixin:
     """Provide stage-level pipeline helper methods."""
+
+    if TYPE_CHECKING:
+
+        def _resolve_runtime_config(self, config: BookvoiceConfig) -> ProviderRuntimeConfig:
+            """Return resolved provider runtime configuration."""
+
+        def _record_provider_retry_attempts(self, retry_attempts: int) -> None:
+            """Record provider retry telemetry for downstream manifest metadata."""
+
+        def _record_provider_cache_stats(self, *, hits: int, misses: int) -> None:
+            """Record provider cache telemetry for downstream manifest metadata."""
 
     @staticmethod
     def _provider_error_detail(stage: str, exc: OpenAIProviderError) -> str:

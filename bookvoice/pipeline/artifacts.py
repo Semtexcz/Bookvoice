@@ -380,18 +380,24 @@ def load_normalized_structure(path: Path) -> list[ChapterStructureUnit]:
 def _chunk_from_payload(payload: dict[str, object]) -> Chunk:
     """Deserialize a chunk payload from artifact JSON."""
 
+    source_order_indices = payload.get("source_order_indices", [])
+    if not isinstance(source_order_indices, list):
+        source_order_indices = []
+
     return Chunk(
-        chapter_index=int(payload["chapter_index"]),
-        chunk_index=int(payload["chunk_index"]),
+        chapter_index=int(str(payload["chapter_index"])),
+        chunk_index=int(str(payload["chunk_index"])),
         text=str(payload["text"]),
-        char_start=int(payload["char_start"]),
-        char_end=int(payload["char_end"]),
-        part_index=(int(payload["part_index"]) if payload.get("part_index") is not None else None),
+        char_start=int(str(payload["char_start"])),
+        char_end=int(str(payload["char_end"])),
+        part_index=(
+            int(str(payload["part_index"])) if payload.get("part_index") is not None else None
+        ),
         part_title=(
             str(payload["part_title"]) if payload.get("part_title") is not None else None
         ),
         part_id=(str(payload["part_id"]) if payload.get("part_id") is not None else None),
-        source_order_indices=tuple(int(index) for index in payload.get("source_order_indices", [])),
+        source_order_indices=tuple(int(str(index)) for index in source_order_indices),
         boundary_strategy=str(payload.get("boundary_strategy", "sentence_complete")),
     )
 
