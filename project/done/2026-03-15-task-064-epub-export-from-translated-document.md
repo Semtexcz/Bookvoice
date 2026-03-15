@@ -1,6 +1,6 @@
 ---
 task: TASK-064
-status: "backlog"
+status: "done"
 priority: P1
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Export translated books as EPUB
 
 Task: TASK-064
-Status: backlog
+Status: done
 Priority: P1
 Type: feature
 Author:
@@ -22,16 +22,16 @@ tool for e-readers and ebook applications.
 
 ## Definition of Done
 
-- [ ] Implement deterministic `EPUB` export from the canonical translated
+- [x] Implement deterministic `EPUB` export from the canonical translated
       document artifact.
-- [ ] Generate valid navigation, ordered chapter content, and required package
+- [x] Generate valid navigation, ordered chapter content, and required package
       metadata for common e-readers.
-- [ ] Preserve translated language metadata and human-readable title/chapter
+- [x] Preserve translated language metadata and human-readable title/chapter
       labels in the exported file.
-- [ ] Define and test deterministic output naming and destination paths.
-- [ ] Add automated tests that validate basic `EPUB` structure and chapter
+- [x] Define and test deterministic output naming and destination paths.
+- [x] Add automated tests that validate basic `EPUB` structure and chapter
       ordering.
-- [ ] Update user documentation with at least one example of `EPUB` export.
+- [x] Update user documentation with at least one example of `EPUB` export.
 
 ## Notes
 

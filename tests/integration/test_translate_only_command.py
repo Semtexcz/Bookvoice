@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+import zipfile
 
 from tests.fixture_paths import (
     canonical_content_epub_fixture_path,
@@ -72,7 +73,7 @@ def test_translate_only_command_creates_expected_artifacts_without_audio(
 def test_translate_only_command_persists_reader_export_plan_metadata(
     tmp_path: Path,
 ) -> None:
-    """Translate-only should persist deterministic planned reader-export metadata."""
+    """Translate-only should persist deterministic reader-export metadata with emitted EPUB."""
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
@@ -100,15 +101,64 @@ def test_translate_only_command_persists_reader_export_plan_metadata(
 
     assert extra["reader_export_requested"] == "true"
     assert extra["reader_export_formats_csv"] == "epub,pdf"
-    assert extra["reader_export_status"] == "planned_only"
-    assert extra["reader_export_content_source"] == "translations"
+    assert extra["reader_export_status"] == "partial"
+    assert extra["reader_export_content_source"] == "translated_document"
     assert extra["reader_export_rewrite_policy"] == "audio_rewrite_not_applied"
     assert extra["reader_export_planned_count"] == "2"
+    assert extra["reader_export_emitted_count"] == "1"
     assert extra["reader_export_output_dir"].endswith("/reader")
     assert extra["reader_export_planned_epub"].endswith(".epub")
     assert extra["reader_export_planned_pdf"].endswith(".pdf")
+    assert extra["reader_export_emitted_epub"].endswith(".epub")
     assert "chapters-1-2" in extra["reader_export_basename"]
-    assert "Reader export request: epub,pdf [planned_only]" in result.output
+    assert "Reader export request: epub,pdf [partial]" in result.output
+
+
+def test_translate_only_command_emits_epub_from_translated_document(
+    tmp_path: Path,
+) -> None:
+    """Translate-only should emit EPUB output when reader-export format includes `epub`."""
+
+    runner = CliRunner()
+    out_dir = tmp_path / "out"
+    fixture_pdf = canonical_content_pdf_fixture_path()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate-only",
+            str(fixture_pdf),
+            "--out",
+            str(out_dir),
+            "--reader-output-format",
+            "epub",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+
+    manifest_path = next(out_dir.glob("run-*/run_manifest.json"))
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    extra = payload["extra"]
+    emitted_epub = Path(extra["reader_export_emitted_epub"])
+
+    assert extra["reader_export_formats_csv"] == "epub"
+    assert extra["reader_export_status"] == "emitted"
+    assert emitted_epub.exists()
+    assert emitted_epub.parent.name == "reader"
+    assert emitted_epub.name.endswith(".translated.epub")
+
+    with zipfile.ZipFile(emitted_epub, "r") as archive:
+        opf = archive.read("OEBPS/content.opf").decode("utf-8")
+        nav = archive.read("OEBPS/nav.xhtml").decode("utf-8")
+        chapter_files = sorted(
+            name for name in archive.namelist() if name.startswith("OEBPS/chapter-")
+        )
+
+    assert "<dc:language>cs</dc:language>" in opf
+    assert "<dc:title>Canonical Synthetic Fixture</dc:title>" in opf
+    assert len(chapter_files) >= 1
+    assert "chapter-001.xhtml" in nav
 
 
 def test_translate_only_command_reports_stage_error_with_hint(

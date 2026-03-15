@@ -5,6 +5,7 @@ interfaces used by the pipeline.
 """
 
 from .chapter_splitter import ChapterSplitter
+from .epub_exporter import EpubExporter
 from .epub_text_extractor import EpubTextExtractor
 from .pdf_outline_extractor import PdfOutlineChapterExtractor
 from .pdf_text_extractor import PdfTextExtractor
@@ -15,5 +16,6 @@ __all__ = [
     "PdfTextExtractor",
     "PdfOutlineChapterExtractor",
     "ChapterSplitter",
+    "EpubExporter",
     "ArtifactStore",
 ]

@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.15.0] - 2026-03-15
+
+### Added
+
+- Added deterministic EPUB reader export implementation in
+  `bookvoice/io/epub_exporter.py`:
+  - standards-compliant minimal EPUB archive generation (`mimetype`,
+    `META-INF/container.xml`, `OEBPS/content.opf`, `OEBPS/nav.xhtml`,
+    `OEBPS/toc.ncx`, ordered chapter XHTML files),
+  - deterministic ZIP metadata and stable chapter filename ordering,
+  - preservation of translated language metadata and chapter labels from the
+    canonical translated-document artifact.
+- Added translate-only reader export emission wiring in
+  `bookvoice/pipeline/orchestrator.py` that:
+  - loads `text/translated_document.json` via the strict artifact loader,
+  - emits requested `.epub` output under deterministic `<run-root>/reader/`
+    paths,
+  - records emitted-reader metadata in manifest `extra`.
+- Added reader-export path/metadata helpers for emitted outputs in
+  `bookvoice/pipeline/reader_exports.py`, including deterministic output path
+  resolution and status transitions (`planned_only`, `partial`, `emitted`).
+- Added automated coverage for EPUB export structure and translate-only
+  emission behavior in:
+  - `tests/unit/test_epub_exporter.py`,
+  - `tests/unit/test_reader_exports.py`,
+  - `tests/integration/test_translate_only_command.py`.
+
+### Changed
+
+- Updated `README.md` and `docs/ARTIFACTS.md` to document real EPUB export
+  behavior from `translate-only` and emitted reader-export manifest keys.
+- Updated reader-export metadata semantics:
+  - `reader_export_content_source` now reflects `translated_document`,
+  - emitted output keys are persisted alongside planned output keys.
+- Completed `TASK-064`, marked it done, and moved it to
+  `project/done/2026-03-15-task-064-epub-export-from-translated-document.md`.
+- Bumped project version to `0.15.0`.
+
 ## [0.14.0] - 2026-03-15
 
 ### Added

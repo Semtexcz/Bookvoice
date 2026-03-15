@@ -114,6 +114,7 @@ poetry run bookvoice chapters-only input.pdf --out out/ --chapters 1-3
 poetry run bookvoice translate-only input.pdf --out out/
 poetry run bookvoice translate-only input.epub --out out/
 poetry run bookvoice translate-only input.pdf --out out/ --chapters 2-4
+poetry run bookvoice translate-only input.pdf --out out/ --reader-output-format epub
 poetry run bookvoice translate-only input.pdf --out out/ --reader-output-format epub,pdf
 poetry run bookvoice translate-only --config bookvoice.yaml
 ```
@@ -124,7 +125,8 @@ Behavior:
 - Persists deterministic text artifacts (`raw`, `clean`, `chapters`, `chunks`, `translations`, `translated_document`) and `run_manifest.json`.
 - Does not execute `rewrite`, `tts`, or `merge`.
 - Optional `--reader-output-format` contract accepts `none`, `epub`, `pdf`, or `epub,pdf`.
-- Reader export requests are persisted as deterministic planned-output metadata under manifest `extra` (actual EPUB/PDF writers are implemented in follow-up tasks).
+- `epub` reader export is emitted deterministically from `text/translated_document.json` to `<run-root>/reader/<source>.<lang>.<scope>.translated.epub`.
+- `pdf` reader export remains planned-only metadata in this release.
 - Supports the same provider/model/runtime precedence and secure credential flow as `build`.
 
 ### TTS-only (from manifest + text artifacts)

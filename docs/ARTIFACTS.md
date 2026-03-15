@@ -34,6 +34,8 @@ out/
         001_01_chapter-1.wav
         001_02_chapter-1.wav
         ...
+    reader/
+      canonical-synthetic-fixture.cs.all.translated.epub
 ```
 
 ## Text Artifacts
@@ -90,14 +92,17 @@ manifest `extra` includes deterministic reader-export contract metadata:
 
 - `reader_export_requested`: `true`/`false`
 - `reader_export_formats_csv`: `none`, `epub`, `pdf`, or `epub,pdf`
-- `reader_export_content_source`: currently `translations`
+- `reader_export_content_source`: currently `translated_document`
 - `reader_export_rewrite_policy`: currently `audio_rewrite_not_applied`
-- `reader_export_output_dir`: planned reader output directory (`<run-root>/reader`)
+- `reader_export_output_dir`: reader output directory (`<run-root>/reader`)
 - `reader_export_basename`: deterministic base filename token
-- `reader_export_status`: `planned_only`
+- `reader_export_status`: `planned_only`, `partial`, or `emitted`
 - `reader_export_planned_count`: number of requested formats
 - `reader_export_planned_paths_csv`: deterministic planned output path list
 - `reader_export_planned_epub` / `reader_export_planned_pdf` when requested
+- `reader_export_emitted_count`: number of actually emitted reader files
+- `reader_export_emitted_paths_csv`: deterministic emitted output path list
+- `reader_export_emitted_epub` / `reader_export_emitted_pdf` when emitted
 - `translated_document`: path to canonical translated-document artifact used by
   reader exporters
 

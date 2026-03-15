@@ -9,6 +9,7 @@ import pytest
 from bookvoice.pipeline.reader_exports import (
     reader_export_formats_csv,
     reader_export_manifest_metadata,
+    reader_export_output_path,
     resolve_reader_export_formats,
 )
 
@@ -51,6 +52,44 @@ def test_reader_export_manifest_metadata_is_deterministic() -> None:
     assert metadata["reader_export_output_dir"] == "out/run-abc/reader"
     assert metadata["reader_export_basename"] == "input.cs.chapters-2-4.translated"
     assert metadata["reader_export_planned_count"] == "2"
+    assert metadata["reader_export_emitted_count"] == "0"
     assert metadata["reader_export_planned_epub"].endswith(".epub")
     assert metadata["reader_export_planned_pdf"].endswith(".pdf")
     assert reader_export_formats_csv(tuple()) == "none"
+
+
+def test_reader_export_manifest_metadata_marks_partial_when_some_formats_emit() -> None:
+    """Reader export metadata should mark partial status when only subset is emitted."""
+
+    metadata = reader_export_manifest_metadata(
+        run_root=Path("out/run-abc"),
+        source_path=Path("input.epub"),
+        language="cs",
+        chapter_scope={
+            "chapter_scope_mode": "all",
+            "chapter_scope_label": "all",
+        },
+        formats=("epub", "pdf"),
+        emitted_paths={"epub": Path("out/run-abc/reader/input.cs.all.translated.epub")},
+    )
+
+    assert metadata["reader_export_status"] == "partial"
+    assert metadata["reader_export_emitted_count"] == "1"
+    assert metadata["reader_export_emitted_epub"].endswith(".epub")
+
+
+def test_reader_export_output_path_is_deterministic() -> None:
+    """Reader export output path helper should preserve deterministic naming tokens."""
+
+    path = reader_export_output_path(
+        run_root=Path("out/run-xyz"),
+        source_path=Path("my-input.epub"),
+        language="cs",
+        chapter_scope={
+            "chapter_scope_mode": "selected",
+            "chapter_scope_indices_csv": "3,8",
+        },
+        export_format="epub",
+    )
+
+    assert str(path) == "out/run-xyz/reader/my-input.cs.chapters-3-8.translated.epub"

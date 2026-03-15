@@ -17,6 +17,7 @@ from pathlib import Path
 
 from ..config import BookvoiceConfig, ProviderRuntimeConfig
 from ..errors import PipelineStageError
+from ..io.epub_exporter import EpubExportRequest, EpubExporter
 from ..io.storage import ArtifactStore
 from ..models.datatypes import (
     AudioPart,
@@ -42,6 +43,7 @@ from .artifacts import (
     load_normalized_structure,
     load_packaged_audio,
     load_rewrites,
+    load_translated_document,
     load_translations,
     packaged_audio_artifact_payload,
     part_mapping_manifest_metadata,
@@ -60,6 +62,7 @@ from .execution import PipelineExecutionMixin
 from .manifesting import PipelineManifestMixin
 from .reader_exports import (
     reader_export_manifest_metadata,
+    reader_export_output_path,
     resolve_reader_export_formats,
 )
 from .resume import (
@@ -505,6 +508,7 @@ class BookvoicePipeline(
                 chapter_scope=chapter_scope,
             ),
         )
+        translated_document = load_translated_document(translated_document_path)
         try:
             reader_export_formats = resolve_reader_export_formats(
                 config.extra.get("reader_output_format")
@@ -515,12 +519,38 @@ class BookvoicePipeline(
                 detail=str(exc),
                 hint="Use `--reader-output-format` with `epub`, `pdf`, or `epub,pdf`.",
             ) from exc
+        emitted_reader_exports: dict[str, Path] = {}
+        if "epub" in reader_export_formats:
+            epub_output_path = reader_export_output_path(
+                run_root=store.root,
+                source_path=config.source_path,
+                language=config.language,
+                chapter_scope=chapter_scope,
+                export_format="epub",
+            )
+            try:
+                emitted_reader_exports["epub"] = EpubExporter().export(
+                    EpubExportRequest(
+                        document=translated_document,
+                        output_path=epub_output_path,
+                    )
+                )
+            except Exception as exc:
+                raise PipelineStageError(
+                    stage="reader-export",
+                    detail=f"Failed to export EPUB from translated document: {exc}",
+                    hint=(
+                        "Verify translated-document artifact integrity and write permissions "
+                        "for the run output directory."
+                    ),
+                ) from exc
         reader_export_metadata = reader_export_manifest_metadata(
             run_root=store.root,
             source_path=config.source_path,
             language=config.language,
             chapter_scope=chapter_scope,
             formats=reader_export_formats,
+            emitted_paths=emitted_reader_exports,
         )
 
         return self._run_stage(
