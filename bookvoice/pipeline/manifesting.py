@@ -12,6 +12,7 @@ from pathlib import Path
 
 from ..config import BookvoiceConfig
 from ..errors import PipelineStageError
+from ..io.epub_text_extractor import EpubExtractionError, EpubTextExtractor
 from ..io.storage import ArtifactStore
 from ..models.datatypes import BookMeta, RunManifest
 from .artifacts import manifest_payload
@@ -19,6 +20,26 @@ from .artifacts import manifest_payload
 
 class PipelineManifestMixin:
     """Provide run-manifest serialization and persistence helpers."""
+
+    @staticmethod
+    def _book_metadata_from_source(config: BookvoiceConfig) -> tuple[str, str | None]:
+        """Resolve book title/author metadata from source document when available."""
+
+        title = config.source_path.stem
+        author: str | None = None
+        if config.source_format != "epub":
+            return title, author
+
+        try:
+            extracted_title, extracted_author = EpubTextExtractor().extract_package_metadata(
+                config.source_path
+            )
+            if extracted_title:
+                title = extracted_title
+            author = extracted_author
+        except EpubExtractionError:
+            pass
+        return title, author
 
     def _write_manifest(
         self,
@@ -33,11 +54,12 @@ class PipelineManifestMixin:
         """Build and persist a run manifest with deterministic identifiers."""
 
         try:
+            title, author = self._book_metadata_from_source(config)
             meta = BookMeta(
                 source_pdf=config.source_path,
                 source_format=config.source_format,
-                title=config.source_path.stem,
-                author=None,
+                title=title,
+                author=author,
                 language=config.language,
             )
             manifest = RunManifest(

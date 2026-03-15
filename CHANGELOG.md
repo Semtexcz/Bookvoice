@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.0] - 2026-03-15
+
+### Added
+
+- Added deterministic EPUB extraction in `bookvoice/io/epub_text_extractor.py`:
+  - parses package metadata (`dc:title`, `dc:creator`),
+  - resolves manifest/spine document order from OPF,
+  - extracts plain text from XHTML spine content,
+  - supports chapter extraction from EPUB3 nav and EPUB2 NCX metadata.
+- Added a repository-owned synthetic EPUB fixture at
+  `tests/files/canonical_synthetic_fixture.epub`.
+- Added EPUB extraction tests in
+  `tests/unit/test_epub_text_and_chapter_extraction.py` for successful text
+  extraction, nav chapter ordering, and missing-navigation fallback behavior.
+
+### Changed
+
+- Wired pipeline extraction to support `.epub` sources in addition to `.pdf`.
+- Extended chapter split strategy with EPUB navigation-first extraction
+  (`chapter_source=epub_nav`) and deterministic fallback to
+  `text_heuristic` with explicit fallback reasons such as `nav_missing`.
+- Updated manifest metadata generation to use EPUB package title/author when
+  available.
+- Bumped project version to `0.11.0`.
+
 ## [0.10.0] - 2026-03-15
 
 ### Added

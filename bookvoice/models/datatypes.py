@@ -160,7 +160,7 @@ class ChapterStructureUnit:
         text: Text payload represented by this planning unit.
         char_start: Inclusive character offset in chapter text.
         char_end: Exclusive character offset in chapter text.
-        source: Source for this unit (`pdf_outline` or `text_heuristic`).
+        source: Source for this unit (`pdf_outline`, `epub_nav`, or `text_heuristic`).
     """
 
     order_index: int

@@ -18,6 +18,7 @@ from ..audio.tags import AudioTagContext, MetadataWriter
 from ..config import BookvoiceConfig, ProviderRuntimeConfig
 from ..errors import PipelineStageError
 from ..io.chapter_splitter import ChapterSplitter
+from ..io.epub_text_extractor import EpubTextExtractor
 from ..io.pdf_outline_extractor import PdfOutlineChapterExtractor
 from ..io.pdf_text_extractor import PdfTextExtractor
 from ..io.storage import ArtifactStore
@@ -133,14 +134,8 @@ class PipelineExecutionMixin:
                 extractor = PdfTextExtractor()
                 return extractor.extract(config.source_path)
             if config.source_format == "epub":
-                raise PipelineStageError(
-                    stage="extract",
-                    detail=(
-                        f"EPUB source `{config.source_path}` is recognized, but EPUB extraction "
-                        "is not implemented yet."
-                    ),
-                    hint="Use a PDF source for now.",
-                )
+                extractor = EpubTextExtractor()
+                return extractor.extract(config.source_path)
             raise PipelineStageError(
                 stage="extract",
                 detail=f"Unsupported source format `{config.source_format}`.",
@@ -195,6 +190,15 @@ class PipelineExecutionMixin:
                 fallback_reason = outline_result.status
             except Exception:
                 fallback_reason = "outline_invalid"
+        elif source_format == "epub":
+            fallback_reason = "nav_invalid"
+            try:
+                nav_result = EpubTextExtractor().extract_chapters(source_path)
+                if nav_result.chapters:
+                    return nav_result.chapters, "epub_nav", ""
+                fallback_reason = nav_result.status
+            except Exception:
+                fallback_reason = "nav_invalid"
 
         try:
             splitter = ChapterSplitter()
@@ -225,10 +229,8 @@ class PipelineExecutionMixin:
             except Exception:
                 pass
 
-        return ChapterStructureNormalizer().from_chapters(
-            chapters=chapters,
-            source="text_heuristic",
-        )
+        fallback_source = chapter_source if chapter_source == "epub_nav" else "text_heuristic"
+        return ChapterStructureNormalizer().from_chapters(chapters=chapters, source=fallback_source)
 
     def _chunk(
         self,

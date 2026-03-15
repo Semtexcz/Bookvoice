@@ -1,6 +1,6 @@
 ---
 task: TASK-067
-status: "backlog"
+status: "done"
 priority: P1
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Add EPUB text and chapter extraction
 
 Task: TASK-067
-Status: backlog
+Status: done
 Priority: P1
 Type: feature
 Author:
@@ -23,15 +23,15 @@ from `EPUB` packages deterministically.
 
 ## Definition of Done
 
-- [ ] Implement `EPUB` extraction that reads package metadata, spine order, and
+- [x] Implement `EPUB` extraction that reads package metadata, spine order, and
       document text from the archive.
-- [ ] Normalize extracted content into the chapter/text structures expected by
+- [x] Normalize extracted content into the chapter/text structures expected by
       downstream pipeline stages.
-- [ ] Support chapter discovery from navigation metadata when available, with a
+- [x] Support chapter discovery from navigation metadata when available, with a
       documented fallback when explicit TOC data is missing.
-- [ ] Add a synthetic repository-owned `EPUB` fixture suitable for deterministic
+- [x] Add a synthetic repository-owned `EPUB` fixture suitable for deterministic
       tests.
-- [ ] Add automated tests for successful extraction, chapter ordering, and
+- [x] Add automated tests for successful extraction, chapter ordering, and
       missing-metadata fallback behavior.
 
 ## Notes
