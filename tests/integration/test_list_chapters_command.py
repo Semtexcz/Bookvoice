@@ -2,7 +2,10 @@
 
 from pathlib import Path
 
-from tests.fixture_paths import canonical_content_pdf_fixture_path
+from tests.fixture_paths import (
+    canonical_content_epub_fixture_path,
+    canonical_content_pdf_fixture_path,
+)
 
 from typer.testing import CliRunner
 
@@ -46,3 +49,20 @@ def test_list_chapters_command_fails_for_missing_artifact(tmp_path: Path) -> Non
     assert result.exit_code == 1
     assert "list-chapters failed at stage `chapters-artifact`" in result.output
     assert "Chapters artifact not found" in result.output
+
+
+def test_list_chapters_command_lists_epub_navigation_chapters(tmp_path: Path) -> None:
+    """List-chapters should accept EPUB input and report navigation-derived chapters."""
+
+    runner = CliRunner()
+    out_dir = tmp_path / "out"
+    fixture_epub = canonical_content_epub_fixture_path()
+
+    result = runner.invoke(
+        app,
+        ["list-chapters", str(fixture_epub), "--out", str(out_dir)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Chapter source: epub_nav" in result.output
+    assert "1. Chapter 1: Orchard Ledger" in result.output

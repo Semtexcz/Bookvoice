@@ -1,6 +1,6 @@
 ---
 task: TASK-068
-status: "backlog"
+status: "done"
 priority: P1
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Integrate EPUB sources across CLI and pipeline flows
 
 Task: TASK-068
-Status: backlog
+Status: done
 Priority: P1
 Type: feature
 Author:
@@ -23,17 +23,17 @@ sources end to end.
 
 ## Definition of Done
 
-- [ ] Support `EPUB` sources in at least `list-chapters`, `translate-only`, and
+- [x] Support `EPUB` sources in at least `list-chapters`, `translate-only`, and
       the main build flow where source text is required.
-- [ ] Persist source-format metadata and source identifiers in manifests and
+- [x] Persist source-format metadata and source identifiers in manifests and
       relevant artifacts without `PDF`-specific naming.
-- [ ] Ensure resume and replay behavior remains deterministic when the source is
+- [x] Ensure resume and replay behavior remains deterministic when the source is
       `EPUB`.
-- [ ] Add stage-scoped diagnostics for `EPUB`-specific validation or extraction
+- [x] Add stage-scoped diagnostics for `EPUB`-specific validation or extraction
       failures.
-- [ ] Add integration tests covering at least one successful `EPUB` command flow
+- [x] Add integration tests covering at least one successful `EPUB` command flow
       and one actionable failure case.
-- [ ] Update user documentation to show `EPUB` as a supported input format where
+- [x] Update user documentation to show `EPUB` as a supported input format where
       applicable.
 
 ## Notes

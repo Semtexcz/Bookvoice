@@ -18,7 +18,7 @@ from ..audio.tags import AudioTagContext, MetadataWriter
 from ..config import BookvoiceConfig, ProviderRuntimeConfig
 from ..errors import PipelineStageError
 from ..io.chapter_splitter import ChapterSplitter
-from ..io.epub_text_extractor import EpubTextExtractor
+from ..io.epub_text_extractor import EpubExtractionError, EpubTextExtractor
 from ..io.pdf_outline_extractor import PdfOutlineChapterExtractor
 from ..io.pdf_text_extractor import PdfTextExtractor
 from ..io.storage import ArtifactStore
@@ -141,6 +141,15 @@ class PipelineExecutionMixin:
                 detail=f"Unsupported source format `{config.source_format}`.",
                 hint="Use a supported source document extension: `.pdf` or `.epub`.",
             )
+        except EpubExtractionError as exc:
+            raise PipelineStageError(
+                stage="extract",
+                detail=f"Failed to extract text from EPUB `{config.source_path}`: {exc}",
+                hint=(
+                    "Ensure the source is a valid `.epub` archive with readable "
+                    "container/OPF metadata and text-based spine documents."
+                ),
+            ) from exc
         except PipelineStageError:
             raise
         except Exception as exc:

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.0] - 2026-03-15
+
+### Added
+
+- Added EPUB integration coverage in CLI integration tests:
+  - successful `translate-only` flow from `.epub` input with manifest/chapter metadata assertions,
+  - successful `list-chapters` flow from `.epub` input with `epub_nav` chapter source assertions,
+  - actionable `.epub` extraction failure diagnostics for invalid EPUB archives.
+
+### Changed
+
+- Added stage-scoped EPUB extraction diagnostics in pipeline extract stage by mapping `EpubExtractionError` to explicit `PipelineStageError` detail/hint messages.
+- Updated `README.md` command examples and config/env documentation to present `.epub` as a supported source input alongside `.pdf`.
+- Updated `tests/README.md` fixture documentation to include the canonical EPUB fixture.
+- Completed `TASK-068`, marked it done, and moved it to `project/done/2026-03-15-task-068-integrate-epub-across-cli-and-pipeline.md`.
+- Bumped project version to `0.12.0`.
+
 ## [0.11.0] - 2026-03-15
 
 ### Added

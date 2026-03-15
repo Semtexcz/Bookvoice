@@ -3,7 +3,10 @@
 import json
 from pathlib import Path
 
-from tests.fixture_paths import canonical_content_pdf_fixture_path
+from tests.fixture_paths import (
+    canonical_content_epub_fixture_path,
+    canonical_content_pdf_fixture_path,
+)
 
 from pytest import MonkeyPatch
 from typer.testing import CliRunner
@@ -90,3 +93,62 @@ def test_translate_only_command_reports_stage_error_with_hint(
     assert result.exit_code == 1
     assert "translate-only failed at stage `translate`" in result.output
     assert "Hint: Set a valid API key via `bookvoice credentials`." in result.output
+
+
+def test_translate_only_command_supports_epub_input(tmp_path: Path) -> None:
+    """Translate-only should process EPUB input and persist source-format metadata."""
+
+    runner = CliRunner()
+    out_dir = tmp_path / "out"
+    fixture_epub = canonical_content_epub_fixture_path()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate-only",
+            str(fixture_epub),
+            "--out",
+            str(out_dir),
+            "--chapters",
+            "1",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+
+    manifest_path = next(out_dir.glob("run-*/run_manifest.json"))
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    chapter_payload = json.loads(
+        Path(payload["extra"]["chapters"]).read_text(encoding="utf-8")
+    )
+
+    assert payload["book"]["source_format"] == "epub"
+    assert payload["book"]["source_path"].endswith(".epub")
+    assert payload["book"]["title"] == "A Practical Atlas of Synthetic Systems"
+    assert payload["book"]["author"] == "Bookvoice Fixture Author"
+    assert payload["extra"]["pipeline_mode"] == "translate_only"
+    assert payload["extra"]["chapter_scope_indices_csv"] == "1"
+    assert chapter_payload["metadata"]["source"] == "epub_nav"
+    assert "Chapter source: epub_nav" in result.output
+    assert "Translations artifact:" in result.output
+
+
+def test_translate_only_command_reports_actionable_epub_extraction_failure(
+    tmp_path: Path,
+) -> None:
+    """Translate-only should emit EPUB-specific extract diagnostics for invalid archives."""
+
+    runner = CliRunner()
+    invalid_epub_path = tmp_path / "broken.epub"
+    invalid_epub_path.write_text("not-a-zip-archive", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        ["translate-only", str(invalid_epub_path), "--out", str(tmp_path / "out")],
+    )
+
+    assert result.exit_code == 1
+    assert "translate-only failed at stage `extract`" in result.output
+    assert "Failed to extract text from EPUB" in result.output
+    assert "EPUB archive is invalid" in result.output
+    assert "Hint: Ensure the source is a valid `.epub` archive" in result.output

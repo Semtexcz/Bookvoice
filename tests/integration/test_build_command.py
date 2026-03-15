@@ -3,7 +3,10 @@
 import json
 from pathlib import Path
 
-from tests.fixture_paths import canonical_content_pdf_fixture_path
+from tests.fixture_paths import (
+    canonical_content_epub_fixture_path,
+    canonical_content_pdf_fixture_path,
+)
 
 import pytest
 from typer.testing import CliRunner
@@ -141,3 +144,25 @@ def test_build_command_emits_progress_and_phase_logs(tmp_path: Path) -> None:
     assert "[phase] level=INFO stage=extract event=complete" in result.output
     assert "[phase] level=INFO stage=translate event=start" in result.output
     assert "[phase] level=INFO stage=manifest event=complete" in result.output
+
+
+def test_build_command_supports_epub_source_input(tmp_path: Path) -> None:
+    """Build command should process EPUB input through the full deterministic pipeline."""
+
+    runner = CliRunner()
+    out_dir = tmp_path / "out"
+    fixture_epub = canonical_content_epub_fixture_path()
+
+    result = runner.invoke(app, ["build", str(fixture_epub), "--out", str(out_dir)])
+
+    assert result.exit_code == 0, result.output
+
+    manifest_path = next(out_dir.glob("run-*/run_manifest.json"))
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    assert payload["book"]["source_format"] == "epub"
+    assert payload["book"]["source_path"].endswith(".epub")
+    assert payload["book"]["title"] == "A Practical Atlas of Synthetic Systems"
+    assert payload["book"]["author"] == "Bookvoice Fixture Author"
+    assert payload["extra"]["chapter_source"] in {"epub_nav", "text_heuristic"}
+    assert "Chapter source:" in result.output

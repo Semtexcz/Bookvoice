@@ -1,10 +1,10 @@
 # bookvoice
 
-`bookvoice` is a deterministic, pay-as-you-go CLI pipeline that converts text-based PDF books into audiobook outputs.
+`bookvoice` is a deterministic, pay-as-you-go CLI pipeline that converts text-based source documents (`.pdf`, `.epub`) into audiobook outputs.
 
 ## What You Can Use It For
 
-- Convert a PDF book into deterministic audio outputs (`wav`, optional `m4a`/`mp3`).
+- Convert a source document (`.pdf`, `.epub`) into deterministic audio outputs (`wav`, optional `m4a`/`mp3`).
 - Process the whole book or only selected chapters.
 - Resume interrupted runs from a manifest.
 - Keep reproducible artifacts for audit, replay, and troubleshooting.
@@ -38,6 +38,7 @@ poetry run bookvoice credentials --set-api-key
 
 ```bash
 poetry run bookvoice build input.pdf --out out/
+poetry run bookvoice build input.epub --out out/
 ```
 
 ### 5. Optional: use config file
@@ -52,12 +53,14 @@ poetry run bookvoice build --config bookvoice.yaml
 
 ```bash
 poetry run bookvoice build input.pdf --out out/
+poetry run bookvoice build input.epub --out out/
 poetry run bookvoice build --config bookvoice.yaml
 ```
 
 Common options:
 
 - `--config`: load command defaults from YAML (`input_pdf` and `output_dir` can come from file).
+- Source input accepts `.pdf` and `.epub`.
 - `--chapters`: process only selected 1-based chapters (`5`, `1,3,7`, `2-4`, `1,3-5`).
 - `--model-translate`, `--model-rewrite`, `--model-tts`, `--tts-voice`.
 - `--provider-translator`, `--provider-rewriter`, `--provider-tts` (currently `openai`).
@@ -101,6 +104,7 @@ Example output excerpt:
 
 ```bash
 poetry run bookvoice chapters-only input.pdf --out out/
+poetry run bookvoice chapters-only input.epub --out out/
 poetry run bookvoice chapters-only input.pdf --out out/ --chapters 1-3
 ```
 
@@ -108,6 +112,7 @@ poetry run bookvoice chapters-only input.pdf --out out/ --chapters 1-3
 
 ```bash
 poetry run bookvoice translate-only input.pdf --out out/
+poetry run bookvoice translate-only input.epub --out out/
 poetry run bookvoice translate-only input.pdf --out out/ --chapters 2-4
 poetry run bookvoice translate-only --config bookvoice.yaml
 ```
@@ -138,6 +143,7 @@ Behavior:
 
 ```bash
 poetry run bookvoice list-chapters input.pdf
+poetry run bookvoice list-chapters input.epub
 poetry run bookvoice list-chapters --chapters-artifact out/run-*/text/chapters.json
 ```
 
@@ -168,7 +174,7 @@ Resolution precedence:
 
 - Runtime values (`provider_*`, `model_*`, `tts_voice`, `api_key`, `rewrite_bypass`):
   `CLI explicit input > secure credential storage > environment > config/defaults`
-- Command fields (`input_pdf`, `output_dir`, `chapter_selection`):
+- Command fields (`input_path`/`input_pdf`, `output_dir`, `chapter_selection`):
   explicit CLI option/argument overrides `--config` values.
 
 Environment keys:
@@ -194,7 +200,7 @@ Environment keys:
 
 `ConfigLoader.from_yaml` supported keys:
 
-- `input_pdf` (required)
+- `input_path` (required, backward-compatible alias: `input_pdf`)
 - `output_dir` (required)
 - `language`
 - `provider_translator`
@@ -243,10 +249,11 @@ package_keep_merged: true
 
 For deterministic local verification, prefer the repository-owned synthetic PDF fixture
 at `tests/files/canonical_synthetic_fixture.pdf`.
+An EPUB counterpart is also available at `tests/files/canonical_synthetic_fixture.epub`.
 
 `ConfigLoader.from_env` supported keys:
 
-- `BOOKVOICE_INPUT_PDF` (required)
+- `BOOKVOICE_INPUT_PATH` (required, backward-compatible alias: `BOOKVOICE_INPUT_PDF`)
 - `BOOKVOICE_OUTPUT_DIR`
 - `BOOKVOICE_LANGUAGE`
 - `BOOKVOICE_CHUNK_SIZE_CHARS`
