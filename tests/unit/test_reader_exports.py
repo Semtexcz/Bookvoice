@@ -92,4 +92,4 @@ def test_reader_export_output_path_is_deterministic() -> None:
         export_format="epub",
     )
 
-    assert str(path) == "out/run-xyz/reader/my-input.cs.chapters-3-8.translated.epub"
+    assert path.as_posix() == "out/run-xyz/reader/my-input.cs.chapters-3-8.translated.epub"

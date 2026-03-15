@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.3] - 2026-03-15
+
+### Fixed
+
+- Normalized translate-only reader-export manifest paths to POSIX separators in
+  `bookvoice/pipeline/reader_exports.py` to keep metadata deterministic across
+  Linux and Windows.
+- Updated `tests/unit/test_reader_exports.py` to assert path determinism via
+  `Path.as_posix()` instead of OS-specific `str(Path)` rendering.
+- Bumped project version to `0.17.3`.
+
 ## [0.17.2] - 2026-03-15
 
 ### Fixed

@@ -72,9 +72,9 @@ def reader_export_manifest_metadata(
         chapter_scope=chapter_scope,
     )
 
-    planned_paths = [str(output_dir / f"{basename}.{fmt}") for fmt in formats]
+    planned_paths = [_metadata_path(output_dir / f"{basename}.{fmt}") for fmt in formats]
     emitted = {
-        fmt: str(path)
+        fmt: _metadata_path(path)
         for fmt, path in (emitted_paths or {}).items()
         if fmt in _READER_EXPORT_FORMATS
     }
@@ -86,7 +86,7 @@ def reader_export_manifest_metadata(
         "reader_export_formats_csv": reader_export_formats_csv(formats),
         "reader_export_content_source": "translated_document",
         "reader_export_rewrite_policy": "audio_rewrite_not_applied",
-        "reader_export_output_dir": str(output_dir),
+        "reader_export_output_dir": _metadata_path(output_dir),
         "reader_export_basename": basename,
         "reader_export_status": status,
         "reader_export_planned_count": str(len(formats)),
@@ -95,9 +95,9 @@ def reader_export_manifest_metadata(
         "reader_export_emitted_paths_csv": ",".join(emitted_paths_ordered),
     }
     if "epub" in formats:
-        metadata["reader_export_planned_epub"] = str(output_dir / f"{basename}.epub")
+        metadata["reader_export_planned_epub"] = _metadata_path(output_dir / f"{basename}.epub")
     if "pdf" in formats:
-        metadata["reader_export_planned_pdf"] = str(output_dir / f"{basename}.pdf")
+        metadata["reader_export_planned_pdf"] = _metadata_path(output_dir / f"{basename}.pdf")
     if "epub" in emitted:
         metadata["reader_export_emitted_epub"] = emitted["epub"]
     if "pdf" in emitted:
@@ -184,3 +184,9 @@ def _slug_token(value: str, *, fallback: str) -> str:
     if not normalized:
         return fallback
     return normalized
+
+
+def _metadata_path(path: Path) -> str:
+    """Serialize metadata paths using POSIX separators for cross-platform stability."""
+
+    return path.as_posix()
