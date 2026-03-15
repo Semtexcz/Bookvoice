@@ -17,6 +17,7 @@ from typing import Annotated
 
 import typer
 
+from . import __version__
 from .cli_rendering import (
     echo_chapter_list,
     echo_chapter_source,
@@ -41,6 +42,33 @@ app = typer.Typer(
     no_args_is_help=True,
     help="Bookvoice CLI.",
 )
+
+
+def _version_callback(value: bool) -> None:
+    """Print program version and exit when `--version` is requested."""
+
+    if not value:
+        return
+    typer.echo(f"bookvoice {__version__}")
+    raise typer.Exit()
+
+
+@app.callback()
+def app_callback(
+    version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            callback=_version_callback,
+            is_eager=True,
+            help="Show Bookvoice version and exit.",
+        ),
+    ] = False,
+) -> None:
+    """Handle root-level CLI options."""
+
+    if version:
+        return
 
 
 class BuildProgressIndicator:

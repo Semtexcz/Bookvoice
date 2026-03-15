@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.0] - 2026-03-15
+
+### Added
+
+- Added a global CLI `--version` option in `bookvoice/cli.py` that prints the
+  current Bookvoice version and exits immediately.
+- Added integration coverage in `tests/integration/test_cli_version.py` for:
+  - `bookvoice --version`,
+  - `bookvoice --version build` (global eager option behavior).
+
+### Changed
+
+- Bumped project version to `0.17.0`.
+
 ## [0.16.0] - 2026-03-15
 
 ### Added
