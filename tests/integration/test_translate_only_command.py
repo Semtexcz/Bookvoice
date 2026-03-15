@@ -73,7 +73,7 @@ def test_translate_only_command_creates_expected_artifacts_without_audio(
 def test_translate_only_command_persists_reader_export_plan_metadata(
     tmp_path: Path,
 ) -> None:
-    """Translate-only should persist deterministic reader-export metadata with emitted EPUB."""
+    """Translate-only should persist deterministic reader-export metadata with emitted files."""
 
     runner = CliRunner()
     out_dir = tmp_path / "out"
@@ -101,17 +101,18 @@ def test_translate_only_command_persists_reader_export_plan_metadata(
 
     assert extra["reader_export_requested"] == "true"
     assert extra["reader_export_formats_csv"] == "epub,pdf"
-    assert extra["reader_export_status"] == "partial"
+    assert extra["reader_export_status"] == "emitted"
     assert extra["reader_export_content_source"] == "translated_document"
     assert extra["reader_export_rewrite_policy"] == "audio_rewrite_not_applied"
     assert extra["reader_export_planned_count"] == "2"
-    assert extra["reader_export_emitted_count"] == "1"
+    assert extra["reader_export_emitted_count"] == "2"
     assert extra["reader_export_output_dir"].endswith("/reader")
     assert extra["reader_export_planned_epub"].endswith(".epub")
     assert extra["reader_export_planned_pdf"].endswith(".pdf")
     assert extra["reader_export_emitted_epub"].endswith(".epub")
+    assert extra["reader_export_emitted_pdf"].endswith(".pdf")
     assert "chapters-1-2" in extra["reader_export_basename"]
-    assert "Reader export request: epub,pdf [partial]" in result.output
+    assert "Reader export request: epub,pdf [emitted]" in result.output
 
 
 def test_translate_only_command_emits_epub_from_translated_document(
@@ -159,6 +160,42 @@ def test_translate_only_command_emits_epub_from_translated_document(
     assert "<dc:title>Canonical Synthetic Fixture</dc:title>" in opf
     assert len(chapter_files) >= 1
     assert "chapter-001.xhtml" in nav
+
+
+def test_translate_only_command_emits_pdf_from_translated_document(
+    tmp_path: Path,
+) -> None:
+    """Translate-only should emit PDF output when reader-export format includes `pdf`."""
+
+    runner = CliRunner()
+    out_dir = tmp_path / "out"
+    fixture_pdf = canonical_content_pdf_fixture_path()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate-only",
+            str(fixture_pdf),
+            "--out",
+            str(out_dir),
+            "--reader-output-format",
+            "pdf",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+
+    manifest_path = next(out_dir.glob("run-*/run_manifest.json"))
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    extra = payload["extra"]
+    emitted_pdf = Path(extra["reader_export_emitted_pdf"])
+
+    assert extra["reader_export_formats_csv"] == "pdf"
+    assert extra["reader_export_status"] == "emitted"
+    assert emitted_pdf.exists()
+    assert emitted_pdf.parent.name == "reader"
+    assert emitted_pdf.name.endswith(".translated.pdf")
+    assert emitted_pdf.read_bytes().startswith(b"%PDF-")
 
 
 def test_translate_only_command_reports_stage_error_with_hint(

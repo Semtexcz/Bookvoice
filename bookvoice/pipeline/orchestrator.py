@@ -18,6 +18,7 @@ from pathlib import Path
 from ..config import BookvoiceConfig, ProviderRuntimeConfig
 from ..errors import PipelineStageError
 from ..io.epub_exporter import EpubExportRequest, EpubExporter
+from ..io.pdf_exporter import PdfExportRequest, PdfExporter
 from ..io.storage import ArtifactStore
 from ..models.datatypes import (
     AudioPart,
@@ -539,6 +540,30 @@ class BookvoicePipeline(
                 raise PipelineStageError(
                     stage="reader-export",
                     detail=f"Failed to export EPUB from translated document: {exc}",
+                    hint=(
+                        "Verify translated-document artifact integrity and write permissions "
+                        "for the run output directory."
+                    ),
+                ) from exc
+        if "pdf" in reader_export_formats:
+            pdf_output_path = reader_export_output_path(
+                run_root=store.root,
+                source_path=config.source_path,
+                language=config.language,
+                chapter_scope=chapter_scope,
+                export_format="pdf",
+            )
+            try:
+                emitted_reader_exports["pdf"] = PdfExporter().export(
+                    PdfExportRequest(
+                        document=translated_document,
+                        output_path=pdf_output_path,
+                    )
+                )
+            except Exception as exc:
+                raise PipelineStageError(
+                    stage="reader-export",
+                    detail=f"Failed to export PDF from translated document: {exc}",
                     hint=(
                         "Verify translated-document artifact integrity and write permissions "
                         "for the run output directory."

@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.0] - 2026-03-15
+
+### Added
+
+- Added deterministic translated PDF reader export in
+  `bookvoice/io/pdf_exporter.py`:
+  - chapter/title/paragraph layout tuned for reading-device PDF viewers,
+  - explicit Unicode-capable font preference (`Vera`) with deterministic
+    unsupported-glyph fallback to `?`,
+  - deterministic page generation using invariant PDF output mode.
+- Added translate-only PDF emission wiring in
+  `bookvoice/pipeline/orchestrator.py` so requested `pdf` exports are emitted
+  from `text/translated_document.json` and captured in manifest
+  `reader_export_emitted_pdf`.
+- Added automated test coverage for translated PDF export behavior:
+  - `tests/unit/test_pdf_exporter.py` validates document generation and chapter
+    ordering,
+  - `tests/integration/test_translate_only_command.py` validates `--reader-output-format pdf`
+    and combined `epub,pdf` emission metadata.
+
+### Changed
+
+- Updated reader-export expectations in integration tests: `epub,pdf` now
+  reports `reader_export_status=emitted` with both outputs emitted.
+- Updated user documentation (`README.md`, `docs/ARTIFACTS.md`) to describe
+  emitted translated PDF artifacts (not planned-only metadata).
+- Implemented PDF generation without introducing new runtime dependencies by
+  using the existing `pypdf` stack and deterministic text-stream rendering.
+- Completed `TASK-065`, marked it done, and moved it to
+  `project/done/2026-03-15-task-065-pdf-export-from-translated-document.md`.
+- Bumped project version to `0.16.0`.
+
 ## [0.15.0] - 2026-03-15
 
 ### Added

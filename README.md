@@ -126,7 +126,7 @@ Behavior:
 - Does not execute `rewrite`, `tts`, or `merge`.
 - Optional `--reader-output-format` contract accepts `none`, `epub`, `pdf`, or `epub,pdf`.
 - `epub` reader export is emitted deterministically from `text/translated_document.json` to `<run-root>/reader/<source>.<lang>.<scope>.translated.epub`.
-- `pdf` reader export remains planned-only metadata in this release.
+- `pdf` reader export is emitted deterministically from `text/translated_document.json` to `<run-root>/reader/<source>.<lang>.<scope>.translated.pdf`.
 - Supports the same provider/model/runtime precedence and secure credential flow as `build`.
 
 ### TTS-only (from manifest + text artifacts)

@@ -1,6 +1,6 @@
 ---
 task: TASK-065
-status: "backlog"
+status: "done"
 priority: P1
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Export translated books as reader-friendly PDF
 
 Task: TASK-065
-Status: backlog
+Status: done
 Priority: P1
 Type: feature
 Author:
@@ -22,15 +22,15 @@ Users who only want translated text cannot receive a portable PDF deliverable.
 
 ## Definition of Done
 
-- [ ] Implement deterministic translated `PDF` export from the canonical
+- [x] Implement deterministic translated `PDF` export from the canonical
       translated document artifact.
-- [ ] Produce readable title, chapter, and paragraph layout suitable for common
+- [x] Produce readable title, chapter, and paragraph layout suitable for common
       reading-device PDF viewers.
-- [ ] Define an initial Unicode-safe font and text-wrapping strategy with clear
+- [x] Define an initial Unicode-safe font and text-wrapping strategy with clear
       behavior for unsupported glyphs.
-- [ ] Define and test deterministic output naming and destination paths.
-- [ ] Add automated tests covering basic document generation and chapter order.
-- [ ] Update user documentation with at least one example of translated `PDF`
+- [x] Define and test deterministic output naming and destination paths.
+- [x] Add automated tests covering basic document generation and chapter order.
+- [x] Update user documentation with at least one example of translated `PDF`
       export.
 
 ## Notes

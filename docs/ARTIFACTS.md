@@ -36,6 +36,7 @@ out/
         ...
     reader/
       canonical-synthetic-fixture.cs.all.translated.epub
+      canonical-synthetic-fixture.cs.all.translated.pdf
 ```
 
 ## Text Artifacts
