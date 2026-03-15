@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bookvoice"
-version = "0.16.0"
+version = "0.17.2"
 description = "Deterministic pipeline scaffold for converting PDF books into Czech audiobook outputs."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -49,7 +49,7 @@ packages = ["bookvoice"]
 [tool.pytest.ini_options]
 testpaths = ["tests/unit", "tests/integration"]
 python_files = ["test_*.py"]
-addopts = "-vvv -q --cov=bookvoice --cov-report=term-missing --mypy"
+addopts = "-vvv -q --cov=bookvoice --cov-report=term-missing --mypy --mypy-config-file=pyproject.toml"
 
 [tool.mypy]
 python_version = "3.11"

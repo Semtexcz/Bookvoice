@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.2] - 2026-03-15
+
+### Fixed
+
+- Resolved a `mypy` type-assignment error in `bookvoice/pipeline/execution.py`
+  by avoiding reuse of a single local extractor variable for both
+  `PdfTextExtractor` and `EpubTextExtractor`.
+- Bumped project version to `0.17.2`.
+
+## [0.17.1] - 2026-03-15
+
+### Changed
+
+- Updated `pytest` default `addopts` in `pyproject.toml` to run `mypy` with an
+  explicit config source:
+  - `--mypy`,
+  - `--mypy-config-file=pyproject.toml`.
+- Bumped project version to `0.17.1`.
+
+## [0.17.0] - 2026-03-15
+
+### Added
+
+- Added a global CLI `--version` option in `bookvoice/cli.py` that prints the
+  current Bookvoice version and exits immediately.
+- Added integration coverage in `tests/integration/test_cli_version.py` for:
+  - `bookvoice --version`,
+  - `bookvoice --version build` (global eager option behavior).
+
+### Changed
+
+- Bumped project version to `0.17.0`.
+
 ## [0.16.0] - 2026-03-15
 
 ### Added
