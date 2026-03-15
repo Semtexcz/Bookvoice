@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.1] - 2026-03-15
+
+### Changed
+
+- Updated `pytest` default `addopts` in `pyproject.toml` to run `mypy` with an
+  explicit config source:
+  - `--mypy`,
+  - `--mypy-config-file=pyproject.toml`.
+- Bumped project version to `0.17.1`.
+
 ## [0.17.0] - 2026-03-15
 
 ### Added
