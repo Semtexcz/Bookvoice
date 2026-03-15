@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.5] - 2026-03-15
+
+### Added
+
+- Added grouped backlog folder
+  `project/backlog/2026-03-15-reader-graphics-preservation/` for
+  translation-only reader-export work that preserves source graphics.
+- Added backlog tasks `TASK-069` to `TASK-072` to break image-preservation work
+  into small units covering contract boundaries, source image extraction and
+  placement modeling, and format-specific `EPUB` and `PDF` export handling.
+- Updated `docs/ROADMAP.md` to clarify that reader-only translation delivery
+  should preserve graphics while leaving the audiobook translation flow
+  unchanged.
+
+### Changed
+
+- Bumped project version to `0.9.5`.
+
 ## [0.9.4] - 2026-03-15
 
 ### Added

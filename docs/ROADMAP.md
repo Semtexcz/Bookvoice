@@ -98,9 +98,12 @@ Scope:
 
 - Translator-only export contract for reader outputs.
 - Deterministic translated-document artifacts reusable by non-audio exporters.
+- Reader-export-only image preservation so translated `EPUB`/`PDF` outputs keep
+  source graphics where possible.
 - `EPUB` and reader-friendly `PDF` export from translated content.
 - Source-document abstraction beyond `input_pdf`.
 - `EPUB` extraction, chapter normalization, and pipeline integration.
+- Keep the existing audiobook translation path unchanged as a separate use case.
 
 ## Milestones
 
@@ -117,4 +120,5 @@ Scope:
 - `TASK-044` (Phase 3): Language proficiency level control (`A0`-`C2`) for learning-friendly outputs.
 - `TASK-043` (Phase 4): CLI output format controls and manifest packaging metadata.
 - `TASK-062` to `TASK-065` (Phase 5): Translator-only reader export contract and `EPUB`/`PDF` delivery.
+- `TASK-069` to `TASK-072` (Phase 5): Reader-export graphics preservation for translated `EPUB`/`PDF`.
 - `TASK-066` to `TASK-068` (Phase 5): `EPUB` input abstraction, extraction, and pipeline integration.
