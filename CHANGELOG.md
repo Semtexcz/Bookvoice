@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.4] - 2026-03-15
+
+### Added
+
+- Added grouped backlog folders for the next document-format feature areas:
+  `project/backlog/2026-03-15-reader-translation-exports/` and
+  `project/backlog/2026-03-15-epub-input-support/`.
+- Added backlog tasks `TASK-062` to `TASK-068` to break down:
+  translator-only reader exports (`EPUB`, `PDF`) and `EPUB` input support into
+  smaller implementation units.
+- Updated `docs/ROADMAP.md` to map the new reader-delivery and `EPUB` input
+  capability work into a dedicated next phase and milestone.
+
+### Changed
+
+- Bumped project version to `0.9.4`.
+
 ## [0.9.3] - 2026-03-08
 
 ### Changed

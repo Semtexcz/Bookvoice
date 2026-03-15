@@ -1,12 +1,17 @@
 # Roadmap
 
-Reference date: 2026-02-25.
+Reference date: 2026-03-15.
 
 ## Product Goal
 
 Primary outcome remains:
 
 `PDF (text) -> translated + rewrite-adapted text -> synthesized audiobook artifacts`
+
+Planned expansion:
+
+- Translation-only delivery for e-reader-friendly `EPUB` and `PDF` outputs.
+- Multi-format source intake starting with `EPUB` in addition to `PDF`.
 
 ## Current Delivery Status
 
@@ -82,12 +87,28 @@ Scope:
   - CLI/config controls for output format and encoding settings.
   - Backward-compatible migration from current `--package-mode` semantics.
 
+## Phase 5: Reader Translation Delivery
+
+Goal:
+
+- Allow Bookvoice to operate as a translator-only tool for e-readers and accept
+  `EPUB` as an input source.
+
+Scope:
+
+- Translator-only export contract for reader outputs.
+- Deterministic translated-document artifacts reusable by non-audio exporters.
+- `EPUB` and reader-friendly `PDF` export from translated content.
+- Source-document abstraction beyond `input_pdf`.
+- `EPUB` extraction, chapter normalization, and pipeline integration.
+
 ## Milestones
 
 1. `M1` (completed): functional command set (`build`, `chapters-only`, `list-chapters`, `resume`, `translate-only`, `tts-only`).
 2. `M2` (next): reliability hardening gate (`mypy` blocking in CI) and model-aware pricing metadata.
 3. `M3`: CEFR learning controls (`A0`-`C2`) across prompt policy and replay metadata.
 4. `M4`: finalized packaging/output controls (format/encoding/layout/naming) with compatibility guarantees.
+5. `M5`: translator-only reader delivery (`EPUB`/`PDF`) plus `EPUB` input support.
 
 ## Active Backlog Mapping
 
@@ -95,3 +116,5 @@ Scope:
 - `TASK-015` (Phase 2): Online model pricing for cost tracking with fallback source metadata.
 - `TASK-044` (Phase 3): Language proficiency level control (`A0`-`C2`) for learning-friendly outputs.
 - `TASK-043` (Phase 4): CLI output format controls and manifest packaging metadata.
+- `TASK-062` to `TASK-065` (Phase 5): Translator-only reader export contract and `EPUB`/`PDF` delivery.
+- `TASK-066` to `TASK-068` (Phase 5): `EPUB` input abstraction, extraction, and pipeline integration.
