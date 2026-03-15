@@ -178,14 +178,21 @@ class BookvoicePipeline(
             metadata["packaging_emitted_merged_path"] = merged_paths[0]
         return metadata
 
-    def list_chapters_from_pdf(
+    def list_chapters_from_source(
         self, config: BookvoiceConfig
     ) -> tuple[list[Chapter], str, str]:
         """List chapters by running extract/clean/split without writing artifacts."""
 
         raw_text = self._extract(config)
         clean_text = self._clean(raw_text)
-        return self._split_chapters(clean_text, config.input_pdf)
+        return self._split_chapters(clean_text, config.source_path)
+
+    def list_chapters_from_pdf(
+        self, config: BookvoiceConfig
+    ) -> tuple[list[Chapter], str, str]:
+        """Backward-compatible alias for `list_chapters_from_source`."""
+
+        return self.list_chapters_from_source(config)
 
     def list_chapters_from_artifact(
         self, chapters_artifact: Path
@@ -197,7 +204,7 @@ class BookvoicePipeline(
                 stage="chapters-artifact",
                 detail=f"Chapters artifact not found: {chapters_artifact}",
                 hint=(
-                    "Run `bookvoice chapters-only <input.pdf>` first or provide "
+                    "Run `bookvoice chapters-only <source-document>` first or provide "
                     "a valid `text/chapters.json` path."
                 ),
             )
@@ -245,10 +252,10 @@ class BookvoicePipeline(
 
         chapters, chapter_source, chapter_fallback_reason = self._run_stage(
             "split",
-            lambda: self._split_chapters(clean_text, config.input_pdf),
+            lambda: self._split_chapters(clean_text, config.source_path),
         )
         normalized_structure = self._extract_normalized_structure(
-            chapters, chapter_source, config.input_pdf
+            chapters, chapter_source, config.source_path
         )
         selected_chapters, chapter_scope = self._resolve_chapter_scope(
             chapters, config.chapter_selection
@@ -390,7 +397,7 @@ class BookvoicePipeline(
         clean_text_path = store.save_text(Path("text/clean.txt"), clean_text)
 
         chapters, chapter_source, chapter_fallback_reason = self._split_chapters(
-            clean_text, config.input_pdf
+            clean_text, config.source_path
         )
         _, chapter_scope = self._resolve_chapter_scope(chapters, config.chapter_selection)
         chapters_path = store.save_json(
@@ -400,7 +407,7 @@ class BookvoicePipeline(
                 chapter_source,
                 chapter_fallback_reason,
                 chapter_scope,
-                self._extract_normalized_structure(chapters, chapter_source, config.input_pdf),
+                self._extract_normalized_structure(chapters, chapter_source, config.source_path),
                 clean_metadata=clean_metadata,
             ),
         )
@@ -447,10 +454,10 @@ class BookvoicePipeline(
 
         chapters, chapter_source, chapter_fallback_reason = self._run_stage(
             "split",
-            lambda: self._split_chapters(clean_text, config.input_pdf),
+            lambda: self._split_chapters(clean_text, config.source_path),
         )
         normalized_structure = self._extract_normalized_structure(
-            chapters, chapter_source, config.input_pdf
+            chapters, chapter_source, config.source_path
         )
         selected_chapters, chapter_scope = self._resolve_chapter_scope(
             chapters, config.chapter_selection
@@ -788,7 +795,14 @@ class BookvoicePipeline(
                 "Manifest is missing required object `book`; run `bookvoice build` again "
                 "or provide a valid manifest."
             )
-        source_pdf = Path(require_manifest_field(book_payload, "source_pdf", scope="book"))
+        source_path_raw = (
+            str(book_payload.get("source_path"))
+            if isinstance(book_payload.get("source_path"), str)
+            else None
+        )
+        if source_path_raw is None:
+            source_path_raw = require_manifest_field(book_payload, "source_pdf", scope="book")
+        source_path = Path(source_path_raw)
         language = require_manifest_field(book_payload, "language", scope="book")
 
         extra = payload.get("extra")
@@ -807,7 +821,7 @@ class BookvoicePipeline(
         run_root = resolve_run_root(manifest_path, normalized_extra)
         store = ArtifactStore(run_root)
         config = BookvoiceConfig(
-            input_pdf=source_pdf,
+            input_pdf=source_path,
             output_dir=run_root.parent,
             language=language,
             provider_translator=manifest_string(normalized_extra, "provider_translator", "openai"),
@@ -931,10 +945,10 @@ class BookvoicePipeline(
             state.raw_text = state.paths.raw_text.read_text(encoding="utf-8")
             return
 
-        if not state.config.input_pdf.exists():
+        if not state.config.source_path.exists():
             raise ValueError(
-                "Cannot resume extract stage: source PDF from manifest does not exist: "
-                f"{state.config.input_pdf}"
+                "Cannot resume extract stage: source document from manifest does not exist: "
+                f"{state.config.source_path}"
             )
         state.raw_text = self._extract(state.config)
         state.paths.raw_text = state.store.save_text(Path("text/raw.txt"), state.raw_text)
@@ -968,11 +982,11 @@ class BookvoicePipeline(
                 state.chapters,
                 state.chapter_source,
                 state.chapter_fallback_reason,
-            ) = self._split_chapters(state.clean_text, state.config.input_pdf)
+            ) = self._split_chapters(state.clean_text, state.config.source_path)
             state.normalized_structure = self._extract_normalized_structure(
                 state.chapters,
                 state.chapter_source,
-                state.config.input_pdf,
+                state.config.source_path,
             )
             _, state.chapter_scope = self._resolve_resume_chapter_scope(
                 state.chapters, state.extra
@@ -993,7 +1007,7 @@ class BookvoicePipeline(
             state.normalized_structure = self._extract_normalized_structure(
                 chapters=state.chapters,
                 chapter_source="text_heuristic",
-                source_pdf=state.config.input_pdf,
+                source_pdf=state.config.source_path,
             )
         (
             state.selected_chapters,

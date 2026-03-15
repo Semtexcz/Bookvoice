@@ -66,6 +66,8 @@ class PipelineRuntimeMixin:
         """Compute deterministic hash for run-defining configuration fields."""
 
         payload = {
+            "input_path": str(config.source_path),
+            "source_format": config.source_format,
             "input_pdf": str(config.input_pdf),
             "output_dir": str(config.output_dir),
             "language": config.language,

@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import os
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Literal, Mapping
 
 from .parsing import (
     normalize_optional_string,
@@ -31,6 +31,10 @@ _DEFAULT_REWRITE_MODEL = "gpt-4.1-mini"
 _DEFAULT_TTS_MODEL = "gpt-4o-mini-tts"
 _DEFAULT_TTS_VOICE = "echo"
 _SUPPORTED_PROVIDER_IDS = frozenset({"openai"})
+_SOURCE_FORMAT_BY_EXTENSION: Mapping[str, str] = {
+    ".pdf": "pdf",
+    ".epub": "epub",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,7 +98,7 @@ class BookvoiceConfig:
     """Runtime configuration for one pipeline run.
 
     Attributes:
-        input_pdf: Path to the source PDF.
+        input_pdf: Path to the source document (backward-compatible field name).
         output_dir: Output directory for generated artifacts.
         language: Target language code, defaulting to Czech (`cs`).
         provider_translator: Translator provider identifier.
@@ -134,6 +138,7 @@ class BookvoiceConfig:
     def validate(self) -> None:
         """Validate runtime configuration values before pipeline execution."""
 
+        self._require_supported_source_document(self.input_pdf)
         self._validate_provider_id(self.provider_translator, "provider_translator")
         self._validate_provider_id(self.provider_rewriter, "provider_rewriter")
         self._validate_provider_id(self.provider_tts, "provider_tts")
@@ -143,6 +148,25 @@ class BookvoiceConfig:
         self._require_non_empty(self.tts_voice, "tts_voice")
         if self.chunk_size_chars <= 0:
             raise ValueError("`chunk_size_chars` must be a positive integer.")
+
+    @property
+    def input_path(self) -> Path:
+        """Return source-document path using format-neutral naming."""
+
+        return self.input_pdf
+
+    @property
+    def source_path(self) -> Path:
+        """Return source-document path using manifest-oriented naming."""
+
+        return self.input_pdf
+
+    @property
+    def source_format(self) -> Literal["pdf", "epub"]:
+        """Return normalized source-document format derived from file extension."""
+
+        resolved = self.detect_source_format(self.input_pdf)
+        return resolved
 
     def resolved_provider_runtime(
         self, sources: RuntimeConfigSources | None = None
@@ -341,13 +365,36 @@ class BookvoiceConfig:
 
         return parse_required_boolean(value, field_name)
 
+    @staticmethod
+    def detect_source_format(path: Path) -> Literal["pdf", "epub"]:
+        """Resolve supported source format from file extension."""
+
+        extension = path.suffix.lower()
+        resolved = _SOURCE_FORMAT_BY_EXTENSION.get(extension)
+        if resolved == "pdf":
+            return "pdf"
+        if resolved == "epub":
+            return "epub"
+        supported = ", ".join(sorted(_SOURCE_FORMAT_BY_EXTENSION))
+        raise ValueError(
+            f"Unsupported source document extension `{extension or '(missing)'}` for `{path}`. "
+            f"Supported extensions: {supported}."
+        )
+
+    @staticmethod
+    def _require_supported_source_document(path: Path) -> None:
+        """Validate that source-document path has a supported extension."""
+
+        BookvoiceConfig.detect_source_format(path)
+
 
 class ConfigLoader:
     """Factory methods for creating `BookvoiceConfig` from external sources."""
 
-    _REQUIRED_YAML_KEYS = frozenset({"input_pdf", "output_dir"})
+    _REQUIRED_YAML_KEYS = frozenset({"output_dir"})
     _SUPPORTED_YAML_KEYS = frozenset(
         {
+            "input_path",
             "input_pdf",
             "output_dir",
             "language",
@@ -403,7 +450,15 @@ class ConfigLoader:
 
         env_map: Mapping[str, str] = os.environ if env is None else env
 
-        input_pdf = ConfigLoader._required_env_path(env_map, "BOOKVOICE_INPUT_PDF")
+        input_pdf = (
+            ConfigLoader._optional_env_path(env_map, "BOOKVOICE_INPUT_PATH")
+            or ConfigLoader._optional_env_path(env_map, "BOOKVOICE_INPUT_PDF")
+        )
+        if input_pdf is None:
+            raise ValueError(
+                "Environment variable `BOOKVOICE_INPUT_PATH` is required "
+                "(or backward-compatible `BOOKVOICE_INPUT_PDF`)."
+            )
         output_dir = ConfigLoader._optional_env_path(env_map, "BOOKVOICE_OUTPUT_DIR") or Path("out")
         language = ConfigLoader._optional_env_string(env_map, "BOOKVOICE_LANGUAGE") or "cs"
         chunk_size = ConfigLoader._optional_env_positive_int(
@@ -536,7 +591,12 @@ class ConfigLoader:
 
         ConfigLoader._validate_yaml_keys(payload, source_label)
 
-        input_pdf = ConfigLoader._required_path(payload, "input_pdf", source_label)
+        input_pdf = ConfigLoader._required_path_alias(
+            payload=payload,
+            primary_key="input_path",
+            legacy_key="input_pdf",
+            source_label=source_label,
+        )
         output_dir = ConfigLoader._required_path(payload, "output_dir", source_label)
         language = ConfigLoader._optional_non_empty_string(payload, "language", source_label) or "cs"
         provider_translator = (
@@ -665,12 +725,15 @@ class ConfigLoader:
             key_list = ", ".join(unknown)
             raise ValueError(f"{source_label} includes unsupported key(s): {key_list}.")
 
-        missing = sorted(
-            key for key in ConfigLoader._REQUIRED_YAML_KEYS if key not in payload
-        )
+        missing = sorted(key for key in ConfigLoader._REQUIRED_YAML_KEYS if key not in payload)
         if missing:
             key_list = ", ".join(missing)
             raise ValueError(f"{source_label} is missing required key(s): {key_list}.")
+        if "input_path" not in payload and "input_pdf" not in payload:
+            raise ValueError(
+                f"{source_label} is missing required key(s): input_path "
+                "(or backward-compatible `input_pdf`)."
+            )
 
     @staticmethod
     def _required_path(payload: Mapping[str, Any], key: str, source_label: str) -> Path:
@@ -680,6 +743,26 @@ class ConfigLoader:
         if value is None:
             raise ValueError(f"{source_label} requires non-empty `{key}`.")
         return Path(value)
+
+    @staticmethod
+    def _required_path_alias(
+        payload: Mapping[str, Any],
+        primary_key: str,
+        legacy_key: str,
+        source_label: str,
+    ) -> Path:
+        """Read a required path from primary or backward-compatible alias key."""
+
+        primary = ConfigLoader._optional_non_empty_string(payload, primary_key, source_label)
+        if primary is not None:
+            return Path(primary)
+        legacy = ConfigLoader._optional_non_empty_string(payload, legacy_key, source_label)
+        if legacy is not None:
+            return Path(legacy)
+        raise ValueError(
+            f"{source_label} requires non-empty `{primary_key}` "
+            f"(or backward-compatible `{legacy_key}`)."
+        )
 
     @staticmethod
     def _optional_non_empty_string(

@@ -89,7 +89,7 @@ def _load_yaml_config(config_path: Path | None) -> BookvoiceConfig | None:
 
 def _resolve_command_base_config(
     config_file: Path | None,
-    input_pdf: Path | None,
+    input_path: Path | None,
     out: Path | None,
     chapters: str | None,
     language: str | None,
@@ -218,16 +218,19 @@ def _resolve_command_base_config(
     resolved_extra["packaging_keep_merged"] = "true" if resolved_keep_merged else "false"
 
     if loaded_config is None:
-        if input_pdf is None:
+        if input_path is None:
             raise PipelineStageError(
                 stage="config",
-                detail="Input PDF path is required when `--config` is not provided.",
-                hint="Pass `<input.pdf>` or use `--config <path.yaml>` with `input_pdf`.",
+                detail="Input source path is required when `--config` is not provided.",
+                hint=(
+                    "Pass `<source-document>` or use `--config <path.yaml>` with "
+                    "`input_path` (or backward-compatible `input_pdf`)."
+                ),
             )
         resolved_output_dir = out if out is not None else Path("out")
         resolved_rewrite_bypass = rewrite_bypass if rewrite_bypass is not None else False
         return BookvoiceConfig(
-            input_pdf=input_pdf,
+            input_pdf=input_path,
             output_dir=resolved_output_dir,
             language=resolved_language,
             chapter_selection=chapters,
@@ -235,7 +238,7 @@ def _resolve_command_base_config(
             extra=resolved_extra,
         )
 
-    resolved_input_pdf = input_pdf if input_pdf is not None else loaded_config.input_pdf
+    resolved_input_path = input_path if input_path is not None else loaded_config.input_path
     resolved_output_dir = out if out is not None else loaded_config.output_dir
     resolved_chapters = chapters if chapters is not None else loaded_config.chapter_selection
     resolved_rewrite_bypass = (
@@ -243,7 +246,7 @@ def _resolve_command_base_config(
     )
 
     return BookvoiceConfig(
-        input_pdf=resolved_input_pdf,
+        input_pdf=resolved_input_path,
         output_dir=resolved_output_dir,
         language=resolved_language,
         provider_translator=loaded_config.provider_translator,
@@ -270,7 +273,7 @@ def _apply_runtime_sources(
     """Attach runtime source mappings while keeping base config defaults intact."""
 
     return BookvoiceConfig(
-        input_pdf=base_config.input_pdf,
+        input_pdf=base_config.input_path,
         output_dir=base_config.output_dir,
         language=base_config.language,
         provider_translator=base_config.provider_translator,
@@ -296,10 +299,10 @@ def _apply_runtime_sources(
 
 @app.command("build")
 def build_command(
-    input_pdf: Annotated[
+    input_path: Annotated[
         Path | None,
         typer.Argument(
-            help="Path to source PDF. Required unless provided by `--config`.",
+            help="Path to source document (`.pdf` or `.epub`). Required unless provided by `--config`.",
         ),
     ] = None,
     out: Annotated[
@@ -465,7 +468,7 @@ def build_command(
         )
         base_config = _resolve_command_base_config(
             config_file=config_file,
-            input_pdf=input_pdf,
+            input_path=input_path,
             out=out,
             chapters=chapters,
             language=language,
@@ -503,7 +506,7 @@ def build_command(
 
 @app.command("chapters-only")
 def chapters_only_command(
-    input_pdf: Annotated[Path, typer.Argument(help="Path to source PDF.")],
+    input_path: Annotated[Path, typer.Argument(help="Path to source document (`.pdf` or `.epub`).")],
     out: Annotated[Path, typer.Option("--out", help="Output directory.")] = Path("out"),
     chapters: Annotated[
         str | None,
@@ -520,7 +523,7 @@ def chapters_only_command(
     try:
         pipeline = BookvoicePipeline()
         config = BookvoiceConfig(
-            input_pdf=input_pdf,
+            input_pdf=input_path,
             output_dir=out,
             chapter_selection=chapters,
         )
@@ -536,7 +539,10 @@ def chapters_only_command(
 
 @app.command("list-chapters")
 def list_chapters_command(
-    input_pdf: Annotated[Path | None, typer.Argument(help="Path to source PDF.")] = None,
+    input_path: Annotated[
+        Path | None,
+        typer.Argument(help="Path to source document (`.pdf` or `.epub`)."),
+    ] = None,
     chapters_artifact: Annotated[
         Path | None,
         typer.Option(
@@ -551,15 +557,15 @@ def list_chapters_command(
 ) -> None:
     """List extracted chapter indices and titles for a PDF or chapters artifact."""
 
-    if (input_pdf is None and chapters_artifact is None) or (
-        input_pdf is not None and chapters_artifact is not None
+    if (input_path is None and chapters_artifact is None) or (
+        input_path is not None and chapters_artifact is not None
     ):
         exit_with_command_error(
             "list-chapters",
             PipelineStageError(
                 stage="list-chapters-input",
                 detail=(
-                    "Provide exactly one input source: `<input.pdf>` or "
+                    "Provide exactly one input source: `<source-document>` or "
                     "`--chapters-artifact <path>`."
                 ),
                 hint="Use `bookvoice list-chapters --help` for usage examples.",
@@ -572,14 +578,14 @@ def list_chapters_command(
                 chapters_artifact
             )
         else:
-            if input_pdf is None:
+            if input_path is None:
                 raise PipelineStageError(
                     stage="list-chapters-input",
-                    detail="Input PDF path is required when artifact path is not provided.",
-                    hint="Provide `<input.pdf>` or use `--chapters-artifact <path>`.",
+                    detail="Input source path is required when artifact path is not provided.",
+                    hint="Provide `<source-document>` or use `--chapters-artifact <path>`.",
                 )
-            config = BookvoiceConfig(input_pdf=input_pdf, output_dir=out)
-            chapters, source, fallback_reason = pipeline.list_chapters_from_pdf(config)
+            config = BookvoiceConfig(input_pdf=input_path, output_dir=out)
+            chapters, source, fallback_reason = pipeline.list_chapters_from_source(config)
     except Exception as exc:
         exit_with_command_error("list-chapters", exc)
 
@@ -589,10 +595,10 @@ def list_chapters_command(
 
 @app.command("translate-only")
 def translate_only_command(
-    input_pdf: Annotated[
+    input_path: Annotated[
         Path | None,
         typer.Argument(
-            help="Path to source PDF. Required unless provided by `--config`.",
+            help="Path to source document (`.pdf` or `.epub`). Required unless provided by `--config`.",
         ),
     ] = None,
     out: Annotated[
@@ -702,7 +708,7 @@ def translate_only_command(
         )
         base_config = _resolve_command_base_config(
             config_file=config_file,
-            input_pdf=input_pdf,
+            input_path=input_path,
             out=out,
             chapters=chapters,
             language=language,

@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.0] - 2026-03-15
+
+### Added
+
+- Added source-document format detection for `.pdf` and `.epub`, including
+  actionable validation errors for unsupported extensions.
+- Added format-neutral config support for `input_path` and
+  `BOOKVOICE_INPUT_PATH` while preserving backward-compatible `input_pdf` and
+  `BOOKVOICE_INPUT_PDF`.
+- Added compatibility tests covering legacy `input_pdf`/`BOOKVOICE_INPUT_PDF`
+  and new source-format resolution behavior.
+
+### Changed
+
+- Generalized CLI help/errors from PDF-specific input wording to source-document
+  wording (`.pdf`/`.epub`).
+- Extended run manifest serialization to include `book.source_path` and
+  `book.source_format` while preserving `book.source_pdf` for compatibility.
+- Updated resume manifest loading to accept `book.source_path` with fallback to
+  legacy `book.source_pdf`.
+- Bumped project version to `0.10.0`.
+
 ## [0.9.5] - 2026-03-15
 
 ### Added

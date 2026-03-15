@@ -22,7 +22,8 @@ class BookMeta:
     """Metadata describing the source book.
 
     Attributes:
-        source_pdf: Path to input PDF.
+        source_pdf: Path to source document (backward-compatible field name).
+        source_format: Source-document format identifier (`pdf` or `epub`).
         title: Human-readable title.
         author: Optional author name.
         language: Primary source language code.
@@ -32,6 +33,13 @@ class BookMeta:
     title: str
     author: str | None
     language: str
+    source_format: str = "pdf"
+
+    @property
+    def source_path(self) -> Path:
+        """Return source-document path using format-neutral naming."""
+
+        return self.source_pdf
 
 
 @dataclass(frozen=True, slots=True)

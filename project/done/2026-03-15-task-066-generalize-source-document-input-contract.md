@@ -1,6 +1,6 @@
 ---
 task: TASK-066
-status: "backlog"
+status: "done"
 priority: P1
 type: refactor
 ---
@@ -8,7 +8,7 @@ type: refactor
 # Generalize source document input contract beyond PDF
 
 Task: TASK-066
-Status: backlog
+Status: done
 Priority: P1
 Type: refactor
 Author:
@@ -23,16 +23,16 @@ without either user-facing inconsistency or duplicated code paths.
 
 ## Definition of Done
 
-- [ ] Define a source-document abstraction that supports at least `PDF` and
+- [x] Define a source-document abstraction that supports at least `PDF` and
       `EPUB`.
-- [ ] Rename or extend user-facing config/manifest fields so they are format
+- [x] Rename or extend user-facing config/manifest fields so they are format
       neutral while preserving a backward-compatible path for existing `PDF`
       usage.
-- [ ] Define source-format detection and validation behavior, including
+- [x] Define source-format detection and validation behavior, including
       actionable diagnostics for unsupported extensions.
-- [ ] Update command help, config loading, and manifest metadata to use the new
+- [x] Update command help, config loading, and manifest metadata to use the new
       source-document contract consistently.
-- [ ] Add automated tests for backward compatibility and source-format
+- [x] Add automated tests for backward compatibility and source-format
       resolution.
 
 ## Notes

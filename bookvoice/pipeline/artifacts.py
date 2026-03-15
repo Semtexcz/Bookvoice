@@ -252,6 +252,8 @@ def manifest_payload(manifest: RunManifest) -> dict[str, object]:
         "run_id": manifest.run_id,
         "config_hash": manifest.config_hash,
         "book": {
+            "source_path": str(manifest.book.source_path),
+            "source_format": manifest.book.source_format,
             "source_pdf": str(manifest.book.source_pdf),
             "title": manifest.book.title,
             "author": manifest.book.author,

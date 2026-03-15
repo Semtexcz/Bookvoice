@@ -89,4 +89,4 @@ def test_translate_only_reports_invalid_config_payload(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "translate-only failed at stage `config`" in result.output
-    assert "is missing required key(s): input_pdf" in result.output
+    assert "is missing required key(s): input_path" in result.output

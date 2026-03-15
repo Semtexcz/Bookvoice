@@ -18,7 +18,7 @@ def test_config_loader_from_yaml_loads_valid_config_and_normalizes_values(
     expected_input_pdf = Path("tests/files/path_only_placeholder.pdf")
     config_path.write_text(
         f"""
-input_pdf: " {expected_input_pdf} "
+input_path: " {expected_input_pdf} "
 output_dir: " out "
 language: " cs "
 provider_translator: " openai "
@@ -42,6 +42,8 @@ extra:
     config = ConfigLoader.from_yaml(config_path)
 
     assert config.input_pdf == expected_input_pdf
+    assert config.input_path == expected_input_pdf
+    assert config.source_format == "pdf"
     assert config.output_dir == Path("out")
     assert config.language == "cs"
     assert config.provider_translator == "openai"
@@ -65,7 +67,7 @@ def test_config_loader_from_yaml_rejects_missing_and_unknown_keys(tmp_path: Path
     missing_path = tmp_path / "missing.yml"
     missing_path.write_text("output_dir: out\n", encoding="utf-8")
 
-    with pytest.raises(ValueError, match=r"missing required key\(s\): input_pdf"):
+    with pytest.raises(ValueError, match=r"missing required key\(s\): input_path"):
         ConfigLoader.from_yaml(missing_path)
 
     unknown_path = tmp_path / "unknown.yml"
@@ -88,7 +90,7 @@ def test_config_loader_from_yaml_rejects_invalid_typed_values(tmp_path: Path) ->
     invalid_bool_path = tmp_path / "invalid-bool.yml"
     invalid_bool_path.write_text(
         """
-input_pdf: in.pdf
+input_path: in.pdf
 output_dir: out
 rewrite_bypass: maybe
 """.strip(),
@@ -101,7 +103,7 @@ rewrite_bypass: maybe
     invalid_int_path = tmp_path / "invalid-int.yml"
     invalid_int_path.write_text(
         """
-input_pdf: in.pdf
+input_path: in.pdf
 output_dir: out
 chunk_size_chars: x
 """.strip(),
@@ -117,7 +119,7 @@ def test_config_loader_from_env_loads_runtime_values_and_normalizes_blanks() -> 
 
     expected_input_pdf = Path("tests/files/path_only_placeholder.pdf")
     env = {
-        "BOOKVOICE_INPUT_PDF": f" {expected_input_pdf} ",
+        "BOOKVOICE_INPUT_PATH": f" {expected_input_pdf} ",
         "BOOKVOICE_OUTPUT_DIR": " out ",
         "BOOKVOICE_PROVIDER_TRANSLATOR": " openai ",
         "BOOKVOICE_PROVIDER_REWRITER": " openai ",
@@ -152,7 +154,7 @@ def test_config_loader_from_env_preserves_runtime_precedence() -> None:
 
     config = ConfigLoader.from_env(
         {
-            "BOOKVOICE_INPUT_PDF": "in.pdf",
+            "BOOKVOICE_INPUT_PATH": "in.pdf",
             "BOOKVOICE_MODEL_TRANSLATE": "env-model-t",
             "BOOKVOICE_REWRITE_BYPASS": "false",
             "OPENAI_API_KEY": "env-api-key",
@@ -178,7 +180,55 @@ def test_config_loader_from_env_rejects_invalid_boolean() -> None:
     with pytest.raises(ValueError, match="`BOOKVOICE_REWRITE_BYPASS` must be a boolean"):
         ConfigLoader.from_env(
             {
-                "BOOKVOICE_INPUT_PDF": "in.pdf",
+                "BOOKVOICE_INPUT_PATH": "in.pdf",
                 "BOOKVOICE_REWRITE_BYPASS": "maybe",
             }
         )
+
+
+def test_config_loader_from_yaml_supports_legacy_input_pdf_key(tmp_path: Path) -> None:
+    """YAML loader should keep backward compatibility for legacy `input_pdf` key."""
+
+    config_path = tmp_path / "legacy-input-pdf.yml"
+    config_path.write_text(
+        """
+input_pdf: in.pdf
+output_dir: out
+""".strip(),
+        encoding="utf-8",
+    )
+
+    config = ConfigLoader.from_yaml(config_path)
+
+    assert config.input_path == Path("in.pdf")
+    assert config.source_format == "pdf"
+
+
+def test_config_loader_from_env_supports_legacy_bookvoice_input_pdf_key() -> None:
+    """Environment loader should keep backward compatibility for `BOOKVOICE_INPUT_PDF`."""
+
+    config = ConfigLoader.from_env(
+        {
+            "BOOKVOICE_INPUT_PDF": "legacy.pdf",
+            "BOOKVOICE_OUTPUT_DIR": "out",
+        }
+    )
+
+    assert config.input_path == Path("legacy.pdf")
+    assert config.source_format == "pdf"
+
+
+def test_config_loader_rejects_unsupported_source_extension(tmp_path: Path) -> None:
+    """Config validation should fail with actionable diagnostics for unsupported extensions."""
+
+    config_path = tmp_path / "unsupported.yml"
+    config_path.write_text(
+        """
+input_path: in.txt
+output_dir: out
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"Unsupported source document extension `.txt`"):
+        ConfigLoader.from_yaml(config_path)

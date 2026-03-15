@@ -34,8 +34,9 @@ class PipelineManifestMixin:
 
         try:
             meta = BookMeta(
-                source_pdf=config.input_pdf,
-                title=config.input_pdf.stem,
+                source_pdf=config.source_path,
+                source_format=config.source_format,
+                title=config.source_path.stem,
                 author=None,
                 language=config.language,
             )

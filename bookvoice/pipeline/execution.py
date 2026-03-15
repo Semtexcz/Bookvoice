@@ -126,18 +126,33 @@ class PipelineExecutionMixin:
         )
 
     def _extract(self, config: BookvoiceConfig) -> str:
-        """Extract raw text from the configured PDF input."""
+        """Extract raw text from the configured source document."""
 
         try:
-            extractor = PdfTextExtractor()
-            return extractor.extract(config.input_pdf)
+            if config.source_format == "pdf":
+                extractor = PdfTextExtractor()
+                return extractor.extract(config.source_path)
+            if config.source_format == "epub":
+                raise PipelineStageError(
+                    stage="extract",
+                    detail=(
+                        f"EPUB source `{config.source_path}` is recognized, but EPUB extraction "
+                        "is not implemented yet."
+                    ),
+                    hint="Use a PDF source for now.",
+                )
+            raise PipelineStageError(
+                stage="extract",
+                detail=f"Unsupported source format `{config.source_format}`.",
+                hint="Use a supported source document extension: `.pdf` or `.epub`.",
+            )
         except PipelineStageError:
             raise
         except Exception as exc:
             raise PipelineStageError(
                 stage="extract",
-                detail=f"Failed to extract text from PDF `{config.input_pdf}`: {exc}",
-                hint="Verify the input file exists and `pdftotext` is installed.",
+                detail=f"Failed to extract text from source `{config.source_path}`: {exc}",
+                hint="Verify the source file exists and required extraction tools are installed.",
             ) from exc
 
     def _clean(self, raw_text: str) -> str:
@@ -165,18 +180,21 @@ class PipelineExecutionMixin:
             ) from exc
 
     def _split_chapters(
-        self, text: str, source_pdf: Path
+        self, text: str, source_path: Path
     ) -> tuple[list[Chapter], str, str]:
-        """Split chapters using PDF outline first, then deterministic text fallback."""
+        """Split chapters using format-aware strategy with deterministic fallback."""
 
-        fallback_reason = "outline_invalid"
-        try:
-            outline_result = PdfOutlineChapterExtractor().extract(source_pdf)
-            if outline_result.chapters:
-                return outline_result.chapters, "pdf_outline", ""
-            fallback_reason = outline_result.status
-        except Exception:
+        fallback_reason = "outline_unsupported_for_format"
+        source_format = BookvoiceConfig.detect_source_format(source_path)
+        if source_format == "pdf":
             fallback_reason = "outline_invalid"
+            try:
+                outline_result = PdfOutlineChapterExtractor().extract(source_path)
+                if outline_result.chapters:
+                    return outline_result.chapters, "pdf_outline", ""
+                fallback_reason = outline_result.status
+            except Exception:
+                fallback_reason = "outline_invalid"
 
         try:
             splitter = ChapterSplitter()
@@ -188,7 +206,7 @@ class PipelineExecutionMixin:
             raise PipelineStageError(
                 stage="split",
                 detail=f"Failed to split chapters: {exc}",
-                hint="Inspect cleaned text formatting in `text/clean.txt` and PDF outline metadata.",
+                hint="Inspect cleaned text formatting in `text/clean.txt` and source metadata.",
             ) from exc
 
     def _extract_normalized_structure(
@@ -496,11 +514,11 @@ class PipelineExecutionMixin:
                 for part in sorted_parts
             )
             merged_title = (
-                config.input_pdf.stem
+                config.source_path.stem
                 if chapter_scope_label == "all"
-                else f"{config.input_pdf.stem} (chapters {chapter_scope_label})"
+                else f"{config.source_path.stem} (chapters {chapter_scope_label})"
             )
-            source_identifier = f"{config.input_pdf.name}#{store.root.name}"
+            source_identifier = f"{config.source_path.name}#{store.root.name}"
 
             metadata_writer = MetadataWriter()
             metadata_writer.write(
@@ -588,11 +606,11 @@ class PipelineExecutionMixin:
                 else "selected"
             )
         )
-        source_identifier = f"{config.input_pdf.name}#{store.root.name}"
+        source_identifier = f"{config.source_path.name}#{store.root.name}"
         book_title = (
-            config.input_pdf.stem
+            config.source_path.stem
             if chapter_scope_label == "all"
-            else f"{config.input_pdf.stem} (chapters {chapter_scope_label})"
+            else f"{config.source_path.stem} (chapters {chapter_scope_label})"
         )
         return PackagedTagContext(
             book_title=book_title,

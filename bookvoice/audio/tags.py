@@ -44,7 +44,7 @@ class MetadataWriter:
             title=book.title,
             chapter_scope_label="all",
             chapter_indices_csv="",
-            source_identifier=str(book.source_pdf),
+            source_identifier=str(book.source_path),
             part_count=0,
             part_ids_csv="",
         )
