@@ -536,6 +536,58 @@ def test_build_output_language_and_packaging_precedence_env_over_config(
     assert captured_extra["packaging_output_format"] == "mp3"
 
 
+def test_translate_only_reader_output_format_precedence_cli_over_env_over_config(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Translate-only should resolve reader-output format with CLI > env > config precedence."""
+
+    captured_extra: dict[str, str] = {}
+    config_path = tmp_path / "bookvoice.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                f"input_pdf: {_PATH_ONLY_INPUT_PDF}",
+                f"output_dir: {tmp_path / 'out-from-config'}",
+                "reader_output_format: epub",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    def _fake_translate_only(self, config):  # type: ignore[no-untyped-def]
+        """Capture resolved config extras for reader-output format assertions."""
+
+        nonlocal captured_extra
+        captured_extra = dict(config.extra)
+        return _manifest_stub()
+
+    monkeypatch.setattr(
+        "bookvoice.cli.BookvoicePipeline.run_translate_only",
+        _fake_translate_only,
+    )
+    monkeypatch.setattr(
+        "bookvoice.cli.create_credential_store",
+        lambda: InMemoryCredentialStore(),
+    )
+    monkeypatch.setenv("BOOKVOICE_READER_OUTPUT_FORMAT", "pdf")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "translate-only",
+            "--config",
+            str(config_path),
+            "--reader-output-format",
+            "pdf,epub",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured_extra["reader_output_format"] == "epub,pdf"
+
+
 def test_credentials_command_supports_set_clear_and_status(
     monkeypatch: MonkeyPatch,
 ) -> None:

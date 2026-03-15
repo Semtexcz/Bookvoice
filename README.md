@@ -114,6 +114,7 @@ poetry run bookvoice chapters-only input.pdf --out out/ --chapters 1-3
 poetry run bookvoice translate-only input.pdf --out out/
 poetry run bookvoice translate-only input.epub --out out/
 poetry run bookvoice translate-only input.pdf --out out/ --chapters 2-4
+poetry run bookvoice translate-only input.pdf --out out/ --reader-output-format epub,pdf
 poetry run bookvoice translate-only --config bookvoice.yaml
 ```
 
@@ -122,6 +123,8 @@ Behavior:
 - Runs stages `extract`, `clean`, `split`, `chunk`, `translate`, `manifest`.
 - Persists deterministic text artifacts (`raw`, `clean`, `chapters`, `chunks`, `translations`) and `run_manifest.json`.
 - Does not execute `rewrite`, `tts`, or `merge`.
+- Optional `--reader-output-format` contract accepts `none`, `epub`, `pdf`, or `epub,pdf`.
+- Reader export requests are persisted as deterministic planned-output metadata under manifest `extra` (actual EPUB/PDF writers are implemented in follow-up tasks).
 - Supports the same provider/model/runtime precedence and secure credential flow as `build`.
 
 ### TTS-only (from manifest + text artifacts)
@@ -197,6 +200,7 @@ Environment keys:
 - `BOOKVOICE_PACKAGE_NAMING_MODE`
 - `BOOKVOICE_PACKAGE_ENCODING_BITRATE`
 - `BOOKVOICE_PACKAGE_ENCODING_PROFILE`
+- `BOOKVOICE_READER_OUTPUT_FORMAT` (`none`, `epub`, `pdf`, `epub,pdf`)
 
 `ConfigLoader.from_yaml` supported keys:
 
@@ -223,6 +227,7 @@ Environment keys:
 - `package_naming` (`deterministic`/`reader_friendly`)
 - `package_encoding_bitrate` (for example `128k`)
 - `package_encoding_profile` (`balanced`/`voice`/`music`)
+- `reader_output_format` (`none`, `epub`, `pdf`, `epub,pdf`)
 - `extra` (string-to-string mapping)
 
 Example `bookvoice.yaml`:
@@ -245,6 +250,7 @@ package_chapter_numbering: sequential
 package_naming: deterministic
 package_encoding_profile: voice
 package_keep_merged: true
+reader_output_format: epub,pdf
 ```
 
 For deterministic local verification, prefer the repository-owned synthetic PDF fixture
@@ -275,6 +281,7 @@ An EPUB counterpart is also available at `tests/files/canonical_synthetic_fixtur
 - `BOOKVOICE_PACKAGE_NAMING_MODE`
 - `BOOKVOICE_PACKAGE_ENCODING_BITRATE`
 - `BOOKVOICE_PACKAGE_ENCODING_PROFILE`
+- `BOOKVOICE_READER_OUTPUT_FORMAT`
 - `OPENAI_API_KEY`
 
 ## Artifacts You Can Expect
@@ -312,7 +319,8 @@ Player support for `description`/`publisher` may vary by platform; `title`/`albu
 `run_manifest.json` `extra` includes compact chapter/part mapping and referenced
 structure indices for resume/rebuild stability, packaging intent metadata,
 resolved output language (`output_language`), packaged-tag summary metadata
-(`packaging_tags_*`), and emitted packaged artifact references (`packaging_emitted_*`).
+(`packaging_tags_*`), emitted packaged artifact references (`packaging_emitted_*`),
+and translate-only reader-export contract metadata (`reader_export_*` planned output keys).
 `text/chunks.json` includes planner metadata under `metadata.planner` and chunk-level
 `boundary_strategy` metadata.
 

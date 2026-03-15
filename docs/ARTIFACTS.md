@@ -84,6 +84,20 @@ Minimal shape:
 }
 ```
 
+For `translate-only` runs with `--reader-output-format` (or equivalent config/env),
+manifest `extra` includes deterministic reader-export contract metadata:
+
+- `reader_export_requested`: `true`/`false`
+- `reader_export_formats_csv`: `none`, `epub`, `pdf`, or `epub,pdf`
+- `reader_export_content_source`: currently `translations`
+- `reader_export_rewrite_policy`: currently `audio_rewrite_not_applied`
+- `reader_export_output_dir`: planned reader output directory (`<run-root>/reader`)
+- `reader_export_basename`: deterministic base filename token
+- `reader_export_status`: `planned_only`
+- `reader_export_planned_count`: number of requested formats
+- `reader_export_planned_paths_csv`: deterministic planned output path list
+- `reader_export_planned_epub` / `reader_export_planned_pdf` when requested
+
 ### `text/chunks.json`
 
 - Chunk list derived from planner or chunker fallback.

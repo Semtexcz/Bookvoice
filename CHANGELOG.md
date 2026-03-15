@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.0] - 2026-03-15
+
+### Added
+
+- Added a translator-only reader-export command contract for `bookvoice translate-only`:
+  - new CLI option `--reader-output-format` with deterministic support for
+    `none`, `epub`, `pdf`, and `epub,pdf`,
+  - new YAML/env config keys `reader_output_format` and
+    `BOOKVOICE_READER_OUTPUT_FORMAT`,
+  - deterministic manifest `extra` metadata for planned reader outputs under
+    `reader_export_*` keys (format request, output directory, basename, and
+    planned `.epub`/`.pdf` paths).
+- Added dedicated reader-export contract helper module
+  `bookvoice/pipeline/reader_exports.py` with parser and deterministic metadata
+  builders.
+- Added automated coverage for reader-export format parsing and manifest-plan
+  metadata in:
+  - `tests/unit/test_reader_exports.py`,
+  - `tests/integration/test_translate_only_command.py`,
+  - `tests/integration/test_cli_error_handling.py`,
+  - `tests/integration/test_cli_provider_credentials.py`.
+
+### Changed
+
+- Kept `translate-only` backward-compatible for existing users:
+  - default behavior remains translation artifacts only,
+  - no rewrite/TTS/audio stages are added,
+  - default reader-export request is `none` and is now explicitly reflected in
+    manifest metadata and CLI output.
+- Updated `README.md` and `docs/ARTIFACTS.md` with reader-export contract usage,
+  precedence, and manifest metadata documentation.
+- Completed `TASK-062`, marked it done, and moved it to
+  `project/done/2026-03-15-task-062-reader-export-command-contract.md`.
+- Bumped project version to `0.13.0`.
+
 ## [0.12.0] - 2026-03-15
 
 ### Added

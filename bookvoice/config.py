@@ -418,6 +418,7 @@ class ConfigLoader:
             "package_naming",
             "package_encoding_bitrate",
             "package_encoding_profile",
+            "reader_output_format",
             "extra",
         }
     )
@@ -518,6 +519,9 @@ class ConfigLoader:
         package_encoding_profile = ConfigLoader._optional_env_string(
             env_map, "BOOKVOICE_PACKAGE_ENCODING_PROFILE"
         )
+        reader_output_format = ConfigLoader._optional_env_string(
+            env_map, "BOOKVOICE_READER_OUTPUT_FORMAT"
+        )
         packaging_extra: dict[str, str] = {}
         if output_format is not None:
             packaging_extra["packaging_output_format"] = output_format
@@ -539,6 +543,8 @@ class ConfigLoader:
             packaging_extra["packaging_encoding_bitrate"] = package_encoding_bitrate
         if package_encoding_profile is not None:
             packaging_extra["packaging_encoding_profile"] = package_encoding_profile
+        if reader_output_format is not None:
+            packaging_extra["reader_output_format"] = reader_output_format
 
         runtime_env = {
             key: value
@@ -678,6 +684,9 @@ class ConfigLoader:
         package_encoding_profile = ConfigLoader._optional_non_empty_string(
             payload, "package_encoding_profile", source_label
         )
+        reader_output_format = ConfigLoader._optional_non_empty_string(
+            payload, "reader_output_format", source_label
+        )
         if output_format is not None:
             extra["packaging_output_format"] = output_format
         if package_mode is not None:
@@ -694,6 +703,8 @@ class ConfigLoader:
             extra["packaging_encoding_bitrate"] = package_encoding_bitrate
         if package_encoding_profile is not None:
             extra["packaging_encoding_profile"] = package_encoding_profile
+        if reader_output_format is not None:
+            extra["reader_output_format"] = reader_output_format
 
         config = BookvoiceConfig(
             input_pdf=input_pdf,

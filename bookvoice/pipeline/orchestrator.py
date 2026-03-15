@@ -57,6 +57,10 @@ from .costs import (
 )
 from .execution import PipelineExecutionMixin
 from .manifesting import PipelineManifestMixin
+from .reader_exports import (
+    reader_export_manifest_metadata,
+    resolve_reader_export_formats,
+)
 from .resume import (
     ensure_recoverable_resume_state,
     load_manifest_payload,
@@ -489,6 +493,23 @@ class BookvoicePipeline(
             Path("text/translations.json"),
             translation_artifact_payload(translations, chapter_scope, runtime_config),
         )
+        try:
+            reader_export_formats = resolve_reader_export_formats(
+                config.extra.get("reader_output_format")
+            )
+        except ValueError as exc:
+            raise PipelineStageError(
+                stage="config",
+                detail=str(exc),
+                hint="Use `--reader-output-format` with `epub`, `pdf`, or `epub,pdf`.",
+            ) from exc
+        reader_export_metadata = reader_export_manifest_metadata(
+            run_root=store.root,
+            source_path=config.source_path,
+            language=config.language,
+            chapter_scope=chapter_scope,
+            formats=reader_export_formats,
+        )
 
         return self._run_stage(
             "manifest",
@@ -513,6 +534,7 @@ class BookvoicePipeline(
                         self._manifest_int(chunk_metadata, "sentence_boundary_repairs_count", 0)
                     ),
                     "pipeline_mode": "translate_only",
+                    **reader_export_metadata,
                     **self._provider_call_manifest_metadata(),
                     **runtime_config.as_manifest_metadata(),
                     **chapter_scope,
@@ -863,6 +885,11 @@ class BookvoicePipeline(
                     normalized_extra,
                     "packaging_encoding_profile",
                     "balanced",
+                ),
+                "reader_output_format": manifest_string(
+                    normalized_extra,
+                    "reader_output_format",
+                    "none",
                 ),
                 "packaging_keep_merged": (
                     "true"

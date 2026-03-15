@@ -30,6 +30,10 @@ from .cli_runtime import resolve_provider_runtime_sources
 from .errors import PipelineStageError
 from .parsing import normalize_optional_string, parse_permissive_boolean
 from .pipeline import BookvoicePipeline
+from .pipeline.reader_exports import (
+    reader_export_formats_csv,
+    resolve_reader_export_formats,
+)
 from .telemetry.logger import RunLogger
 
 app = typer.Typer(
@@ -102,6 +106,7 @@ def _resolve_command_base_config(
     package_encoding_bitrate: str | None = None,
     package_encoding_profile: str | None = None,
     package_keep_merged: bool | None = None,
+    reader_output_format: str | None = None,
 ) -> BookvoiceConfig:
     """Resolve effective command config from YAML defaults and explicit CLI overrides."""
 
@@ -216,6 +221,22 @@ def _resolve_command_base_config(
         default=True,
     )
     resolved_extra["packaging_keep_merged"] = "true" if resolved_keep_merged else "false"
+
+    resolved_reader_output_format = _resolve_value(
+        reader_output_format,
+        "BOOKVOICE_READER_OUTPUT_FORMAT",
+        normalize_optional_string(loaded_extra.get("reader_output_format")),
+    )
+    if resolved_reader_output_format is not None:
+        try:
+            formats = resolve_reader_export_formats(resolved_reader_output_format)
+        except ValueError as exc:
+            raise PipelineStageError(
+                stage="config",
+                detail=str(exc),
+                hint="Use `--reader-output-format` with `epub`, `pdf`, or `epub,pdf`.",
+            ) from exc
+        resolved_extra["reader_output_format"] = reader_export_formats_csv(formats)
 
     if loaded_config is None:
         if input_path is None:
@@ -688,6 +709,13 @@ def translate_only_command(
         str | None,
         typer.Option("--language", help="Output language code override (for example `cs`)."),
     ] = None,
+    reader_output_format: Annotated[
+        str | None,
+        typer.Option(
+            "--reader-output-format",
+            help="Reader export request: `none`, `epub`, `pdf`, or `epub,pdf`.",
+        ),
+    ] = None,
 ) -> None:
     """Run pipeline stages through translation and persist text artifacts."""
 
@@ -713,6 +741,7 @@ def translate_only_command(
             chapters=chapters,
             language=language,
             rewrite_bypass=rewrite_bypass,
+            reader_output_format=reader_output_format,
         )
         config = _apply_runtime_sources(
             base_config=base_config,
@@ -730,6 +759,11 @@ def translate_only_command(
 
     typer.echo(f"Run id: {manifest.run_id}")
     typer.echo(f"Translations artifact: {manifest.extra.get('translations', '(not written)')}")
+    typer.echo(
+        "Reader export request: "
+        f"{manifest.extra.get('reader_export_formats_csv', 'none')} "
+        f"[{manifest.extra.get('reader_export_status', 'not_requested')}]"
+    )
     typer.echo(f"Manifest: {manifest.extra.get('manifest_path', '(not written)')}")
     echo_chapter_summary(manifest)
     echo_cost_summary(manifest)

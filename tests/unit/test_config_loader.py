@@ -35,6 +35,7 @@ chapter_selection: " 1,3-4 "
 resume: false
 extra:
   profile: " nightly "
+reader_output_format: " pdf,epub "
 """.strip(),
         encoding="utf-8",
     )
@@ -58,7 +59,7 @@ extra:
     assert config.chunk_size_chars == 2400
     assert config.chapter_selection == "1,3-4"
     assert config.resume is False
-    assert config.extra == {"profile": "nightly"}
+    assert config.extra == {"profile": "nightly", "reader_output_format": "pdf,epub"}
 
 
 def test_config_loader_from_yaml_rejects_missing_and_unknown_keys(tmp_path: Path) -> None:
@@ -131,6 +132,7 @@ def test_config_loader_from_env_loads_runtime_values_and_normalizes_blanks() -> 
         "BOOKVOICE_REWRITE_BYPASS": " true ",
         "BOOKVOICE_CHAPTER_SELECTION": "   ",
         "OPENAI_API_KEY": " env-api-key ",
+        "BOOKVOICE_READER_OUTPUT_FORMAT": " pdf ",
     }
 
     config = ConfigLoader.from_env(env)
@@ -147,6 +149,7 @@ def test_config_loader_from_env_loads_runtime_values_and_normalizes_blanks() -> 
     assert config.rewrite_bypass is True
     assert config.chapter_selection is None
     assert config.api_key == "env-api-key"
+    assert config.extra["reader_output_format"] == "pdf"
 
 
 def test_config_loader_from_env_preserves_runtime_precedence() -> None:

@@ -90,3 +90,24 @@ def test_translate_only_reports_invalid_config_payload(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert "translate-only failed at stage `config`" in result.output
     assert "is missing required key(s): input_path" in result.output
+
+
+def test_translate_only_reports_invalid_reader_output_format(tmp_path: Path) -> None:
+    """Translate-only should fail with stage-aware diagnostics for invalid reader format."""
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "translate-only",
+            str(tmp_path / "input.pdf"),
+            "--out",
+            str(tmp_path / "out"),
+            "--reader-output-format",
+            "docx",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "translate-only failed at stage `config`" in result.output
+    assert "Unsupported reader export format `docx`" in result.output

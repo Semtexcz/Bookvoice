@@ -1,6 +1,6 @@
 ---
 task: TASK-062
-status: "backlog"
+status: "done"
 priority: P1
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Define translator-only reader export command contract
 
 Task: TASK-062
-Status: backlog
+Status: done
 Priority: P1
 Type: feature
 Author:
@@ -24,15 +24,15 @@ using Bookvoice as a translator-only tool that returns reader-ready `EPUB` and
 
 ## Definition of Done
 
-- [ ] Define whether reader export extends `translate-only` or introduces a
+- [x] Define whether reader export extends `translate-only` or introduces a
       dedicated command, and document the rationale.
-- [ ] Define CLI/config options for requested reader output formats with initial
+- [x] Define CLI/config options for requested reader output formats with initial
       support for `epub`, `pdf`, and `epub,pdf`.
-- [ ] Define how reader export interacts with rewrite behavior, chapter
+- [x] Define how reader export interacts with rewrite behavior, chapter
       selection, output naming, and output directory layout.
-- [ ] Define manifest metadata and artifact naming required for deterministic
+- [x] Define manifest metadata and artifact naming required for deterministic
       replay and auditing of reader exports.
-- [ ] Document backward-compatibility expectations for existing
+- [x] Document backward-compatibility expectations for existing
       `translate-only` users.
 
 ## Notes
