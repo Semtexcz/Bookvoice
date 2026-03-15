@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.2] - 2026-03-15
+
+### Fixed
+
+- Resolved a `mypy` type-assignment error in `bookvoice/pipeline/execution.py`
+  by avoiding reuse of a single local extractor variable for both
+  `PdfTextExtractor` and `EpubTextExtractor`.
+- Bumped project version to `0.17.2`.
+
 ## [0.17.1] - 2026-03-15
 
 ### Changed

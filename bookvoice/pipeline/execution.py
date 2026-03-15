@@ -131,11 +131,9 @@ class PipelineExecutionMixin:
 
         try:
             if config.source_format == "pdf":
-                extractor = PdfTextExtractor()
-                return extractor.extract(config.source_path)
+                return PdfTextExtractor().extract(config.source_path)
             if config.source_format == "epub":
-                extractor = EpubTextExtractor()
-                return extractor.extract(config.source_path)
+                return EpubTextExtractor().extract(config.source_path)
             raise PipelineStageError(
                 stage="extract",
                 detail=f"Unsupported source format `{config.source_format}`.",
