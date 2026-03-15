@@ -7,7 +7,7 @@ Responsibilities:
 Key types:
 - `BookMeta`, `Chapter`, `Chunk`, `TranslationResult`, `RewriteResult`,
   `AudioPart`, `ChapterStructureUnit`, `PlannedSegment`, `SegmentPlan`,
-  and `RunManifest`.
+  `TranslatedDocument`, and `RunManifest`.
 """
 
 from __future__ import annotations
@@ -212,6 +212,40 @@ class SegmentPlan:
     budget_chars: int
     budget_ceiling_chars: int
     segments: tuple[PlannedSegment, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class TranslatedDocumentChapter:
+    """Canonical translated reader chapter payload.
+
+    Attributes:
+        index: 1-based chapter index.
+        title: Human-readable chapter title.
+        body: Full translated chapter body.
+    """
+
+    index: int
+    title: str
+    body: str
+
+
+@dataclass(frozen=True, slots=True)
+class TranslatedDocument:
+    """Canonical translated document artifact for reader exports.
+
+    Attributes:
+        source_format: Source-document format (`pdf` or `epub`).
+        source_path: Source-document path used for translation.
+        target_language: Requested output language code.
+        chapter_scope: Chapter selection metadata used for this export payload.
+        chapters: Ordered translated chapters intended for reader exporters.
+    """
+
+    source_format: str
+    source_path: Path
+    target_language: str
+    chapter_scope: Mapping[str, str]
+    chapters: tuple[TranslatedDocumentChapter, ...]
 
 
 @dataclass(frozen=True, slots=True)

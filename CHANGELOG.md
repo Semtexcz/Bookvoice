@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.0] - 2026-03-15
+
+### Added
+
+- Added canonical translated-document datatypes in `bookvoice/models/datatypes.py`:
+  - `TranslatedDocumentChapter` for ordered chapter title/body payloads,
+  - `TranslatedDocument` for source format/path, target language, chapter
+    selection metadata, and ordered translated chapters.
+- Added deterministic translated-document artifact serialization and loading in
+  `bookvoice/pipeline/artifacts.py`:
+  - new `translated_document_artifact_payload(...)` builder,
+  - new `load_translated_document(...)` loader with strict schema and ordering
+    validation.
+- Added `translate-only` persistence of
+  `text/translated_document.json` and manifest `extra.translated_document`
+  path metadata for reader-export replay.
+- Added automated tests for translated-document artifact deterministic behavior
+  and loader validation in:
+  - `tests/unit/test_pipeline_artifacts.py`,
+  - `tests/integration/test_translate_only_command.py`.
+
+### Changed
+
+- Updated `README.md` and `docs/ARTIFACTS.md` to document the canonical
+  translated-document artifact in translate-only outputs.
+- Completed `TASK-063`, marked it done, and moved it to
+  `project/done/2026-03-15-task-063-translated-document-artifact-for-reader-exports.md`.
+- Bumped project version to `0.14.0`.
+
 ## [0.13.0] - 2026-03-15
 
 ### Added

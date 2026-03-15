@@ -21,6 +21,7 @@ out/
       chapters.json
       chunks.json
       translations.json
+      translated_document.json
       rewrites.json
     audio/
       parts.json
@@ -97,6 +98,8 @@ manifest `extra` includes deterministic reader-export contract metadata:
 - `reader_export_planned_count`: number of requested formats
 - `reader_export_planned_paths_csv`: deterministic planned output path list
 - `reader_export_planned_epub` / `reader_export_planned_pdf` when requested
+- `translated_document`: path to canonical translated-document artifact used by
+  reader exporters
 
 ### `text/chunks.json`
 
@@ -167,6 +170,37 @@ Minimal shape:
     },
     "provider": "openai",
     "model": "gpt-4.1-mini"
+  }
+}
+```
+
+### `text/translated_document.json`
+
+- Canonical translated-document artifact for reader-export replay.
+- Format-agnostic representation used by downstream `EPUB`/`PDF` exporters.
+
+Minimal shape:
+
+```json
+{
+  "chapters": [
+    {
+      "index": 1,
+      "title": "Chapter 1",
+      "body": "Translated chapter body..."
+    }
+  ],
+  "metadata": {
+    "source_format": "epub",
+    "source_path": "tests/files/canonical_synthetic_fixture.epub",
+    "target_language": "cs",
+    "chapter_scope": {
+      "chapter_scope_mode": "selected",
+      "chapter_scope_label": "1-2",
+      "chapter_scope_indices_csv": "1,2"
+    },
+    "chapter_count": 1,
+    "translation_chunk_count": 3
   }
 }
 ```

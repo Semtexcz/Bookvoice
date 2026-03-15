@@ -22,6 +22,8 @@ from ..models.datatypes import (
     PackagedAudio,
     RewriteResult,
     RunManifest,
+    TranslatedDocument,
+    TranslatedDocumentChapter,
     TranslationResult,
 )
 
@@ -141,6 +143,48 @@ def rewrite_artifact_payload(
         "metadata": {
             "chapter_scope": chapter_scope,
             **rewrite_artifact_metadata(rewrites, runtime_config),
+        },
+    }
+
+
+def translated_document_artifact_payload(
+    *,
+    chapters: list[Chapter],
+    translations: list[TranslationResult],
+    source_format: str,
+    source_path: Path,
+    target_language: str,
+    chapter_scope: dict[str, str],
+) -> dict[str, object]:
+    """Build canonical translated-document payload for reader-export reuse."""
+
+    chapter_texts: dict[int, list[str]] = {}
+    for item in sorted(
+        translations,
+        key=lambda translation: (
+            translation.chunk.chapter_index,
+            translation.chunk.chunk_index,
+        ),
+    ):
+        chapter_texts.setdefault(item.chunk.chapter_index, []).append(item.translated_text)
+
+    chapter_payload = [
+        {
+            "index": chapter.index,
+            "title": chapter.title,
+            "body": "\n\n".join(chapter_texts.get(chapter.index, [])),
+        }
+        for chapter in sorted(chapters, key=lambda item: item.index)
+    ]
+    return {
+        "chapters": chapter_payload,
+        "metadata": {
+            "source_format": source_format,
+            "source_path": str(source_path),
+            "target_language": target_language,
+            "chapter_scope": chapter_scope,
+            "chapter_count": len(chapter_payload),
+            "translation_chunk_count": len(translations),
         },
     }
 
@@ -463,6 +507,124 @@ def load_translations(path: Path) -> list[TranslationResult]:
             )
         )
     return translations
+
+
+def load_translated_document(path: Path) -> TranslatedDocument:
+    """Load canonical translated-document artifact from JSON."""
+
+    payload = load_json_object(path)
+    raw_chapters = payload.get("chapters")
+    if not isinstance(raw_chapters, list):
+        raise PipelineStageError(
+            stage="resume-artifacts",
+            detail=f"Artifact missing `chapters` list: {path}",
+            hint="Regenerate translated-document artifact via `bookvoice translate-only`.",
+        )
+
+    raw_metadata = payload.get("metadata")
+    if not isinstance(raw_metadata, dict):
+        raise PipelineStageError(
+            stage="resume-artifacts",
+            detail=f"Artifact missing `metadata` object: {path}",
+            hint="Regenerate translated-document artifact via `bookvoice translate-only`.",
+        )
+
+    source_format = raw_metadata.get("source_format")
+    source_path = raw_metadata.get("source_path")
+    target_language = raw_metadata.get("target_language")
+    chapter_scope_payload = raw_metadata.get("chapter_scope")
+    if not isinstance(source_format, str) or not source_format.strip():
+        raise PipelineStageError(
+            stage="resume-artifacts",
+            detail=f"Artifact metadata missing `source_format`: {path}",
+            hint="Regenerate translated-document artifact via `bookvoice translate-only`.",
+        )
+    if not isinstance(source_path, str) or not source_path.strip():
+        raise PipelineStageError(
+            stage="resume-artifacts",
+            detail=f"Artifact metadata missing `source_path`: {path}",
+            hint="Regenerate translated-document artifact via `bookvoice translate-only`.",
+        )
+    if not isinstance(target_language, str) or not target_language.strip():
+        raise PipelineStageError(
+            stage="resume-artifacts",
+            detail=f"Artifact metadata missing `target_language`: {path}",
+            hint="Regenerate translated-document artifact via `bookvoice translate-only`.",
+        )
+    if not isinstance(chapter_scope_payload, dict):
+        raise PipelineStageError(
+            stage="resume-artifacts",
+            detail=f"Artifact metadata missing `chapter_scope` object: {path}",
+            hint="Regenerate translated-document artifact via `bookvoice translate-only`.",
+        )
+
+    chapters: list[TranslatedDocumentChapter] = []
+    previous_index = 0
+    for item in raw_chapters:
+        if not isinstance(item, dict):
+            raise PipelineStageError(
+                stage="resume-artifacts",
+                detail=f"Malformed translated chapter item in {path}",
+                hint="Regenerate translated-document artifact via `bookvoice translate-only`.",
+            )
+        index_raw = item.get("index")
+        title = item.get("title")
+        body = item.get("body")
+        if not isinstance(index_raw, int):
+            raise PipelineStageError(
+                stage="resume-artifacts",
+                detail=f"Translated chapter index must be an integer in {path}",
+                hint="Regenerate translated-document artifact via `bookvoice translate-only`.",
+            )
+        if index_raw <= previous_index:
+            raise PipelineStageError(
+                stage="resume-artifacts",
+                detail=f"Translated chapters must be strictly ordered in {path}",
+                hint="Regenerate translated-document artifact via `bookvoice translate-only`.",
+            )
+        if not isinstance(title, str):
+            raise PipelineStageError(
+                stage="resume-artifacts",
+                detail=f"Translated chapter title must be a string in {path}",
+                hint="Regenerate translated-document artifact via `bookvoice translate-only`.",
+            )
+        if not isinstance(body, str):
+            raise PipelineStageError(
+                stage="resume-artifacts",
+                detail=f"Translated chapter body must be a string in {path}",
+                hint="Regenerate translated-document artifact via `bookvoice translate-only`.",
+            )
+        previous_index = index_raw
+        chapters.append(
+            TranslatedDocumentChapter(
+                index=index_raw,
+                title=title,
+                body=body,
+            )
+        )
+
+    chapter_scope = {
+        str(key): str(value)
+        for key, value in chapter_scope_payload.items()
+        if isinstance(key, str) and isinstance(value, str)
+    }
+    if not chapter_scope.get("chapter_scope_mode"):
+        raise PipelineStageError(
+            stage="resume-artifacts",
+            detail=(
+                "Artifact metadata is missing non-empty "
+                "`chapter_scope.chapter_scope_mode`."
+            ),
+            hint="Regenerate translated-document artifact via `bookvoice translate-only`.",
+        )
+
+    return TranslatedDocument(
+        source_format=source_format,
+        source_path=Path(source_path),
+        target_language=target_language,
+        chapter_scope=chapter_scope,
+        chapters=tuple(chapters),
+    )
 
 
 def load_rewrites(path: Path) -> list[RewriteResult]:

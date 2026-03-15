@@ -46,6 +46,7 @@ from .artifacts import (
     packaged_audio_artifact_payload,
     part_mapping_manifest_metadata,
     rewrite_artifact_payload,
+    translated_document_artifact_payload,
     translation_artifact_payload,
 )
 from .chapter_scope import PipelineChapterScopeMixin
@@ -493,6 +494,17 @@ class BookvoicePipeline(
             Path("text/translations.json"),
             translation_artifact_payload(translations, chapter_scope, runtime_config),
         )
+        translated_document_path = store.save_json(
+            Path("text/translated_document.json"),
+            translated_document_artifact_payload(
+                chapters=selected_chapters,
+                translations=translations,
+                source_format=config.source_format,
+                source_path=config.source_path,
+                target_language=config.language,
+                chapter_scope=chapter_scope,
+            ),
+        )
         try:
             reader_export_formats = resolve_reader_export_formats(
                 config.extra.get("reader_output_format")
@@ -525,6 +537,7 @@ class BookvoicePipeline(
                     "chapters": str(chapters_path),
                     "chunks": str(chunks_path),
                     "translations": str(translations_path),
+                    "translated_document": str(translated_document_path),
                     "chapter_source": chapter_source,
                     "chapter_fallback_reason": chapter_fallback_reason,
                     "drop_cap_merges_count": str(

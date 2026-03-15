@@ -47,6 +47,7 @@ def test_translate_only_command_creates_expected_artifacts_without_audio(
         run_root / "text/chapters.json",
         run_root / "text/chunks.json",
         run_root / "text/translations.json",
+        run_root / "text/translated_document.json",
     )
     for artifact_path in expected_paths:
         assert artifact_path.exists(), f"Expected artifact missing: {artifact_path}"
@@ -61,6 +62,7 @@ def test_translate_only_command_creates_expected_artifacts_without_audio(
     assert payload["extra"]["reader_export_requested"] == "false"
     assert payload["extra"]["reader_export_formats_csv"] == "none"
     assert Path(payload["extra"]["translations"]).exists()
+    assert Path(payload["extra"]["translated_document"]).exists()
     assert "Translations artifact:" in result.output
     assert "Reader export request: none [planned_only]" in result.output
     assert "Cost LLM (USD):" in result.output

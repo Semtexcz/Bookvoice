@@ -121,7 +121,7 @@ poetry run bookvoice translate-only --config bookvoice.yaml
 Behavior:
 
 - Runs stages `extract`, `clean`, `split`, `chunk`, `translate`, `manifest`.
-- Persists deterministic text artifacts (`raw`, `clean`, `chapters`, `chunks`, `translations`) and `run_manifest.json`.
+- Persists deterministic text artifacts (`raw`, `clean`, `chapters`, `chunks`, `translations`, `translated_document`) and `run_manifest.json`.
 - Does not execute `rewrite`, `tts`, or `merge`.
 - Optional `--reader-output-format` contract accepts `none`, `epub`, `pdf`, or `epub,pdf`.
 - Reader export requests are persisted as deterministic planned-output metadata under manifest `extra` (actual EPUB/PDF writers are implemented in follow-up tasks).
@@ -293,6 +293,7 @@ Each build creates a deterministic run directory:
 - `out/run-<hash>/text/chapters.json`
 - `out/run-<hash>/text/chunks.json`
 - `out/run-<hash>/text/translations.json`
+- `out/run-<hash>/text/translated_document.json`
 - `out/run-<hash>/text/rewrites.json`
 - `out/run-<hash>/audio/chunks/001_01_<title-slug>.wav`
 - `out/run-<hash>/audio/parts.json`
@@ -320,7 +321,8 @@ Player support for `description`/`publisher` may vary by platform; `title`/`albu
 structure indices for resume/rebuild stability, packaging intent metadata,
 resolved output language (`output_language`), packaged-tag summary metadata
 (`packaging_tags_*`), emitted packaged artifact references (`packaging_emitted_*`),
-and translate-only reader-export contract metadata (`reader_export_*` planned output keys).
+and translate-only reader-export contract metadata (`reader_export_*` planned output keys)
+plus the canonical translated-document artifact path (`translated_document`).
 `text/chunks.json` includes planner metadata under `metadata.planner` and chunk-level
 `boundary_strategy` metadata.
 
