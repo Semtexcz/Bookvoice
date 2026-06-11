@@ -135,6 +135,7 @@ def _resolve_command_base_config(
     package_encoding_profile: str | None = None,
     package_keep_merged: bool | None = None,
     reader_output_format: str | None = None,
+    max_provider_workers: int | None = None,
 ) -> BookvoiceConfig:
     """Resolve effective command config from YAML defaults and explicit CLI overrides."""
 
@@ -292,6 +293,9 @@ def _resolve_command_base_config(
             language=resolved_language,
             chapter_selection=chapters,
             rewrite_bypass=resolved_rewrite_bypass,
+            max_provider_workers=(
+                max_provider_workers if max_provider_workers is not None else 1
+            ),
             extra=resolved_extra,
         )
 
@@ -300,6 +304,11 @@ def _resolve_command_base_config(
     resolved_chapters = chapters if chapters is not None else loaded_config.chapter_selection
     resolved_rewrite_bypass = (
         rewrite_bypass if rewrite_bypass is not None else loaded_config.rewrite_bypass
+    )
+    resolved_max_provider_workers = (
+        max_provider_workers
+        if max_provider_workers is not None
+        else loaded_config.max_provider_workers
     )
 
     return BookvoiceConfig(
@@ -315,6 +324,7 @@ def _resolve_command_base_config(
         tts_voice=loaded_config.tts_voice,
         rewrite_bypass=resolved_rewrite_bypass,
         api_key=loaded_config.api_key,
+        max_provider_workers=resolved_max_provider_workers,
         chunk_size_chars=loaded_config.chunk_size_chars,
         chapter_selection=resolved_chapters,
         resume=loaded_config.resume,
@@ -342,6 +352,7 @@ def _apply_runtime_sources(
         tts_voice=base_config.tts_voice,
         rewrite_bypass=base_config.rewrite_bypass,
         api_key=base_config.api_key,
+        max_provider_workers=base_config.max_provider_workers,
         chunk_size_chars=base_config.chunk_size_chars,
         chapter_selection=base_config.chapter_selection,
         resume=base_config.resume,
@@ -412,6 +423,16 @@ def build_command(
         typer.Option(
             "--api-key",
             help="Provider API key override. Prefer `--prompt-api-key` to avoid shell history.",
+        ),
+    ] = None,
+    max_provider_workers: Annotated[
+        int | None,
+        typer.Option(
+            "--max-provider-workers",
+            help=(
+                "Maximum concurrent provider calls per stage. Keep low when provider "
+                "rate limits are strict."
+            ),
         ),
     ] = None,
     prompt_api_key: Annotated[
@@ -518,6 +539,7 @@ def build_command(
             model_tts=model_tts,
             tts_voice=tts_voice,
             api_key=api_key,
+            max_provider_workers=max_provider_workers,
             interactive_provider_setup=interactive_provider_setup,
             prompt_api_key=prompt_api_key,
             store_api_key=store_api_key,
@@ -538,6 +560,7 @@ def build_command(
             package_encoding_bitrate=package_encoding_bitrate,
             package_encoding_profile=package_encoding_profile,
             package_keep_merged=package_keep_merged,
+            max_provider_workers=max_provider_workers,
         )
         config = _apply_runtime_sources(
             base_config=base_config,
@@ -710,6 +733,16 @@ def translate_only_command(
             help="Provider API key override. Prefer `--prompt-api-key` to avoid shell history.",
         ),
     ] = None,
+    max_provider_workers: Annotated[
+        int | None,
+        typer.Option(
+            "--max-provider-workers",
+            help=(
+                "Maximum concurrent provider calls per stage. Keep low when provider "
+                "rate limits are strict."
+            ),
+        ),
+    ] = None,
     prompt_api_key: Annotated[
         bool,
         typer.Option(
@@ -765,6 +798,7 @@ def translate_only_command(
             model_tts=model_tts,
             tts_voice=tts_voice,
             api_key=api_key,
+            max_provider_workers=max_provider_workers,
             interactive_provider_setup=interactive_provider_setup,
             prompt_api_key=prompt_api_key,
             store_api_key=store_api_key,
@@ -778,6 +812,7 @@ def translate_only_command(
             language=language,
             rewrite_bypass=rewrite_bypass,
             reader_output_format=reader_output_format,
+            max_provider_workers=max_provider_workers,
         )
         config = _apply_runtime_sources(
             base_config=base_config,

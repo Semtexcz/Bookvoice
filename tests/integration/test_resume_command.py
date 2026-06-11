@@ -72,6 +72,79 @@ def test_resume_command_recovers_from_interrupted_run(tmp_path: Path) -> None:
     assert "Cost Total (USD):" in resume_result.output
 
 
+@pytest.mark.parametrize(
+    ("failing_method", "expected_stage", "upstream_methods"),
+    [
+        ("_translate", "translate", ()),
+        ("_rewrite_for_audio", "rewrite", ("_translate",)),
+        ("_tts", "tts", ("_translate", "_rewrite_for_audio")),
+    ],
+)
+def test_resume_uses_checkpoint_manifest_from_interrupted_build(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    failing_method: str,
+    expected_stage: str,
+    upstream_methods: tuple[str, ...],
+) -> None:
+    """Resume should continue from checkpoints written before provider stages."""
+
+    runner = CliRunner()
+    out_dir = tmp_path / "out"
+    fixture_pdf = canonical_content_pdf_fixture_path()
+    original_methods = {
+        name: getattr(BookvoicePipeline, name)
+        for name in ("_translate", "_rewrite_for_audio", "_tts")
+    }
+
+    def _interrupted_stage(self: BookvoicePipeline, *args: object, **kwargs: object) -> object:
+        """Simulate an interrupted provider stage after checkpoint persistence."""
+
+        del self, args, kwargs
+        raise RuntimeError(f"interrupted before {expected_stage}")
+
+    monkeypatch.setattr(BookvoicePipeline, failing_method, _interrupted_stage)
+
+    build_result = runner.invoke(app, ["build", str(fixture_pdf), "--out", str(out_dir)])
+    assert build_result.exit_code == 1
+    assert f"interrupted before {expected_stage}" in build_result.output
+
+    manifest_path = next(out_dir.glob("run-*/run_manifest.json"))
+    checkpoint_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert checkpoint_payload["extra"]["manifest_status"] == "checkpoint"
+    assert Path(checkpoint_payload["extra"]["raw_text"]).exists()
+    assert Path(checkpoint_payload["extra"]["clean_text"]).exists()
+    assert Path(checkpoint_payload["extra"]["chapters"]).exists()
+    assert Path(checkpoint_payload["extra"]["chunks"]).exists()
+
+    for method_name in upstream_methods:
+        def _unexpected_replay(
+            self: BookvoicePipeline,
+            *args: object,
+            _method_name: str = method_name,
+            **kwargs: object,
+        ) -> object:
+            """Fail when resume replays a completed upstream provider stage."""
+
+            del self, args, kwargs
+            raise AssertionError(f"{_method_name} should not replay during resume")
+
+        monkeypatch.setattr(BookvoicePipeline, method_name, _unexpected_replay)
+
+    monkeypatch.setattr(BookvoicePipeline, failing_method, original_methods[failing_method])
+
+    resume_result = runner.invoke(app, ["resume", str(manifest_path)])
+    assert resume_result.exit_code == 0, resume_result.output
+    assert f"Resumed from stage: {expected_stage}" in resume_result.output
+
+    resumed_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert resumed_payload["extra"].get("manifest_status") is None
+    assert Path(resumed_payload["extra"]["translations"]).exists()
+    assert Path(resumed_payload["extra"]["rewrites"]).exists()
+    assert Path(resumed_payload["extra"]["audio_parts"]).exists()
+    assert Path(resumed_payload["merged_audio_path"]).exists()
+
+
 def test_resume_preserves_translation_and_rewrite_payload_schema(tmp_path: Path) -> None:
     """Resume should regenerate translation/rewrite artifacts with identical payload schema."""
 

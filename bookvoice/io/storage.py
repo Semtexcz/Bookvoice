@@ -8,6 +8,7 @@ Responsibilities:
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 
@@ -36,6 +37,19 @@ class ArtifactStore:
             json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True),
             encoding="utf-8",
         )
+        return path
+
+    def save_json_atomic(self, relative_path: Path, payload: dict[str, object]) -> Path:
+        """Atomically save JSON-serializable payload and return final path."""
+
+        path = self.root / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path = path.with_name(f".{path.name}.tmp")
+        temporary_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        os.replace(temporary_path, path)
         return path
 
     def save_audio(self, relative_path: Path, data: bytes) -> Path:

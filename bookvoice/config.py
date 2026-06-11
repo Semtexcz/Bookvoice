@@ -66,6 +66,7 @@ class ProviderRuntimeConfig:
         tts_voice: Voice identifier for TTS stage.
         rewrite_bypass: Whether rewrite stage should run deterministic pass-through mode.
         api_key: Optional provider API key (resolved but not persisted in artifacts).
+        max_provider_workers: Maximum in-flight provider calls per provider-backed stage.
     """
 
     translator_provider: str
@@ -77,6 +78,7 @@ class ProviderRuntimeConfig:
     tts_voice: str
     rewrite_bypass: bool = False
     api_key: str | None = None
+    max_provider_workers: int = 1
 
     def as_manifest_metadata(self) -> dict[str, str]:
         """Return non-secret runtime metadata safe to persist in artifacts/manifest."""
@@ -90,6 +92,7 @@ class ProviderRuntimeConfig:
             "model_tts": self.tts_model,
             "tts_voice": self.tts_voice,
             "rewrite_bypass": "true" if self.rewrite_bypass else "false",
+            "max_provider_workers": str(self.max_provider_workers),
         }
 
 
@@ -110,6 +113,7 @@ class BookvoiceConfig:
         tts_voice: TTS voice identifier.
         rewrite_bypass: Explicit rewrite bypass mode using deterministic pass-through output.
         api_key: Optional API key for provider calls.
+        max_provider_workers: Maximum in-flight provider calls per provider-backed stage.
         chunk_size_chars: Target chunk size in characters.
         chapter_selection: Optional 1-based chapter selection expression.
         resume: Whether pipeline should attempt to resume from artifacts.
@@ -129,6 +133,7 @@ class BookvoiceConfig:
     tts_voice: str = _DEFAULT_TTS_VOICE
     rewrite_bypass: bool = False
     api_key: str | None = None
+    max_provider_workers: int = 1
     chunk_size_chars: int = 1800
     chapter_selection: str | None = None
     resume: bool = False
@@ -148,6 +153,8 @@ class BookvoiceConfig:
         self._require_non_empty(self.tts_voice, "tts_voice")
         if self.chunk_size_chars <= 0:
             raise ValueError("`chunk_size_chars` must be a positive integer.")
+        if self.max_provider_workers <= 0:
+            raise ValueError("`max_provider_workers` must be a positive integer.")
 
     @property
     def input_path(self) -> Path:
@@ -233,6 +240,12 @@ class BookvoiceConfig:
             default_value=self.api_key,
             sources=resolved_sources,
         )
+        max_provider_workers = self._resolve_runtime_positive_int(
+            key="max_provider_workers",
+            env_key="BOOKVOICE_MAX_PROVIDER_WORKERS",
+            default_value=self.max_provider_workers,
+            sources=resolved_sources,
+        )
 
         resolved = ProviderRuntimeConfig(
             translator_provider=translator_provider,
@@ -244,6 +257,7 @@ class BookvoiceConfig:
             tts_voice=tts_voice,
             rewrite_bypass=rewrite_bypass,
             api_key=api_key,
+            max_provider_workers=max_provider_workers,
         )
         self._validate_provider_id(resolved.translator_provider, "provider_translator")
         self._validate_provider_id(resolved.rewriter_provider, "provider_rewriter")
@@ -252,6 +266,8 @@ class BookvoiceConfig:
         self._require_non_empty(resolved.rewrite_model, "model_rewrite")
         self._require_non_empty(resolved.tts_model, "model_tts")
         self._require_non_empty(resolved.tts_voice, "tts_voice")
+        if resolved.max_provider_workers <= 0:
+            raise ValueError("`max_provider_workers` must be a positive integer.")
         return resolved
 
     def _resolve_runtime_value(
@@ -328,6 +344,31 @@ class BookvoiceConfig:
 
         return bool(default_value)
 
+    def _resolve_runtime_positive_int(
+        self,
+        key: str,
+        env_key: str,
+        default_value: int,
+        sources: RuntimeConfigSources,
+    ) -> int:
+        """Resolve a positive integer runtime value from configured sources."""
+
+        cli_value = self._normalized_lookup(sources.cli, key)
+        if cli_value is not None:
+            return self._parse_positive_integer_value(cli_value, key)
+
+        secure_value = self._normalized_lookup(sources.secure, key)
+        if secure_value is not None:
+            return self._parse_positive_integer_value(secure_value, key)
+
+        env_value = self._normalized_lookup(sources.env, env_key)
+        if env_value is not None:
+            return self._parse_positive_integer_value(env_value, key)
+
+        if default_value <= 0:
+            raise ValueError(f"`{key}` must be a positive integer.")
+        return default_value
+
     @staticmethod
     def _normalized_lookup(mapping: Mapping[str, str], key: str) -> str | None:
         """Return a stripped mapping value for a key or `None` when missing/blank."""
@@ -364,6 +405,18 @@ class BookvoiceConfig:
         """Parse a runtime boolean value from canonical textual forms."""
 
         return parse_required_boolean(value, field_name)
+
+    @staticmethod
+    def _parse_positive_integer_value(value: str, field_name: str) -> int:
+        """Parse a positive integer value from text."""
+
+        try:
+            parsed = int(value)
+        except ValueError as exc:
+            raise ValueError(f"`{field_name}` must be a positive integer.") from exc
+        if parsed <= 0:
+            raise ValueError(f"`{field_name}` must be a positive integer.")
+        return parsed
 
     @staticmethod
     def detect_source_format(path: Path) -> Literal["pdf", "epub"]:
@@ -407,6 +460,7 @@ class ConfigLoader:
             "tts_voice",
             "rewrite_bypass",
             "api_key",
+            "max_provider_workers",
             "chunk_size_chars",
             "chapter_selection",
             "resume",
@@ -433,6 +487,7 @@ class ConfigLoader:
             "BOOKVOICE_MODEL_TTS",
             "BOOKVOICE_TTS_VOICE",
             "BOOKVOICE_REWRITE_BYPASS",
+            "BOOKVOICE_MAX_PROVIDER_WORKERS",
             "OPENAI_API_KEY",
         }
     )
@@ -466,6 +521,13 @@ class ConfigLoader:
         chunk_size = ConfigLoader._optional_env_positive_int(
             env_map, "BOOKVOICE_CHUNK_SIZE_CHARS"
         ) or 1800
+        max_provider_workers = (
+            ConfigLoader._optional_env_positive_int(
+                env_map,
+                "BOOKVOICE_MAX_PROVIDER_WORKERS",
+            )
+            or 1
+        )
         chapter_selection = ConfigLoader._optional_env_string(
             env_map, "BOOKVOICE_CHAPTER_SELECTION"
         )
@@ -570,6 +632,7 @@ class ConfigLoader:
             tts_voice=tts_voice,
             rewrite_bypass=rewrite_bypass,
             api_key=api_key,
+            max_provider_workers=max_provider_workers,
             chunk_size_chars=chunk_size,
             chapter_selection=chapter_selection,
             resume=resume,
@@ -650,6 +713,12 @@ class ConfigLoader:
             source_label,
             default=1800,
         )
+        max_provider_workers = ConfigLoader._optional_positive_int(
+            payload,
+            "max_provider_workers",
+            source_label,
+            default=1,
+        )
         chapter_selection = ConfigLoader._optional_non_empty_string(
             payload, "chapter_selection", source_label
         )
@@ -728,6 +797,7 @@ class ConfigLoader:
             tts_voice=tts_voice,
             rewrite_bypass=rewrite_bypass,
             api_key=api_key,
+            max_provider_workers=max_provider_workers,
             chunk_size_chars=chunk_size,
             chapter_selection=chapter_selection,
             resume=resume,

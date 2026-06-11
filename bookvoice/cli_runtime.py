@@ -102,6 +102,7 @@ def resolve_provider_runtime_sources(
     model_tts: str | None,
     tts_voice: str | None,
     api_key: str | None,
+    max_provider_workers: int | None,
     interactive_provider_setup: bool,
     prompt_api_key: bool,
     store_api_key: bool,
@@ -118,6 +119,8 @@ def resolve_provider_runtime_sources(
     _set_runtime_cli_value(runtime_cli_values, "model_tts", model_tts)
     _set_runtime_cli_value(runtime_cli_values, "tts_voice", tts_voice)
     _set_runtime_cli_value(runtime_cli_values, "api_key", api_key)
+    if max_provider_workers is not None:
+        runtime_cli_values["max_provider_workers"] = str(max_provider_workers)
 
     api_key_entered_in_run = "api_key" in runtime_cli_values
     if interactive_provider_setup:

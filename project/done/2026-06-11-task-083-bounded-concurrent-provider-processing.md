@@ -1,6 +1,6 @@
 ---
 task: TASK-083
-status: "backlog"
+status: "done"
 priority: P1
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Add bounded concurrent provider processing for long books
 
 Task: TASK-083
-Status: backlog
+Status: done
 Priority: P1
 Type: feature
 Author:
@@ -48,26 +48,26 @@ current synchronous provider implementation or adding a new HTTP dependency.
 
 ## Definition of Done
 
-- [ ] Add a shared bounded concurrency helper for ordered per-item stage
+- [x] Add a shared bounded concurrency helper for ordered per-item stage
       execution.
-- [ ] Apply bounded concurrency to translation, rewrite, and TTS stages where
+- [x] Apply bounded concurrency to translation, rewrite, and TTS stages where
       each chunk or rewrite can be processed independently.
-- [ ] Preserve deterministic output ordering, artifact paths, manifest content,
+- [x] Preserve deterministic output ordering, artifact paths, manifest content,
       and audio merge order regardless of completion order.
-- [ ] Add `max_provider_workers` configuration support through CLI options,
+- [x] Add `max_provider_workers` configuration support through CLI options,
       YAML config, and environment variables.
-- [ ] Validate worker configuration and report actionable errors for invalid
+- [x] Validate worker configuration and report actionable errors for invalid
       values.
-- [ ] Keep the default behavior conservative enough to avoid surprising provider
+- [x] Keep the default behavior conservative enough to avoid surprising provider
       rate-limit failures.
-- [ ] Ensure progress output remains readable when multiple items are in flight.
-- [ ] Ensure provider errors include enough context to identify the failed
+- [x] Ensure progress output remains readable when multiple items are in flight.
+- [x] Ensure provider errors include enough context to identify the failed
       stage and chunk while cancelling or draining remaining work predictably.
-- [ ] Add tests proving that concurrent completion order does not change
+- [x] Add tests proving that concurrent completion order does not change
       translation, rewrite, TTS, manifest, or merge ordering.
-- [ ] Add tests for worker-limit parsing, invalid worker values, and provider
+- [x] Add tests for worker-limit parsing, invalid worker values, and provider
       error handling during concurrent execution.
-- [ ] Update user-facing documentation with concurrency configuration examples
+- [x] Update user-facing documentation with concurrency configuration examples
       and rate-limit guidance.
 
 ## Notes

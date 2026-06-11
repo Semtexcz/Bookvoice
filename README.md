@@ -162,6 +162,13 @@ poetry run bookvoice list-chapters --chapters-artifact out/run-*/text/chapters.j
 poetry run bookvoice resume out/run-<id>/run_manifest.json
 ```
 
+`bookvoice build` writes `out/run-<id>/run_manifest.json` as soon as the run
+directory is prepared and refreshes it after each completed stage. If a terminal
+is closed or a provider call fails before the final manifest stage, locate the
+newest `out/run-*/run_manifest.json` under the selected output directory and
+pass it to `bookvoice resume`. Resume reuses completed artifacts and regenerates
+only the first missing stage and downstream outputs.
+
 ### Credentials
 
 ```bash
@@ -181,7 +188,8 @@ Default models/voice:
 
 Resolution precedence:
 
-- Runtime values (`provider_*`, `model_*`, `tts_voice`, `api_key`, `rewrite_bypass`):
+- Runtime values (`provider_*`, `model_*`, `tts_voice`, `api_key`, `rewrite_bypass`,
+  `max_provider_workers`):
   `CLI explicit input > secure credential storage > environment > config/defaults`
 - Command fields (`input_path`/`input_pdf`, `output_dir`, `chapter_selection`):
   explicit CLI option/argument overrides `--config` values.
@@ -197,6 +205,7 @@ Environment keys:
 - `BOOKVOICE_MODEL_TTS`
 - `BOOKVOICE_TTS_VOICE`
 - `BOOKVOICE_REWRITE_BYPASS`
+- `BOOKVOICE_MAX_PROVIDER_WORKERS`
 - `BOOKVOICE_LANGUAGE`
 - `BOOKVOICE_OUTPUT_FORMAT`
 - `BOOKVOICE_PACKAGE_MODE` (legacy compatibility)
@@ -222,6 +231,7 @@ Environment keys:
 - `tts_voice`
 - `rewrite_bypass` (`true`/`false`, `1`/`0`, `yes`/`no`)
 - `api_key`
+- `max_provider_workers` (positive integer; default `1`)
 - `chunk_size_chars` (positive integer)
 - `chapter_selection`
 - `resume` (`true`/`false`, `1`/`0`, `yes`/`no`)
@@ -249,6 +259,7 @@ model_rewrite: gpt-4.1-mini
 model_tts: gpt-4o-mini-tts
 tts_voice: echo
 rewrite_bypass: false
+max_provider_workers: 2
 chapter_selection: 1-3
 language: cs
 output_format: m4a,mp3
@@ -279,6 +290,7 @@ An EPUB counterpart is also available at `tests/files/canonical_synthetic_fixtur
 - `BOOKVOICE_MODEL_TTS`
 - `BOOKVOICE_TTS_VOICE`
 - `BOOKVOICE_REWRITE_BYPASS`
+- `BOOKVOICE_MAX_PROVIDER_WORKERS`
 - `BOOKVOICE_OUTPUT_FORMAT`
 - `BOOKVOICE_PACKAGE_MODE`
 - `BOOKVOICE_PACKAGE_CHAPTERS`
@@ -289,6 +301,13 @@ An EPUB counterpart is also available at `tests/files/canonical_synthetic_fixtur
 - `BOOKVOICE_PACKAGE_ENCODING_PROFILE`
 - `BOOKVOICE_READER_OUTPUT_FORMAT`
 - `OPENAI_API_KEY`
+
+Provider stages (`translate`, `rewrite`, and `tts`) run independent chunks with
+bounded concurrency and preserve deterministic artifact and merge order. The
+default `max_provider_workers` value is `1` to avoid surprising provider
+rate-limit failures. Increase it through `--max-provider-workers`,
+`max_provider_workers`, or `BOOKVOICE_MAX_PROVIDER_WORKERS` only when your
+provider account and selected models can support multiple in-flight requests.
 
 ## Artifacts You Can Expect
 

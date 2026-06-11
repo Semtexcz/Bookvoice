@@ -30,6 +30,7 @@ model_tts: " gpt-4o-mini-tts "
 tts_voice: " echo "
 rewrite_bypass: " yes "
 api_key: " test-key "
+max_provider_workers: " 4 "
 chunk_size_chars: " 2400 "
 chapter_selection: " 1,3-4 "
 resume: false
@@ -57,6 +58,7 @@ pricing_url: " https://pricing.example/catalog.json "
     assert config.tts_voice == "echo"
     assert config.rewrite_bypass is True
     assert config.api_key == "test-key"
+    assert config.max_provider_workers == 4
     assert config.chunk_size_chars == 2400
     assert config.chapter_selection == "1,3-4"
     assert config.resume is False
@@ -119,6 +121,19 @@ chunk_size_chars: x
     with pytest.raises(ValueError, match="`chunk_size_chars` must be a positive integer"):
         ConfigLoader.from_yaml(invalid_int_path)
 
+    invalid_workers_path = tmp_path / "invalid-workers.yml"
+    invalid_workers_path.write_text(
+        """
+input_path: in.pdf
+output_dir: out
+max_provider_workers: 0
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="`max_provider_workers` must be a positive integer"):
+        ConfigLoader.from_yaml(invalid_workers_path)
+
 
 def test_config_loader_from_env_loads_runtime_values_and_normalizes_blanks() -> None:
     """Environment loader should parse runtime keys and normalize blank strings."""
@@ -135,6 +150,7 @@ def test_config_loader_from_env_loads_runtime_values_and_normalizes_blanks() -> 
         "BOOKVOICE_MODEL_TTS": " env-model-tts ",
         "BOOKVOICE_TTS_VOICE": " alloy ",
         "BOOKVOICE_REWRITE_BYPASS": " true ",
+        "BOOKVOICE_MAX_PROVIDER_WORKERS": " 2 ",
         "BOOKVOICE_CHAPTER_SELECTION": "   ",
         "OPENAI_API_KEY": " env-api-key ",
         "BOOKVOICE_READER_OUTPUT_FORMAT": " pdf ",
@@ -153,6 +169,7 @@ def test_config_loader_from_env_loads_runtime_values_and_normalizes_blanks() -> 
     assert config.model_tts == "env-model-tts"
     assert config.tts_voice == "alloy"
     assert config.rewrite_bypass is True
+    assert config.max_provider_workers == 2
     assert config.chapter_selection is None
     assert config.api_key == "env-api-key"
     assert config.extra["reader_output_format"] == "pdf"
@@ -167,6 +184,7 @@ def test_config_loader_from_env_preserves_runtime_precedence() -> None:
             "BOOKVOICE_INPUT_PATH": "in.pdf",
             "BOOKVOICE_MODEL_TRANSLATE": "env-model-t",
             "BOOKVOICE_REWRITE_BYPASS": "false",
+            "BOOKVOICE_MAX_PROVIDER_WORKERS": "2",
             "OPENAI_API_KEY": "env-api-key",
         }
     )
@@ -181,6 +199,7 @@ def test_config_loader_from_env_preserves_runtime_precedence() -> None:
 
     assert runtime.translate_model == "cli-model-t"
     assert runtime.rewrite_bypass is True
+    assert runtime.max_provider_workers == 2
     assert runtime.api_key == "secure-api-key"
 
 

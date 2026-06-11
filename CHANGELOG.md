@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.20.0] - 2026-06-11
+
+### Added
+
+- Added atomic resumable `run_manifest.json` checkpoints during full builds so
+  interrupted runs can resume before the final manifest stage.
+- Added bounded ordered provider concurrency for translate, rewrite, and TTS
+  stages via `max_provider_workers`, `--max-provider-workers`, and
+  `BOOKVOICE_MAX_PROVIDER_WORKERS`.
+- Documented interrupted-run recovery and provider rate-limit tradeoffs.
+- Added integration coverage for resume from checkpoints before translate,
+  rewrite, and TTS, plus unit coverage for ordered concurrent completion and
+  worker-limit parsing.
+- Completed `TASK-082` and `TASK-083`, marked them done, and moved them to
+  `project/done/`.
+- Bumped project version to `0.20.0`.
+
 ## [0.19.0] - 2026-06-11
 
 ### Added

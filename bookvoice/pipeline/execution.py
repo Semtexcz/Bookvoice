@@ -41,6 +41,7 @@ from ..text.segment_planner import TextBudgetSegmentPlanner
 from ..text.slug import slugify_audio_title
 from ..text.structure import ChapterStructureNormalizer
 from ..tts.voices import VoiceProfile
+from .concurrency import run_ordered_bounded
 
 
 class PipelineExecutionMixin:
@@ -133,6 +134,17 @@ class PipelineExecutionMixin:
             stage=stage,
             detail=self._provider_error_detail(stage, exc),
             hint=self._provider_error_hint(stage, exc),
+        )
+
+    def _record_provider_client_stats(self, clients: list[object]) -> None:
+        """Aggregate provider retry and cache telemetry from per-worker clients."""
+
+        self._record_provider_retry_attempts(
+            sum(int(getattr(client, "retry_attempt_count", 0)) for client in clients)
+        )
+        self._record_provider_cache_stats(
+            hits=sum(int(getattr(client, "cache_hits", 0)) for client in clients),
+            misses=sum(int(getattr(client, "cache_misses", 0)) for client in clients),
         )
 
     def _extract(self, config: BookvoiceConfig) -> str:
@@ -360,25 +372,55 @@ class PipelineExecutionMixin:
 
         try:
             runtime_config = self._resolve_runtime_config(config)
-            translator = ProviderFactory.create_translator(
-                provider_id=runtime_config.translator_provider,
-                model=runtime_config.translate_model,
-                api_key=runtime_config.api_key,
-            )
-            translations: list[TranslationResult] = []
             total_chunks = len(chunks)
-            for item_index, chunk in enumerate(chunks, start=1):
+            if runtime_config.max_provider_workers == 1:
+                translator = ProviderFactory.create_translator(
+                    provider_id=runtime_config.translator_provider,
+                    model=runtime_config.translate_model,
+                    api_key=runtime_config.api_key,
+                )
+                translations: list[TranslationResult] = []
+                for item_index, chunk in enumerate(chunks, start=1):
+                    with self._provider_activity("translate", item_index, total_chunks):
+                        translations.append(
+                            translator.translate(chunk, target_language=config.language)
+                        )
+                self._record_provider_client_stats([translator])
+                return translations
+
+            provider_clients: list[object] = []
+
+            def _translate_one(index: int, chunk: Chunk) -> TranslationResult:
+                """Translate one chunk with an isolated provider client."""
+
+                translator = ProviderFactory.create_translator(
+                    provider_id=runtime_config.translator_provider,
+                    model=runtime_config.translate_model,
+                    api_key=runtime_config.api_key,
+                )
+                provider_clients.append(translator)
+                item_index = index + 1
                 with self._provider_activity("translate", item_index, total_chunks):
-                    translations.append(
-                        translator.translate(chunk, target_language=config.language)
-                    )
-            self._record_provider_retry_attempts(
-                getattr(translator, "retry_attempt_count", 0)
+                    try:
+                        return translator.translate(chunk, target_language=config.language)
+                    except OpenAIProviderError as exc:
+                        error = self._provider_stage_error("translate", exc)
+                        raise PipelineStageError(
+                            stage="translate",
+                            detail=(
+                                f"Provider item {item_index}/{total_chunks} failed during "
+                                f"`translate`: {error.detail}"
+                            ),
+                            hint=error.hint,
+                        ) from exc
+
+            translations = run_ordered_bounded(
+                stage_name="translate",
+                items=chunks,
+                max_workers=runtime_config.max_provider_workers,
+                worker=_translate_one,
             )
-            self._record_provider_cache_stats(
-                hits=getattr(translator, "cache_hits", 0),
-                misses=getattr(translator, "cache_misses", 0),
-            )
+            self._record_provider_client_stats(provider_clients)
             return translations
         except OpenAIProviderError as exc:
             raise self._provider_stage_error("translate", exc) from exc
@@ -408,23 +450,53 @@ class PipelineExecutionMixin:
             if resolved_runtime.rewrite_bypass:
                 bypass_rewriter = DeterministicBypassRewriter()
                 return [bypass_rewriter.rewrite(translation) for translation in translations]
-            rewriter = ProviderFactory.create_rewriter(
-                provider_id=resolved_runtime.rewriter_provider,
-                model=resolved_runtime.rewrite_model,
-                api_key=resolved_runtime.api_key,
-            )
-            rewrites: list[RewriteResult] = []
             total_translations = len(translations)
-            for item_index, translation in enumerate(translations, start=1):
+            if resolved_runtime.max_provider_workers == 1:
+                rewriter = ProviderFactory.create_rewriter(
+                    provider_id=resolved_runtime.rewriter_provider,
+                    model=resolved_runtime.rewrite_model,
+                    api_key=resolved_runtime.api_key,
+                )
+                rewrites: list[RewriteResult] = []
+                for item_index, translation in enumerate(translations, start=1):
+                    with self._provider_activity("rewrite", item_index, total_translations):
+                        rewrites.append(rewriter.rewrite(translation))
+                self._record_provider_client_stats([rewriter])
+                return rewrites
+
+            provider_clients: list[object] = []
+
+            def _rewrite_one(index: int, translation: TranslationResult) -> RewriteResult:
+                """Rewrite one translation with an isolated provider client."""
+
+                rewriter = ProviderFactory.create_rewriter(
+                    provider_id=resolved_runtime.rewriter_provider,
+                    model=resolved_runtime.rewrite_model,
+                    api_key=resolved_runtime.api_key,
+                )
+                provider_clients.append(rewriter)
+                item_index = index + 1
                 with self._provider_activity("rewrite", item_index, total_translations):
-                    rewrites.append(rewriter.rewrite(translation))
-            self._record_provider_retry_attempts(
-                getattr(rewriter, "retry_attempt_count", 0)
+                    try:
+                        return rewriter.rewrite(translation)
+                    except OpenAIProviderError as exc:
+                        error = self._provider_stage_error("rewrite", exc)
+                        raise PipelineStageError(
+                            stage="rewrite",
+                            detail=(
+                                f"Provider item {item_index}/{total_translations} failed during "
+                                f"`rewrite`: {error.detail}"
+                            ),
+                            hint=error.hint,
+                        ) from exc
+
+            rewrites = run_ordered_bounded(
+                stage_name="rewrite",
+                items=translations,
+                max_workers=resolved_runtime.max_provider_workers,
+                worker=_rewrite_one,
             )
-            self._record_provider_cache_stats(
-                hits=getattr(rewriter, "cache_hits", 0),
-                misses=getattr(rewriter, "cache_misses", 0),
-            )
+            self._record_provider_client_stats(provider_clients)
             return rewrites
         except OpenAIProviderError as exc:
             raise self._provider_stage_error("rewrite", exc) from exc
@@ -458,16 +530,54 @@ class PipelineExecutionMixin:
                 language=config.language,
                 speaking_rate=1.0,
             )
-            synthesizer = ProviderFactory.create_tts_synthesizer(
-                provider_id=resolved_runtime.tts_provider,
-                output_root=store.root / "audio/chunks",
-                model=resolved_runtime.tts_model,
-                api_key=resolved_runtime.api_key,
+            provider_clients: list[object] = []
+            total_rewrites = len(rewrites)
+            if resolved_runtime.max_provider_workers == 1:
+                synthesizer = ProviderFactory.create_tts_synthesizer(
+                    provider_id=resolved_runtime.tts_provider,
+                    output_root=store.root / "audio/chunks",
+                    model=resolved_runtime.tts_model,
+                    api_key=resolved_runtime.api_key,
+                )
+                audio_parts: list[AudioPart] = []
+                for item_index, rewrite in enumerate(rewrites, start=1):
+                    with self._provider_activity("tts", item_index, total_rewrites):
+                        audio_parts.append(synthesizer.synthesize(rewrite, voice))
+                self._record_provider_client_stats([synthesizer])
+                return audio_parts
+
+            def _tts_one(index: int, rewrite: RewriteResult) -> AudioPart:
+                """Synthesize one rewrite with an isolated provider client."""
+
+                item_index = index + 1
+                client = ProviderFactory.create_tts_synthesizer(
+                    provider_id=resolved_runtime.tts_provider,
+                    output_root=store.root / "audio/chunks",
+                    model=resolved_runtime.tts_model,
+                    api_key=resolved_runtime.api_key,
+                )
+                provider_clients.append(client)
+                with self._provider_activity("tts", item_index, total_rewrites):
+                    try:
+                        return client.synthesize(rewrite, voice)
+                    except OpenAIProviderError as exc:
+                        error = self._provider_stage_error("tts", exc)
+                        raise PipelineStageError(
+                            stage="tts",
+                            detail=(
+                                f"Provider item {item_index}/{total_rewrites} failed during "
+                                f"`tts`: {error.detail}"
+                            ),
+                            hint=error.hint,
+                        ) from exc
+
+            audio_parts = run_ordered_bounded(
+                stage_name="tts",
+                items=rewrites,
+                max_workers=resolved_runtime.max_provider_workers,
+                worker=_tts_one,
             )
-            audio_parts = [synthesizer.synthesize(item, voice) for item in rewrites]
-            self._record_provider_retry_attempts(
-                getattr(synthesizer, "retry_attempt_count", 0)
-            )
+            self._record_provider_client_stats(provider_clients)
             return audio_parts
         except OpenAIProviderError as exc:
             raise self._provider_stage_error("tts", exc) from exc

@@ -56,6 +56,7 @@ def test_resolve_provider_runtime_sources_collects_cli_and_secure_values() -> No
         model_tts=None,
         tts_voice=None,
         api_key=None,
+        max_provider_workers=3,
         interactive_provider_setup=False,
         prompt_api_key=False,
         store_api_key=True,
@@ -65,6 +66,7 @@ def test_resolve_provider_runtime_sources_collects_cli_and_secure_values() -> No
     assert runtime_cli_values == {
         "provider_translator": "openai",
         "model_translate": "cli-model-t",
+        "max_provider_workers": "3",
     }
     assert runtime_secure_values == {"api_key": "secure-api-key"}
     assert store.stored_values == []
@@ -106,6 +108,7 @@ def test_resolve_provider_runtime_sources_interactive_prompts_and_stores_api_key
         model_tts=None,
         tts_voice=None,
         api_key=None,
+        max_provider_workers=None,
         interactive_provider_setup=True,
         prompt_api_key=False,
         store_api_key=True,
@@ -147,6 +150,7 @@ def test_resolve_provider_runtime_sources_prompt_api_key_blank_skips_storage(
         model_tts=None,
         tts_voice=None,
         api_key=None,
+        max_provider_workers=None,
         interactive_provider_setup=False,
         prompt_api_key=True,
         store_api_key=True,
@@ -171,6 +175,7 @@ def test_resolve_provider_runtime_sources_storage_failure_raises_stage_error() -
             model_tts=None,
             tts_voice=None,
             api_key="explicit-api-key",
+            max_provider_workers=None,
             interactive_provider_setup=False,
             prompt_api_key=False,
             store_api_key=True,

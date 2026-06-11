@@ -72,7 +72,10 @@ class PipelineManifestMixin:
                 total_cost_usd=cost_summary["total_cost_usd"],
                 extra={**artifact_paths, "output_language": config.language},
             )
-            manifest_path = store.save_json(Path("run_manifest.json"), manifest_payload(manifest))
+            manifest_path = store.save_json_atomic(
+                Path("run_manifest.json"),
+                manifest_payload(manifest),
+            )
             return RunManifest(
                 run_id=manifest.run_id,
                 config_hash=manifest.config_hash,
@@ -90,4 +93,57 @@ class PipelineManifestMixin:
                 stage="manifest",
                 detail=f"Failed to write run manifest: {exc}",
                 hint="Verify output directory is writable.",
+            ) from exc
+
+    def _write_checkpoint_manifest(
+        self,
+        *,
+        config: BookvoiceConfig,
+        run_id: str,
+        config_hash: str,
+        store: ArtifactStore,
+        completed_stage: str,
+        artifact_paths: dict[str, str],
+        cost_summary: dict[str, float] | None = None,
+    ) -> Path:
+        """Atomically write a resumable manifest checkpoint for an incomplete run."""
+
+        try:
+            title, author = self._book_metadata_from_source(config)
+            manifest = RunManifest(
+                run_id=run_id,
+                config_hash=config_hash,
+                book=BookMeta(
+                    source_pdf=config.source_path,
+                    source_format=config.source_format,
+                    title=title,
+                    author=author,
+                    language=config.language,
+                ),
+                merged_audio_path=Path(
+                    artifact_paths.get(
+                        "merged_audio_path",
+                        str(store.root / "audio/bookvoice_merged.wav"),
+                    )
+                ),
+                total_llm_cost_usd=(cost_summary or {}).get("llm_cost_usd", 0.0),
+                total_tts_cost_usd=(cost_summary or {}).get("tts_cost_usd", 0.0),
+                total_cost_usd=(cost_summary or {}).get("total_cost_usd", 0.0),
+                extra={
+                    **artifact_paths,
+                    "run_root": str(store.root),
+                    "output_language": config.language,
+                    "manifest_status": "checkpoint",
+                    "checkpoint_completed_stage": completed_stage,
+                },
+            )
+            payload = manifest_payload(manifest)
+            return store.save_json_atomic(Path("run_manifest.json"), payload)
+        except PipelineStageError:
+            raise
+        except Exception as exc:
+            raise PipelineStageError(
+                stage="manifest-checkpoint",
+                detail=f"Failed to write resumable manifest checkpoint: {exc}",
+                hint="Verify output directory is writable and rerun or resume the build.",
             ) from exc

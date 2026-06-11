@@ -79,6 +79,7 @@ class PipelineRuntimeMixin:
             "model_tts": config.model_tts,
             "tts_voice": config.tts_voice,
             "rewrite_bypass": config.rewrite_bypass,
+            "max_provider_workers": config.max_provider_workers,
             "chunk_size_chars": config.chunk_size_chars,
             "chapter_selection": config.chapter_selection,
             "resume": config.resume,

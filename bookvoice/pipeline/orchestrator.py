@@ -268,15 +268,54 @@ class BookvoicePipeline(
         runtime_config = self._resolve_runtime_config(config)
         pricing = self._resolve_pricing(config, runtime_config, store)
         cost_tracker = CostTracker()
+        checkpoint_paths: dict[str, str] = {
+            "run_root": str(store.root),
+            "merged_audio_path": str(store.root / "audio/bookvoice_merged.wav"),
+            **runtime_config.as_manifest_metadata(),
+            **pricing.as_manifest_metadata(runtime_config),
+        }
+        self._write_checkpoint_manifest(
+            config=config,
+            run_id=run_id,
+            config_hash=config_hash,
+            store=store,
+            completed_stage="prepare",
+            artifact_paths=checkpoint_paths,
+        )
 
         raw_text = self._run_stage("extract", lambda: self._extract(config))
         raw_text_path = store.save_text(Path("text/raw.txt"), raw_text)
+        checkpoint_paths["raw_text"] = str(raw_text_path)
+        self._write_checkpoint_manifest(
+            config=config,
+            run_id=run_id,
+            config_hash=config_hash,
+            store=store,
+            completed_stage="extract",
+            artifact_paths=checkpoint_paths,
+        )
 
         clean_text, clean_metadata = self._run_stage(
             "clean",
             lambda: self._clean_with_metadata(raw_text),
         )
         clean_text_path = store.save_text(Path("text/clean.txt"), clean_text)
+        checkpoint_paths.update(
+            {
+                "clean_text": str(clean_text_path),
+                "drop_cap_merges_count": str(
+                    int(clean_metadata.get("drop_cap_merges_count", 0))
+                ),
+            }
+        )
+        self._write_checkpoint_manifest(
+            config=config,
+            run_id=run_id,
+            config_hash=config_hash,
+            store=store,
+            completed_stage="clean",
+            artifact_paths=checkpoint_paths,
+        )
 
         chapters, chapter_source, chapter_fallback_reason = self._run_stage(
             "split",
@@ -299,6 +338,25 @@ class BookvoicePipeline(
                 clean_metadata=clean_metadata,
             ),
         )
+        checkpoint_paths.update(
+            {
+                "chapters": str(chapters_path),
+                "chapter_source": chapter_source,
+                "chapter_fallback_reason": chapter_fallback_reason,
+                "merged_audio_path": str(
+                    self._merged_output_path_for_scope(store, chapter_scope)
+                ),
+                **chapter_scope,
+            }
+        )
+        self._write_checkpoint_manifest(
+            config=config,
+            run_id=run_id,
+            config_hash=config_hash,
+            store=store,
+            completed_stage="split",
+            artifact_paths=checkpoint_paths,
+        )
 
         chunks, chunk_metadata = self._run_stage(
             "chunk",
@@ -308,12 +366,43 @@ class BookvoicePipeline(
             Path("text/chunks.json"),
             chunk_artifact_payload(chunks, chapter_scope, chunk_metadata),
         )
+        checkpoint_paths.update(
+            {
+                "chunks": str(chunks_path),
+                "sentence_boundary_repairs_count": str(
+                    self._manifest_int(chunk_metadata, "sentence_boundary_repairs_count", 0)
+                ),
+            }
+        )
+        self._write_checkpoint_manifest(
+            config=config,
+            run_id=run_id,
+            config_hash=config_hash,
+            store=store,
+            completed_stage="chunk",
+            artifact_paths=checkpoint_paths,
+        )
 
         translations = self._run_stage("translate", lambda: self._translate(chunks, config))
         add_translation_costs(translations, cost_tracker, pricing, runtime_config)
         translations_path = store.save_json(
             Path("text/translations.json"),
             translation_artifact_payload(translations, chapter_scope, runtime_config),
+        )
+        checkpoint_paths.update(
+            {
+                "translations": str(translations_path),
+                **self._provider_call_manifest_metadata(),
+            }
+        )
+        self._write_checkpoint_manifest(
+            config=config,
+            run_id=run_id,
+            config_hash=config_hash,
+            store=store,
+            completed_stage="translate",
+            artifact_paths=checkpoint_paths,
+            cost_summary=rounded_cost_summary(cost_tracker),
         )
 
         rewrites = self._run_stage(
@@ -324,6 +413,21 @@ class BookvoicePipeline(
         rewrites_path = store.save_json(
             Path("text/rewrites.json"),
             rewrite_artifact_payload(rewrites, chapter_scope, runtime_config),
+        )
+        checkpoint_paths.update(
+            {
+                "rewrites": str(rewrites_path),
+                **self._provider_call_manifest_metadata(),
+            }
+        )
+        self._write_checkpoint_manifest(
+            config=config,
+            run_id=run_id,
+            config_hash=config_hash,
+            store=store,
+            completed_stage="rewrite",
+            artifact_paths=checkpoint_paths,
+            cost_summary=rounded_cost_summary(cost_tracker),
         )
 
         audio_parts = self._run_stage(
@@ -336,6 +440,22 @@ class BookvoicePipeline(
             audio_parts_artifact_payload(audio_parts, chapter_scope, runtime_config),
         )
         part_mapping_metadata = part_mapping_manifest_metadata(audio_parts)
+        checkpoint_paths.update(
+            {
+                "audio_parts": str(audio_parts_path),
+                **part_mapping_metadata,
+                **self._provider_call_manifest_metadata(),
+            }
+        )
+        self._write_checkpoint_manifest(
+            config=config,
+            run_id=run_id,
+            config_hash=config_hash,
+            store=store,
+            completed_stage="tts",
+            artifact_paths=checkpoint_paths,
+            cost_summary=rounded_cost_summary(cost_tracker),
+        )
 
         merged_path = self._run_stage(
             "merge",
@@ -345,6 +465,21 @@ class BookvoicePipeline(
                 store,
                 output_path=self._merged_output_path_for_scope(store, chapter_scope),
             ),
+        )
+        checkpoint_paths.update(
+            {
+                "merged_audio_path": str(merged_path),
+                "merged_audio_filename": merged_path.name,
+            }
+        )
+        self._write_checkpoint_manifest(
+            config=config,
+            run_id=run_id,
+            config_hash=config_hash,
+            store=store,
+            completed_stage="merge",
+            artifact_paths=checkpoint_paths,
+            cost_summary=rounded_cost_summary(cost_tracker),
         )
         packaging_options = self._packaging_options(config)
         packaged_outputs = self._run_stage(
@@ -370,6 +505,22 @@ class BookvoicePipeline(
         packaged_path = store.save_json(
             Path("audio/packaged.json"),
             packaged_audio_artifact_payload(packaged_outputs, chapter_scope, packaging_metadata),
+        )
+        checkpoint_paths.update(
+            {
+                "packaged_audio": str(packaged_path),
+                **packaging_metadata,
+                **packaged_output_metadata,
+            }
+        )
+        self._write_checkpoint_manifest(
+            config=config,
+            run_id=run_id,
+            config_hash=config_hash,
+            store=store,
+            completed_stage="package",
+            artifact_paths=checkpoint_paths,
+            cost_summary=rounded_cost_summary(cost_tracker),
         )
 
         manifest = self._run_stage(
@@ -962,6 +1113,11 @@ class BookvoicePipeline(
             model_tts=manifest_string(normalized_extra, "model_tts", "gpt-4o-mini-tts"),
             tts_voice=manifest_string(normalized_extra, "tts_voice", "echo"),
             rewrite_bypass=manifest_bool(normalized_extra, "rewrite_bypass", False),
+            max_provider_workers=self._manifest_int(
+                normalized_extra,
+                "max_provider_workers",
+                1,
+            ),
             extra={
                 "packaging_output_format": manifest_string(
                     normalized_extra,
