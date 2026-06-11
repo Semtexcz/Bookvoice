@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.18.0] - 2026-06-11
+
+### Added
+
+- Added provider/model/operation pricing resolution for cost tracking, including
+  optional online pricing JSON fetches, cached last-known pricing, and
+  deterministic default fallback rates.
+- Persisted pricing source metadata and exact pricing model identifiers in run
+  manifests.
+- Added CLI cost summary output that indicates whether live or fallback pricing
+  was used.
+- Added tests for mocked online pricing, fallback behavior, config loading, and
+  build manifest/CLI pricing metadata.
+- Completed `TASK-015`, marked it done, and moved it to
+  `project/done/2026-02-21-task-015-online-model-pricing-for-cost-tracker.md`.
+- Bumped project version to `0.18.0`.
+
 ## [0.17.4] - 2026-06-11
 
 ### Added

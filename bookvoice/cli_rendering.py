@@ -36,6 +36,12 @@ def echo_cost_summary(manifest: RunManifest) -> None:
     typer.echo(f"Cost LLM (USD): {manifest.total_llm_cost_usd:.6f}")
     typer.echo(f"Cost TTS (USD): {manifest.total_tts_cost_usd:.6f}")
     typer.echo(f"Cost Total (USD): {manifest.total_cost_usd:.6f}")
+    pricing_mode = manifest.extra.get("pricing_source_mode", "fallback")
+    pricing_source = manifest.extra.get("pricing_source_name", "unknown")
+    if pricing_mode == "live":
+        typer.echo(f"Cost pricing: live ({pricing_source})")
+    else:
+        typer.echo(f"Cost pricing: fallback ({pricing_source})")
 
 
 def echo_chapter_summary(manifest: RunManifest) -> None:

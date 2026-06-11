@@ -32,6 +32,7 @@ from ..models.datatypes import (
 )
 from ..telemetry.cost_tracker import CostTracker
 from ..telemetry.logger import RunLogger
+from ..telemetry.pricing import PricingCatalog, PricingProvider
 from .artifacts import (
     audio_parts_artifact_payload,
     chapter_artifact_payload,
@@ -130,6 +131,7 @@ class ResumeState:
     final_merged_path: Path | None = None
     packaged_outputs: list[PackagedAudio] = field(default_factory=list)
     reuse_packaged_outputs: bool = False
+    pricing: PricingCatalog | None = None
 
 
 class BookvoicePipeline(
@@ -186,6 +188,20 @@ class BookvoicePipeline(
         if merged_paths:
             metadata["packaging_emitted_merged_path"] = merged_paths[0]
         return metadata
+
+    @staticmethod
+    def _resolve_pricing(
+        config: BookvoiceConfig,
+        runtime_config: ProviderRuntimeConfig,
+        store: ArtifactStore,
+    ) -> PricingCatalog:
+        """Resolve pricing catalog for one run using the run-local cache path."""
+
+        return PricingProvider().resolve(
+            config=config,
+            runtime_config=runtime_config,
+            cache_path=store.root / "pricing/last_known_pricing.json",
+        )
 
     def list_chapters_from_source(
         self, config: BookvoiceConfig
@@ -248,6 +264,7 @@ class BookvoicePipeline(
         self._reset_provider_call_telemetry()
         run_id, config_hash, store = self._prepare_run(config)
         runtime_config = self._resolve_runtime_config(config)
+        pricing = self._resolve_pricing(config, runtime_config, store)
         cost_tracker = CostTracker()
 
         raw_text = self._run_stage("extract", lambda: self._extract(config))
@@ -291,7 +308,7 @@ class BookvoicePipeline(
         )
 
         translations = self._run_stage("translate", lambda: self._translate(chunks, config))
-        add_translation_costs(translations, cost_tracker)
+        add_translation_costs(translations, cost_tracker, pricing, runtime_config)
         translations_path = store.save_json(
             Path("text/translations.json"),
             translation_artifact_payload(translations, chapter_scope, runtime_config),
@@ -301,7 +318,7 @@ class BookvoicePipeline(
             "rewrite",
             lambda: self._rewrite_for_audio(translations, config, runtime_config),
         )
-        add_rewrite_costs(rewrites, cost_tracker)
+        add_rewrite_costs(rewrites, cost_tracker, pricing, runtime_config)
         rewrites_path = store.save_json(
             Path("text/rewrites.json"),
             rewrite_artifact_payload(rewrites, chapter_scope, runtime_config),
@@ -311,7 +328,7 @@ class BookvoicePipeline(
             "tts",
             lambda: self._tts(rewrites, config, store, runtime_config),
         )
-        add_tts_costs(rewrites, cost_tracker)
+        add_tts_costs(rewrites, cost_tracker, pricing, runtime_config)
         audio_parts_path = store.save_json(
             Path("audio/parts.json"),
             audio_parts_artifact_payload(audio_parts, chapter_scope, runtime_config),
@@ -384,6 +401,7 @@ class BookvoicePipeline(
                     **packaged_output_metadata,
                     **self._provider_call_manifest_metadata(),
                     **runtime_config.as_manifest_metadata(),
+                    **pricing.as_manifest_metadata(runtime_config),
                     **chapter_scope,
                 },
                 cost_summary=rounded_cost_summary(cost_tracker),
@@ -398,6 +416,7 @@ class BookvoicePipeline(
         self._reset_provider_call_telemetry()
         run_id, config_hash, store = self._prepare_run(config)
         runtime_config = self._resolve_runtime_config(config)
+        pricing = self._resolve_pricing(config, runtime_config, store)
 
         raw_text = self._extract(config)
         raw_text_path = store.save_text(Path("text/raw.txt"), raw_text)
@@ -438,6 +457,7 @@ class BookvoicePipeline(
                 "pipeline_mode": "chapters_only",
                 **self._provider_call_manifest_metadata(),
                 **runtime_config.as_manifest_metadata(),
+                **pricing.as_manifest_metadata(runtime_config),
                 **chapter_scope,
             },
             cost_summary={"llm_cost_usd": 0.0, "tts_cost_usd": 0.0, "total_cost_usd": 0.0},
@@ -450,6 +470,7 @@ class BookvoicePipeline(
         self._reset_provider_call_telemetry()
         run_id, config_hash, store = self._prepare_run(config)
         runtime_config = self._resolve_runtime_config(config)
+        pricing = self._resolve_pricing(config, runtime_config, store)
         cost_tracker = CostTracker()
 
         raw_text = self._run_stage("extract", lambda: self._extract(config))
@@ -493,7 +514,7 @@ class BookvoicePipeline(
         )
 
         translations = self._run_stage("translate", lambda: self._translate(chunks, config))
-        add_translation_costs(translations, cost_tracker)
+        add_translation_costs(translations, cost_tracker, pricing, runtime_config)
         translations_path = store.save_json(
             Path("text/translations.json"),
             translation_artifact_payload(translations, chapter_scope, runtime_config),
@@ -605,6 +626,7 @@ class BookvoicePipeline(
                     **reader_export_metadata,
                     **self._provider_call_manifest_metadata(),
                     **runtime_config.as_manifest_metadata(),
+                    **pricing.as_manifest_metadata(runtime_config),
                     **chapter_scope,
                 },
                 cost_summary=rounded_cost_summary(cost_tracker),
@@ -618,6 +640,11 @@ class BookvoicePipeline(
         self._reset_provider_call_telemetry()
         state = self._build_resume_state(manifest_path)
         self._validate_tts_only_runtime_metadata(state.extra)
+        state.pricing = self._resolve_pricing(
+            state.config,
+            state.runtime_config,
+            state.store,
+        )
         state.rewrites, state.chapter_scope = self._load_tts_only_prerequisites(state)
 
         state.audio_parts = self._run_stage(
@@ -629,7 +656,12 @@ class BookvoicePipeline(
                 state.runtime_config,
             ),
         )
-        add_tts_costs(state.rewrites, state.cost_tracker)
+        add_tts_costs(
+            state.rewrites,
+            state.cost_tracker,
+            state.pricing,
+            state.runtime_config,
+        )
         state.paths.audio_parts = state.store.save_json(
             Path("audio/parts.json"),
             audio_parts_artifact_payload(
@@ -715,6 +747,7 @@ class BookvoicePipeline(
                     **packaged_output_metadata,
                     **self._provider_call_manifest_metadata(),
                     **state.runtime_config.as_manifest_metadata(),
+                    **state.pricing.as_manifest_metadata(state.runtime_config),
                     **state.chapter_scope,
                 },
                 cost_summary=rounded_cost_summary(state.cost_tracker),
@@ -861,6 +894,11 @@ class BookvoicePipeline(
 
         self._reset_provider_call_telemetry()
         state = self._build_resume_state(manifest_path)
+        state.pricing = self._resolve_pricing(
+            state.config,
+            state.runtime_config,
+            state.store,
+        )
         self._load_or_extract_resume_text(state)
         self._load_or_clean_resume_text(state)
         self._load_or_split_resume_chapters(state)
@@ -1150,7 +1188,18 @@ class BookvoicePipeline(
                     state.runtime_config,
                 ),
             )
-        add_translation_costs(state.translations, state.cost_tracker)
+        if state.pricing is None:
+            state.pricing = self._resolve_pricing(
+                state.config,
+                state.runtime_config,
+                state.store,
+            )
+        add_translation_costs(
+            state.translations,
+            state.cost_tracker,
+            state.pricing,
+            state.runtime_config,
+        )
 
     def _load_or_rewrite_resume_artifact(self, state: ResumeState) -> None:
         """Load existing rewrites or rerun rewrite stage."""
@@ -1171,7 +1220,18 @@ class BookvoicePipeline(
                     state.runtime_config,
                 ),
             )
-        add_rewrite_costs(state.rewrites, state.cost_tracker)
+        if state.pricing is None:
+            state.pricing = self._resolve_pricing(
+                state.config,
+                state.runtime_config,
+                state.store,
+            )
+        add_rewrite_costs(
+            state.rewrites,
+            state.cost_tracker,
+            state.pricing,
+            state.runtime_config,
+        )
 
     def _load_or_tts_resume_artifact(self, state: ResumeState) -> None:
         """Load reusable audio parts or rerun TTS when parts/artifacts are missing."""
@@ -1211,7 +1271,18 @@ class BookvoicePipeline(
                     state.runtime_config,
                 ),
             )
-        add_tts_costs(state.rewrites, state.cost_tracker)
+        if state.pricing is None:
+            state.pricing = self._resolve_pricing(
+                state.config,
+                state.runtime_config,
+                state.store,
+            )
+        add_tts_costs(
+            state.rewrites,
+            state.cost_tracker,
+            state.pricing,
+            state.runtime_config,
+        )
 
     def _load_or_merge_resume_artifact(self, state: ResumeState) -> None:
         """Reuse merged audio only when audio parts were fully reused."""
@@ -1339,6 +1410,15 @@ class BookvoicePipeline(
                 **packaged_output_metadata,
                 **self._provider_call_manifest_metadata(),
                 **state.runtime_config.as_manifest_metadata(),
+                **(
+                    state.pricing.as_manifest_metadata(state.runtime_config)
+                    if state.pricing is not None
+                    else self._resolve_pricing(
+                        state.config,
+                        state.runtime_config,
+                        state.store,
+                    ).as_manifest_metadata(state.runtime_config)
+                ),
                 **state.chapter_scope,
             },
             cost_summary=rounded_cost_summary(state.cost_tracker),

@@ -419,6 +419,7 @@ class ConfigLoader:
             "package_encoding_bitrate",
             "package_encoding_profile",
             "reader_output_format",
+            "pricing_url",
             "extra",
         }
     )
@@ -522,6 +523,7 @@ class ConfigLoader:
         reader_output_format = ConfigLoader._optional_env_string(
             env_map, "BOOKVOICE_READER_OUTPUT_FORMAT"
         )
+        pricing_url = ConfigLoader._optional_env_string(env_map, "BOOKVOICE_PRICING_URL")
         packaging_extra: dict[str, str] = {}
         if output_format is not None:
             packaging_extra["packaging_output_format"] = output_format
@@ -545,6 +547,8 @@ class ConfigLoader:
             packaging_extra["packaging_encoding_profile"] = package_encoding_profile
         if reader_output_format is not None:
             packaging_extra["reader_output_format"] = reader_output_format
+        if pricing_url is not None:
+            packaging_extra["pricing_url"] = pricing_url
 
         runtime_env = {
             key: value
@@ -687,6 +691,9 @@ class ConfigLoader:
         reader_output_format = ConfigLoader._optional_non_empty_string(
             payload, "reader_output_format", source_label
         )
+        pricing_url = ConfigLoader._optional_non_empty_string(
+            payload, "pricing_url", source_label
+        )
         if output_format is not None:
             extra["packaging_output_format"] = output_format
         if package_mode is not None:
@@ -705,6 +712,8 @@ class ConfigLoader:
             extra["packaging_encoding_profile"] = package_encoding_profile
         if reader_output_format is not None:
             extra["reader_output_format"] = reader_output_format
+        if pricing_url is not None:
+            extra["pricing_url"] = pricing_url
 
         config = BookvoiceConfig(
             input_pdf=input_pdf,

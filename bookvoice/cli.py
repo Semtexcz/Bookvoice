@@ -266,6 +266,14 @@ def _resolve_command_base_config(
             ) from exc
         resolved_extra["reader_output_format"] = reader_export_formats_csv(formats)
 
+    resolved_pricing_url = _resolve_value(
+        None,
+        "BOOKVOICE_PRICING_URL",
+        normalize_optional_string(loaded_extra.get("pricing_url")),
+    )
+    if resolved_pricing_url is not None:
+        resolved_extra["pricing_url"] = resolved_pricing_url
+
     if loaded_config is None:
         if input_path is None:
             raise PipelineStageError(

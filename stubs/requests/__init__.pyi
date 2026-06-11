@@ -41,3 +41,11 @@ def post(
     json: Any = ...,
     timeout: float | tuple[float, float] | None = ...,
 ) -> Response: ...
+
+
+def get(
+    url: str,
+    *,
+    headers: dict[str, str] | None = ...,
+    timeout: float | tuple[float, float] | None = ...,
+) -> Response: ...

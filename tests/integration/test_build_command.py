@@ -89,11 +89,17 @@ def test_build_command_creates_outputs(tmp_path: Path) -> None:
     assert payload["extra"]["model_rewrite"]
     assert payload["extra"]["model_tts"]
     assert payload["extra"]["tts_voice"]
+    assert payload["extra"]["pricing_source_mode"] == "fallback"
+    assert payload["extra"]["pricing_source_name"] == "bookvoice-default-pricing"
+    assert payload["extra"]["pricing_model_translate"] == payload["extra"]["model_translate"]
+    assert payload["extra"]["pricing_model_rewrite"] == payload["extra"]["model_rewrite"]
+    assert payload["extra"]["pricing_model_tts"] == payload["extra"]["model_tts"]
 
     assert "Chapter source:" in result.output
     assert "Cost LLM (USD):" in result.output
     assert "Cost TTS (USD):" in result.output
     assert "Cost Total (USD):" in result.output
+    assert "Cost pricing: fallback (bookvoice-default-pricing)" in result.output
 
 
 def test_build_command_cost_summary_is_deterministic(tmp_path: Path) -> None:

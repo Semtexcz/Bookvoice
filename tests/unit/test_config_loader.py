@@ -36,6 +36,7 @@ resume: false
 extra:
   profile: " nightly "
 reader_output_format: " pdf,epub "
+pricing_url: " https://pricing.example/catalog.json "
 """.strip(),
         encoding="utf-8",
     )
@@ -59,7 +60,11 @@ reader_output_format: " pdf,epub "
     assert config.chunk_size_chars == 2400
     assert config.chapter_selection == "1,3-4"
     assert config.resume is False
-    assert config.extra == {"profile": "nightly", "reader_output_format": "pdf,epub"}
+    assert config.extra == {
+        "profile": "nightly",
+        "reader_output_format": "pdf,epub",
+        "pricing_url": "https://pricing.example/catalog.json",
+    }
 
 
 def test_config_loader_from_yaml_rejects_missing_and_unknown_keys(tmp_path: Path) -> None:
@@ -133,6 +138,7 @@ def test_config_loader_from_env_loads_runtime_values_and_normalizes_blanks() -> 
         "BOOKVOICE_CHAPTER_SELECTION": "   ",
         "OPENAI_API_KEY": " env-api-key ",
         "BOOKVOICE_READER_OUTPUT_FORMAT": " pdf ",
+        "BOOKVOICE_PRICING_URL": " https://pricing.example/catalog.json ",
     }
 
     config = ConfigLoader.from_env(env)
@@ -150,6 +156,7 @@ def test_config_loader_from_env_loads_runtime_values_and_normalizes_blanks() -> 
     assert config.chapter_selection is None
     assert config.api_key == "env-api-key"
     assert config.extra["reader_output_format"] == "pdf"
+    assert config.extra["pricing_url"] == "https://pricing.example/catalog.json"
 
 
 def test_config_loader_from_env_preserves_runtime_precedence() -> None:

@@ -1,4 +1,4 @@
-"""Deterministic cost-estimation helpers for Bookvoice pipeline.
+"""Model-aware cost-estimation helpers for Bookvoice pipeline.
 
 Responsibilities:
 - Accumulate stage-level usage into the shared `CostTracker`.
@@ -7,43 +7,86 @@ Responsibilities:
 
 from __future__ import annotations
 
+from ..config import ProviderRuntimeConfig
 from ..models.datatypes import RewriteResult, TranslationResult
 from ..telemetry.cost_tracker import CostTracker
-
-
-_TRANSLATE_COST_PER_1K_CHARS_USD = 0.0015
-_REWRITE_COST_PER_1K_CHARS_USD = 0.0008
-_TTS_COST_PER_1K_CHARS_USD = 0.0150
+from ..telemetry.pricing import (
+    LLM_INPUT_OPERATION,
+    LLM_OUTPUT_OPERATION,
+    TTS_CHARACTER_OPERATION,
+    PricingCatalog,
+)
 
 
 def add_translation_costs(
-    translations: list[TranslationResult], cost_tracker: CostTracker
+    translations: list[TranslationResult],
+    cost_tracker: CostTracker,
+    pricing: PricingCatalog,
+    runtime_config: ProviderRuntimeConfig,
 ) -> None:
-    """Accumulate deterministic LLM cost estimate for translation stage."""
+    """Accumulate LLM cost estimate for translation stage."""
+
+    input_price = pricing.price_for(
+        provider=runtime_config.translator_provider,
+        model=runtime_config.translate_model,
+        operation=LLM_INPUT_OPERATION,
+    )
+    output_price = pricing.price_for(
+        provider=runtime_config.translator_provider,
+        model=runtime_config.translate_model,
+        operation=LLM_OUTPUT_OPERATION,
+    )
 
     for item in translations:
-        source_chars = len(item.chunk.text)
-        translated_chars = len(item.translated_text)
-        billable_chars = max(1, source_chars + translated_chars)
-        cost_tracker.add_llm_usage((billable_chars / 1000.0) * _TRANSLATE_COST_PER_1K_CHARS_USD)
+        source_chars = max(1, len(item.chunk.text))
+        translated_chars = max(1, len(item.translated_text))
+        cost_tracker.add_llm_usage((source_chars / 1000.0) * input_price.usd)
+        cost_tracker.add_llm_usage((translated_chars / 1000.0) * output_price.usd)
 
 
-def add_rewrite_costs(rewrites: list[RewriteResult], cost_tracker: CostTracker) -> None:
-    """Accumulate deterministic LLM cost estimate for rewrite stage."""
+def add_rewrite_costs(
+    rewrites: list[RewriteResult],
+    cost_tracker: CostTracker,
+    pricing: PricingCatalog,
+    runtime_config: ProviderRuntimeConfig,
+) -> None:
+    """Accumulate LLM cost estimate for rewrite stage."""
+
+    input_price = pricing.price_for(
+        provider=runtime_config.rewriter_provider,
+        model=runtime_config.rewrite_model,
+        operation=LLM_INPUT_OPERATION,
+    )
+    output_price = pricing.price_for(
+        provider=runtime_config.rewriter_provider,
+        model=runtime_config.rewrite_model,
+        operation=LLM_OUTPUT_OPERATION,
+    )
 
     for item in rewrites:
-        input_chars = len(item.translation.translated_text)
-        output_chars = len(item.rewritten_text)
-        billable_chars = max(1, input_chars + output_chars)
-        cost_tracker.add_llm_usage((billable_chars / 1000.0) * _REWRITE_COST_PER_1K_CHARS_USD)
+        input_chars = max(1, len(item.translation.translated_text))
+        output_chars = max(1, len(item.rewritten_text))
+        cost_tracker.add_llm_usage((input_chars / 1000.0) * input_price.usd)
+        cost_tracker.add_llm_usage((output_chars / 1000.0) * output_price.usd)
 
 
-def add_tts_costs(rewrites: list[RewriteResult], cost_tracker: CostTracker) -> None:
-    """Accumulate deterministic TTS cost estimate for synthesis stage."""
+def add_tts_costs(
+    rewrites: list[RewriteResult],
+    cost_tracker: CostTracker,
+    pricing: PricingCatalog,
+    runtime_config: ProviderRuntimeConfig,
+) -> None:
+    """Accumulate TTS cost estimate for synthesis stage."""
+
+    price = pricing.price_for(
+        provider=runtime_config.tts_provider,
+        model=runtime_config.tts_model,
+        operation=TTS_CHARACTER_OPERATION,
+    )
 
     for item in rewrites:
         billable_chars = max(1, len(item.rewritten_text))
-        cost_tracker.add_tts_usage((billable_chars / 1000.0) * _TTS_COST_PER_1K_CHARS_USD)
+        cost_tracker.add_tts_usage((billable_chars / 1000.0) * price.usd)
 
 
 def rounded_cost_summary(cost_tracker: CostTracker) -> dict[str, float]:
