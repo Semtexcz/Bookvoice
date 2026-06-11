@@ -6,9 +6,7 @@ This playbook covers version, changelog, commit, and release preparation rules.
 
 ## Release-Relevant Changes
 
-This repository's root `AGENTS.md` is stricter than the source template.
-After every completed code or repository change, update the version,
-`CHANGELOG.md`, and create a focused Conventional Commit.
+Update version and `CHANGELOG.md` only for release-relevant changes.
 
 Release-relevant means:
 
@@ -39,7 +37,9 @@ When changelog updates are required:
 
 ## Commits
 
-When committing:
+Do not commit unless explicitly requested.
+
+When asked to commit:
 
 1. Inspect `git status` and the diff.
 2. Include only files related to the requested change.
@@ -51,7 +51,7 @@ When committing:
 Examples:
 
 ```text
-feat(cli): add chapter export command
+feat(cli): add dataset export command
 fix(api): reject empty export paths
 docs(agent): split guidance into playbooks
 ```

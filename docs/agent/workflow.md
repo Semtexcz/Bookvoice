@@ -12,10 +12,8 @@ This playbook describes how agents should move from request to verified change w
 4. Identify affected files, module boundaries, and relevant tests.
 5. Make the smallest safe change.
 6. Update local documentation when behavior, workflow, or architecture understanding changes.
-7. Update version and `CHANGELOG.md` according to root `AGENTS.md`.
-8. Run relevant verification.
-9. Create the required focused Conventional Commit.
-10. Report the outcome clearly.
+7. Run relevant verification.
+8. Report the outcome clearly.
 
 ## Backlog Tasks
 
@@ -68,7 +66,5 @@ Before finishing:
 - Scope matches the request.
 - Relevant tests or checks were run, or skipped checks are explained.
 - Relevant documentation was updated.
-- Version and `CHANGELOG.md` were updated.
 - Backlog status and task sequence were updated when task files changed.
-- A focused Conventional Commit was created.
 - No unrelated files were modified.
