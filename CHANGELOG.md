@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.20.1] - 2026-06-11
+
+### Added
+
+- Added Copier template adoption metadata through `.copier-answers.yml` for
+  future updates from `Semtexcz/_ai_python_project_template`.
+- Added template-aligned workflow, vision, task-sequence, agent playbook,
+  product, prompt, script, ADR, and test-strategy documents while preserving
+  the project-specific `AGENTS.md` rules.
+- Added local helper targets in `Makefile` and `scripts/check.sh`.
+- Bumped project version to `0.20.1`.
+
 ## [0.20.0] - 2026-06-11
 
 ### Added

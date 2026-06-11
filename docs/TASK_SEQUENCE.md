@@ -1,0 +1,45 @@
+# Task Sequence
+
+## Order
+
+- TASK-057
+- TASK-058
+- TASK-059
+- TASK-069
+- TASK-070
+- TASK-071
+- TASK-072
+- TASK-073
+- TASK-074
+- TASK-075
+- TASK-076
+- TASK-078
+- TASK-044
+- TASK-060
+- TASK-061
+- TASK-077
+- TASK-079
+
+## Dependencies
+
+- TASK-057 <- TASK-054, TASK-055, `.github/workflows/windows-release.yml`
+- TASK-058 <- `pyproject.toml`, `README.md`
+- TASK-059 <- TASK-058
+- TASK-060 <- TASK-058, TASK-059, `.github/workflows`
+- TASK-061 <- TASK-058, TASK-059, TASK-060, `README.md`
+- TASK-069 <- TASK-062, TASK-064, TASK-065
+- TASK-070 <- TASK-063, TASK-067, TASK-069
+- TASK-071 <- TASK-064, TASK-069, TASK-070
+- TASK-072 <- TASK-065, TASK-069, TASK-070
+- TASK-073 <- TASK-014, TASK-036, TASK-040
+- TASK-074 <- TASK-073, TASK-024, TASK-043, TASK-066
+- TASK-075 <- TASK-073, TASK-074, TASK-019, TASK-037
+- TASK-076 <- TASK-073, TASK-074, TASK-075, TASK-066, TASK-068
+- TASK-077 <- TASK-016, TASK-017, TASK-066, TASK-067, TASK-068, TASK-076
+- TASK-078 <- TASK-014, TASK-036, TASK-040, TASK-073
+- TASK-079 <- TASK-073, TASK-075, TASK-076, TASK-078
+
+## Rule
+
+Follow the first unfinished task in Order when selecting backlog work.
+Do not violate Dependencies.

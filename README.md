@@ -447,12 +447,33 @@ For Inno Setup installer packaging, see `docs/WINDOWS_INNO_SETUP.md`.
 poetry run pytest
 ```
 
+### Template updates
+
+This repository is adopted from
+`https://github.com/Semtexcz/_ai_python_project_template` and keeps its Copier
+metadata in `.copier-answers.yml`.
+
+To pull future template updates:
+
+```bash
+copier update
+```
+
+Review generated diffs before committing, especially changes under `docs/`,
+`product/`, `project/`, `prompts/`, `scripts/`, `pyproject.toml`, and
+`CHANGELOG.md`. Keep the project-specific `AGENTS.md` rules unless a template
+change is intentionally adopted.
+
 ### Project layout
 
 - `bookvoice/`: core package modules.
 - `bookvoice/models/`: shared typed dataclasses.
 - `bookvoice/io|text|llm|tts|audio|telemetry/`: pipeline stage modules.
 - `docs/`: architecture and module overviews.
+- `product/`: PRD, feature, and user-story templates.
+- `project/`: backlog and task execution records.
+- `prompts/`: reusable project-local AI prompts.
+- `scripts/`: local project helper scripts.
 
 ### Project docs
 
@@ -460,6 +481,9 @@ poetry run pytest
 - `docs/ARTIFACTS.md`: generated run artifacts and file formats.
 - `docs/MODULES.md`: module responsibilities and dependencies.
 - `docs/ROADMAP.md`: phased implementation plan and milestones.
+- `docs/WORKFLOW.md`: planning and agent collaboration workflow.
+- `docs/TASK_SEQUENCE.md`: active task order and dependencies.
+- `docs/VISION.MD`: project purpose, users, value, and non-goals.
 
 ## License
 

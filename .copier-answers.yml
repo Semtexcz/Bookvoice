@@ -1,0 +1,11 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY.
+_commit: 0146cb7c72c2d720bce0e95dba630623a6838430
+_src_path: https://github.com/Semtexcz/_ai_python_project_template
+author_email: bookvoice@example.com
+author_name: Bookvoice Contributors
+initial_version: 0.20.1
+package_name: bookvoice
+project_description: Deterministic pipeline scaffold for converting PDF books into Czech audiobook outputs.
+project_name: Bookvoice
+project_slug: bookvoice
+python_version: "3.12"

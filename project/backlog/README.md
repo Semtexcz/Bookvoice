@@ -20,9 +20,6 @@ task is implemented.
 | [TASK-075](2026-05-15-fastapi-rest-api/2026-05-15-task-075-api-job-orchestration-and-status.md) | Add API job orchestration and status tracking | TASK-073, TASK-074, TASK-019, TASK-037 |
 | [TASK-076](2026-05-15-fastapi-rest-api/2026-05-15-task-076-api-source-upload-and-artifact-access.md) | Add source upload and artifact access endpoints | TASK-073, TASK-074, TASK-075, TASK-066, TASK-068 |
 | [TASK-078](2026-05-15-fastapi-rest-api/2026-05-15-task-078-api-configuration-and-security.md) | Add API configuration and baseline security controls | TASK-014, TASK-036, TASK-040, TASK-073 |
-| [TASK-080](2026-06-10-task-080-llm-processing-activity-feedback.md) | Add activity feedback during long LLM processing stages | TASK-019 |
-| [TASK-082](2026-06-10-task-082-resume-interrupted-build-before-final-manifest.md) | Support resume for interrupted builds before final manifest write | TASK-008, TASK-037, TASK-080 |
-| [TASK-083](2026-06-11-task-083-bounded-concurrent-provider-processing.md) | Add bounded concurrent provider processing for long books | TASK-012, TASK-019, TASK-080, TASK-082 |
 
 ## P2
 
@@ -33,7 +30,6 @@ task is implemented.
 | [TASK-061](2026-02-28-linux-deb-packaging/2026-02-28-task-061-linux-deb-user-installation-docs.md) | Document Linux Debian package installation, upgrades, and troubleshooting | TASK-058, TASK-059, TASK-060, `README.md` |
 | [TASK-077](2026-05-15-fastapi-rest-api/2026-05-15-task-077-api-chapter-discovery-endpoints.md) | Add chapter discovery endpoints | TASK-016, TASK-017, TASK-066, TASK-067, TASK-068, TASK-076 |
 | [TASK-079](2026-05-15-fastapi-rest-api/2026-05-15-task-079-api-docs-and-deployment-packaging.md) | Document and package the REST API server | TASK-073, TASK-075, TASK-076, TASK-078 |
-| [TASK-081](2026-06-10-task-081-show-time-in-log-output.md) | Show time in log output | TASK-019, TASK-080 |
 
 ## Notes
 
