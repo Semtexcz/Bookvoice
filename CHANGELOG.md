@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.22.0] - 2026-06-11
+
+### Added
+
+- Added public library API functions for chapters-only, translate-only,
+  TTS-only, resume, source chapter listing, and artifact chapter listing
+  workflows.
+- Documented the expanded reusable engine API surface for backend-worker
+  integrations.
+- Bumped project version to `0.22.0`.
+
 ## [0.21.0] - 2026-06-11
 
 ### Added

@@ -73,6 +73,10 @@ provide credentials and runtime settings non-interactively through
 mechanisms. Web routing, authentication, payment, database persistence, and job
 orchestration belong outside this repository.
 
+The public library API also exposes the main non-interactive workflows:
+`run_chapters_only`, `run_translate_only`, `run_tts_only`, `resume_audiobook`,
+`list_chapters`, and `list_chapters_from_artifact`.
+
 See `docs/library-usage.md` for more details.
 
 ## Core User Commands
