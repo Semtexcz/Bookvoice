@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.4] - 2026-06-11
+
+### Added
+
+- Added `project/backlog/README.md` as a priority-sorted index of active
+  backlog tasks with explicit dependency lists.
+- Updated `project/README.md` to document the backlog index convention.
+- Bumped project version to `0.17.4`.
+
 ## [0.17.3] - 2026-03-15
 
 ### Fixed

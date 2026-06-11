@@ -15,3 +15,5 @@ Conventions:
 - One markdown file per task.
 - Filename: `YYYY-MM-DD-task-XXX-short-title.md`.
 - Keep task metadata both in frontmatter and in the task body for quick scanning.
+- Use `backlog/README.md` as the priority-sorted index of active backlog tasks
+  and their explicit dependencies.
