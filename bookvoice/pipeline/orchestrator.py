@@ -147,11 +147,13 @@ class BookvoicePipeline(
         self,
         run_logger: RunLogger | None = None,
         stage_progress_callback: Callable[[str, int, int], None] | None = None,
+        provider_activity_interval_seconds: float = 5.0,
     ) -> None:
         """Initialize optional runtime logging and progress reporting hooks."""
 
         self._run_logger = run_logger
         self._stage_progress_callback = stage_progress_callback
+        self._provider_activity_interval_seconds = provider_activity_interval_seconds
         self._reset_provider_call_telemetry()
 
     @staticmethod

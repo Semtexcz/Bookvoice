@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.19.0] - 2026-06-11
+
+### Added
+
+- Added elapsed runtime and stage duration tokens to CLI phase logs.
+- Added periodic secret-safe activity pulses during long translation and rewrite
+  provider calls.
+- Added unit coverage for deterministic timed log formatting and in-flight LLM
+  activity feedback.
+- Documented timed phase logs and provider activity feedback in `README.md`.
+- Completed `TASK-080` and `TASK-081`, marked them done, and moved them to
+  `project/done/`.
+- Bumped project version to `0.19.0`.
+
 ## [0.18.0] - 2026-06-11
 
 ### Added

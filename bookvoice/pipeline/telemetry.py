@@ -8,7 +8,9 @@ Responsibilities:
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from threading import Event, Thread
 from typing import TYPE_CHECKING, TypeVar
 
 if TYPE_CHECKING:
@@ -22,6 +24,7 @@ class PipelineTelemetryMixin:
 
     _run_logger: RunLogger | None
     _stage_progress_callback: Callable[[str, int, int], None] | None
+    _provider_activity_interval_seconds: float
     _provider_retry_attempts: int
     _provider_cache_hits: int
     _provider_cache_misses: int
@@ -102,6 +105,47 @@ class PipelineTelemetryMixin:
 
         if self._run_logger is not None:
             self._run_logger.log_stage_failure(stage_name, type(exc).__name__)
+
+    def _on_provider_activity(
+        self,
+        stage_name: str,
+        item_index: int,
+        item_total: int,
+    ) -> None:
+        """Emit one secret-safe provider activity pulse."""
+
+        if self._run_logger is not None:
+            self._run_logger.log_provider_activity(stage_name, item_index, item_total)
+
+    @contextmanager
+    def _provider_activity(
+        self,
+        stage_name: str,
+        item_index: int,
+        item_total: int,
+    ) -> Iterator[None]:
+        """Emit periodic provider activity while a single item remains in progress."""
+
+        if self._run_logger is None or self._provider_activity_interval_seconds <= 0.0:
+            yield
+            return
+
+        stop_event = Event()
+
+        def _pulse_until_stopped() -> None:
+            """Emit provider activity pulses until the item finishes."""
+
+            interval_seconds = self._provider_activity_interval_seconds
+            while not stop_event.wait(interval_seconds):
+                self._on_provider_activity(stage_name, item_index, item_total)
+
+        pulse_thread = Thread(target=_pulse_until_stopped, daemon=True)
+        pulse_thread.start()
+        try:
+            yield
+        finally:
+            stop_event.set()
+            pulse_thread.join(timeout=1.0)
 
     def _run_stage(
         self,

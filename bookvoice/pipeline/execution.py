@@ -8,6 +8,7 @@ Responsibilities:
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -55,6 +56,14 @@ class PipelineExecutionMixin:
 
         def _record_provider_cache_stats(self, *, hits: int, misses: int) -> None:
             """Record provider cache telemetry for downstream manifest metadata."""
+
+        def _provider_activity(
+            self,
+            stage_name: str,
+            item_index: int,
+            item_total: int,
+        ) -> AbstractContextManager[object]:
+            """Return a context manager that emits provider activity pulses."""
 
     @staticmethod
     def _provider_error_detail(stage: str, exc: OpenAIProviderError) -> str:
@@ -356,10 +365,13 @@ class PipelineExecutionMixin:
                 model=runtime_config.translate_model,
                 api_key=runtime_config.api_key,
             )
-            translations = [
-                translator.translate(chunk, target_language=config.language)
-                for chunk in chunks
-            ]
+            translations: list[TranslationResult] = []
+            total_chunks = len(chunks)
+            for item_index, chunk in enumerate(chunks, start=1):
+                with self._provider_activity("translate", item_index, total_chunks):
+                    translations.append(
+                        translator.translate(chunk, target_language=config.language)
+                    )
             self._record_provider_retry_attempts(
                 getattr(translator, "retry_attempt_count", 0)
             )
@@ -401,7 +413,11 @@ class PipelineExecutionMixin:
                 model=resolved_runtime.rewrite_model,
                 api_key=resolved_runtime.api_key,
             )
-            rewrites = [rewriter.rewrite(translation) for translation in translations]
+            rewrites: list[RewriteResult] = []
+            total_translations = len(translations)
+            for item_index, translation in enumerate(translations, start=1):
+                with self._provider_activity("rewrite", item_index, total_translations):
+                    rewrites.append(rewriter.rewrite(translation))
             self._record_provider_retry_attempts(
                 getattr(rewriter, "retry_attempt_count", 0)
             )

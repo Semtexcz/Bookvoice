@@ -1,6 +1,6 @@
 ---
 task: TASK-080
-status: "backlog"
+status: "done"
 priority: P1
 type: feature
 ---
@@ -8,7 +8,7 @@ type: feature
 # Add activity feedback during long LLM processing stages
 
 Task: TASK-080
-Status: backlog
+Status: done
 Priority: P1
 Type: feature
 Author:
@@ -33,17 +33,17 @@ confusion and improving the overall user experience.
 
 ## Definition of Done
 
-- [ ] Add visible activity feedback for long-running LLM stages in CLI commands
+- [x] Add visible activity feedback for long-running LLM stages in CLI commands
       that invoke translation or rewrite processing.
-- [ ] Ensure feedback is emitted while work is still in progress, not only
+- [x] Ensure feedback is emitted while work is still in progress, not only
       before and after a provider call.
-- [ ] Keep terminal output concise and readable in both interactive terminals
+- [x] Keep terminal output concise and readable in both interactive terminals
       and CI logs.
-- [ ] Avoid leaking prompts, source text, API keys, credential material, or other
+- [x] Avoid leaking prompts, source text, API keys, credential material, or other
       sensitive data in progress output.
-- [ ] Add or update tests that verify activity feedback is shown for long LLM
+- [x] Add or update tests that verify activity feedback is shown for long LLM
       processing paths.
-- [ ] Update user-facing documentation with the new progress behavior.
+- [x] Update user-facing documentation with the new progress behavior.
 
 ## Notes
 

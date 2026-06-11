@@ -86,18 +86,22 @@ Compatibility note:
 Runtime feedback during `build`:
 
 - Deterministic progress lines per stage (`extract`, `clean`, `split`, `chunk`, `translate`, `rewrite`, `tts`, `merge`, `package`, `manifest`).
-- Structured phase logs (`[phase]`) for stage start/complete/failure.
+- Structured phase logs (`[phase]`) for stage start/complete/failure, including
+  run elapsed time and completed stage duration as seconds.
+- Periodic provider activity pulses during long translation and rewrite calls,
+  showing only stage and item counters.
 - Output is concise and CI-friendly, with no credential material in logs.
 
 Example output excerpt:
 
 ```text
 [progress] command=build | 1/10 stage=extract
-[phase] level=INFO stage=extract event=start
-[phase] level=INFO stage=extract event=complete
+[phase] level=INFO stage=extract event=start elapsed=0.000s
+[phase] level=INFO stage=extract event=complete duration=0.042s elapsed=0.042s
 ...
+[phase] level=INFO stage=translate event=activity elapsed=5.104s item=1/12
 [progress] command=build / 10/10 stage=manifest
-[phase] level=INFO stage=manifest event=complete
+[phase] level=INFO stage=manifest event=complete duration=0.003s elapsed=38.812s
 ```
 
 ### Chapters-only (fast boundary inspection)

@@ -1,6 +1,6 @@
 ---
 task: TASK-081
-status: "backlog"
+status: "done"
 priority: P2
 type: enhancement
 ---
@@ -8,7 +8,7 @@ type: enhancement
 # Show time in log output
 
 Task: TASK-081
-Status: backlog
+Status: done
 Priority: P2
 Type: enhancement
 Author:
@@ -34,16 +34,16 @@ activity happened, and which stages are taking the most time.
 
 ## Definition of Done
 
-- [ ] Add time information to CLI log output for pipeline stage activity.
-- [ ] Use a clear, documented format for timestamps, elapsed runtime, or stage
+- [x] Add time information to CLI log output for pipeline stage activity.
+- [x] Use a clear, documented format for timestamps, elapsed runtime, or stage
       duration values.
-- [ ] Keep default log output concise and avoid noisy per-token or per-line time
+- [x] Keep default log output concise and avoid noisy per-token or per-line time
       messages.
-- [ ] Preserve deterministic tests by controlling, injecting, or normalizing time
+- [x] Preserve deterministic tests by controlling, injecting, or normalizing time
       values where needed.
-- [ ] Add or update tests that verify time information appears in relevant log
+- [x] Add or update tests that verify time information appears in relevant log
       output.
-- [ ] Update user-facing documentation with an example of timed log output.
+- [x] Update user-facing documentation with an example of timed log output.
 
 ## Notes
 
