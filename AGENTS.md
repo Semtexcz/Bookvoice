@@ -61,6 +61,12 @@ After **every code change**, the agent must:
    - Reference the version number.
    - Group changes under appropriate headings (`Added`, `Changed`, `Fixed`, etc.).
 
+4. **Create a Git commit automatically after every change**
+   - Commit the completed change without waiting for an explicit follow-up
+     request.
+   - Use the Conventional Commit message created for the change.
+   - Keep commits focused and do not include unrelated worktree changes.
+
 ---
 
 ## 5. Task Workflow (project/backlog)
