@@ -104,11 +104,11 @@ After **every code change**, the agent must:
 ## 7. Dependency Management
 
 - Use **Poetry** for dependency management.
-- Do not add new dependencies unless:
-
-  - They are clearly justified.
-  - They are actively maintained.
-- Prefer standard library solutions where possible.
+- Agents may use third-party libraries when they solve the problem well and
+  avoid unnecessary custom implementation or token waste.
+- Do not add new dependencies unless they are clearly justified and actively
+  maintained.
+- Prefer standard library solutions when they are practical and maintainable.
 
 ---
 
