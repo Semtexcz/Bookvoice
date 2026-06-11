@@ -8,7 +8,6 @@ task is implemented.
 
 | Task | Title | Dependencies |
 | --- | --- | --- |
-| [TASK-015](2026-02-21-task-015-online-model-pricing-for-cost-tracker.md) | Fetch model pricing online for run cost calculation | TASK-011, TASK-014 |
 | [TASK-057](2026-02-25-task-057-windows-code-signing-and-smartscreen-reputation.md) | Add Windows code-signing pipeline and SmartScreen mitigation | TASK-054, TASK-055, `.github/workflows/windows-release.yml` |
 | [TASK-058](2026-02-28-linux-deb-packaging/2026-02-28-task-058-linux-deb-target-and-install-layout.md) | Define Linux Debian package target, support policy, and install layout | `pyproject.toml`, `README.md` |
 | [TASK-059](2026-02-28-linux-deb-packaging/2026-02-28-task-059-linux-deb-build-and-dependencies.md) | Build a Debian package for Bookvoice and define dependency handling | TASK-058, `pyproject.toml`, `README.md` |
