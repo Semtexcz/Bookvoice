@@ -47,6 +47,34 @@ poetry run bookvoice build input.epub --out out/
 poetry run bookvoice build --config bookvoice.yaml
 ```
 
+## Python Library Usage
+
+Other Python applications can import Bookvoice and run the full build pipeline
+without invoking the CLI through a subprocess:
+
+```python
+from pathlib import Path
+
+from bookvoice.api import build_audiobook, create_build_config
+
+config = create_build_config(
+    input_path=Path("input.pdf"),
+    output_dir=Path("out"),
+    language="cs",
+)
+
+manifest = build_audiobook(config)
+print(manifest.run_id)
+```
+
+The CLI remains the primary interface for local users. Backend workers should
+provide credentials and runtime settings non-interactively through
+`BookvoiceConfig`, environment variables, or existing runtime configuration
+mechanisms. Web routing, authentication, payment, database persistence, and job
+orchestration belong outside this repository.
+
+See `docs/library-usage.md` for more details.
+
 ## Core User Commands
 
 ### Build (full pipeline)

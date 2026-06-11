@@ -207,6 +207,8 @@ class PricingProvider:
         usd_raw = item.get("usd")
         if isinstance(usd_raw, bool):
             raise ValueError("Pricing item `usd` must be numeric.")
+        if not isinstance(usd_raw, (int, float, str)):
+            raise ValueError("Pricing item `usd` must be numeric.")
         try:
             usd = float(usd_raw)
         except (TypeError, ValueError) as exc:

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.21.0] - 2026-06-11
+
+### Added
+
+- Added `bookvoice.api.build_audiobook` as a stable Python API for running the
+  full Bookvoice pipeline without invoking the CLI.
+- Added `bookvoice.api.create_build_config` for format-neutral programmatic
+  config creation.
+- Documented backend-worker library usage and clarified that web, auth,
+  payment, database, and job orchestration concerns belong outside this
+  repository.
+- Bumped project version to `0.21.0`.
+
 ## [0.20.1] - 2026-06-11
 
 ### Added

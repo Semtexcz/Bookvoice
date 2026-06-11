@@ -8,7 +8,8 @@ Responsibilities:
 
 from __future__ import annotations
 
-from contextlib import AbstractContextManager
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -58,12 +59,13 @@ class PipelineExecutionMixin:
         def _record_provider_cache_stats(self, *, hits: int, misses: int) -> None:
             """Record provider cache telemetry for downstream manifest metadata."""
 
+        @contextmanager
         def _provider_activity(
             self,
             stage_name: str,
             item_index: int,
             item_total: int,
-        ) -> AbstractContextManager[object]:
+        ) -> Iterator[None]:
             """Return a context manager that emits provider activity pulses."""
 
     @staticmethod

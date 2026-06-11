@@ -798,6 +798,7 @@ class BookvoicePipeline(
             state.runtime_config,
             state.store,
         )
+        pricing = state.pricing
         state.rewrites, state.chapter_scope = self._load_tts_only_prerequisites(state)
 
         state.audio_parts = self._run_stage(
@@ -900,7 +901,7 @@ class BookvoicePipeline(
                     **packaged_output_metadata,
                     **self._provider_call_manifest_metadata(),
                     **state.runtime_config.as_manifest_metadata(),
-                    **state.pricing.as_manifest_metadata(state.runtime_config),
+                    **pricing.as_manifest_metadata(state.runtime_config),
                     **state.chapter_scope,
                 },
                 cost_summary=rounded_cost_summary(state.cost_tracker),

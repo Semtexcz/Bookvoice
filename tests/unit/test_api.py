@@ -1,0 +1,96 @@
+"""Unit tests for the public Python API facade."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from pytest import MonkeyPatch
+
+from bookvoice.api import ProgressCallback, build_audiobook, create_build_config
+from bookvoice.config import BookvoiceConfig
+from bookvoice.models.datatypes import BookMeta, RunManifest
+
+
+def _manifest_stub() -> RunManifest:
+    """Return a deterministic manifest used by API facade tests."""
+
+    return RunManifest(
+        run_id="run-api",
+        config_hash="cfg-api",
+        book=BookMeta(
+            source_pdf=Path("input.pdf"),
+            title="API Fixture",
+            author=None,
+            language="cs",
+        ),
+        merged_audio_path=Path("out/run-api/audio/bookvoice_merged.wav"),
+        total_llm_cost_usd=0.0,
+        total_tts_cost_usd=0.0,
+        total_cost_usd=0.0,
+    )
+
+
+def test_build_audiobook_delegates_to_pipeline_and_returns_manifest(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """The public API should pass config/callback through to the pipeline."""
+
+    manifest = _manifest_stub()
+    captured: dict[str, object] = {}
+
+    class FakePipeline:
+        """Capture constructor and run inputs for the facade test."""
+
+        def __init__(
+            self,
+            stage_progress_callback: ProgressCallback | None = None,
+        ) -> None:
+            captured["progress_callback"] = stage_progress_callback
+
+        def run(self, config: BookvoiceConfig) -> RunManifest:
+            captured["config"] = config
+            return manifest
+
+    monkeypatch.setattr("bookvoice.api.BookvoicePipeline", FakePipeline)
+
+    config = BookvoiceConfig(input_pdf=Path("input.pdf"), output_dir=Path("out"))
+
+    def progress_callback(stage_name: str, stage_index: int, stage_total: int) -> None:
+        captured["progress_event"] = (stage_name, stage_index, stage_total)
+
+    result = build_audiobook(config, progress_callback=progress_callback)
+
+    assert result is manifest
+    assert captured["config"] is config
+    assert captured["progress_callback"] is progress_callback
+
+
+def test_public_api_imports_build_audiobook() -> None:
+    """Library callers should be able to import the stable build function."""
+
+    from bookvoice.api import build_audiobook as imported_build_audiobook
+
+    assert imported_build_audiobook is build_audiobook
+
+
+def test_create_build_config_uses_format_neutral_input_name() -> None:
+    """The helper should hide the legacy `input_pdf` field name from callers."""
+
+    config = create_build_config(
+        input_path=Path("book.epub"),
+        output_dir=Path("out"),
+        language="en",
+        chapter_selection="1-3",
+        rewrite_bypass=True,
+        max_provider_workers=2,
+        extra={"packaging_output_format": "m4a"},
+    )
+
+    assert config.input_pdf == Path("book.epub")
+    assert config.input_path == Path("book.epub")
+    assert config.output_dir == Path("out")
+    assert config.language == "en"
+    assert config.chapter_selection == "1-3"
+    assert config.rewrite_bypass is True
+    assert config.max_provider_workers == 2
+    assert config.extra == {"packaging_output_format": "m4a"}
