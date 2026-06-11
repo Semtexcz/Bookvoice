@@ -39,6 +39,9 @@ Load context lazily. For every task, read:
 Additionally read:
 
 - `docs/ARCHITECTURE.md` for architectural, cross-module, or dependency changes
+- `docs/CURRENT_STATE.md` for planning, prioritization, task creation, or project-level questions
+- `docs/RISKS.md` when evaluating trade-offs, architecture, external dependencies, or production readiness
+- `docs/conversations/` only when the task explicitly references a previous conversation summary
 - `product/features/` for feature behavior changes
 - `docs/TASK_SEQUENCE.md` when selecting, sequencing, adding, removing, or moving tasks
 - `context/test-strategy.md` when adding tests or changing test strategy
@@ -84,6 +87,15 @@ Documentation is a context cache for future agents.
 - Prefer local documentation near the code over forcing future agents to re-read large areas.
 - Keep documentation concise and structured.
 - Do not turn `AGENTS.md` into the context cache; add focused docs under `docs/`, local READMEs, ADRs, or module docstrings.
+
+Conversation summaries are archival notes, not the source of truth.
+
+Promote important information from `docs/conversations/` into:
+
+- `docs/CURRENT_STATE.md` for current facts
+- `docs/decisions/` for accepted decisions
+- `project/backlog/` for executable tasks
+- `docs/RISKS.md` for risks
 
 Docstrings:
 
