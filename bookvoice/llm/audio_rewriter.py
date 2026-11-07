@@ -12,6 +12,7 @@ from typing import Protocol
 from ..models.datatypes import RewriteResult, TranslationResult
 from .cache import ResponseCache
 from .openai_client import OpenAIChatClient
+from .proficiency import normalize_proficiency_level
 from .prompts import PromptLibrary
 from .rate_limiter import RateLimiter
 
@@ -19,7 +20,12 @@ from .rate_limiter import RateLimiter
 class Rewriter(Protocol):
     """Protocol for rewrite providers."""
 
-    def rewrite(self, translation: TranslationResult) -> RewriteResult:
+    def rewrite(
+        self,
+        translation: TranslationResult,
+        *,
+        proficiency_level: str | None = None,
+    ) -> RewriteResult:
         """Rewrite translated text for audio delivery."""
 
 
@@ -42,14 +48,25 @@ class AudioRewriter:
         self.client = OpenAIChatClient(api_key=api_key, rate_limiter=rate_limiter)
         self.prompts = PromptLibrary()
 
-    def rewrite(self, translation: TranslationResult) -> RewriteResult:
+    def rewrite(
+        self,
+        translation: TranslationResult,
+        *,
+        proficiency_level: str | None = None,
+    ) -> RewriteResult:
         """Rewrite translated text with OpenAI chat-completions."""
 
+        normalized_level = normalize_proficiency_level(proficiency_level)
+        input_identity: dict[str, object] = {
+            "translated_text": translation.translated_text,
+        }
+        if normalized_level is not None:
+            input_identity["proficiency_level"] = normalized_level
         cache_key = self.cache.make_key(
             provider=self.provider_id,
             model=self.model,
             operation="rewrite",
-            input_identity={"translated_text": translation.translated_text},
+            input_identity=input_identity,
         )
         rewritten_text = self.cache.get(cache_key)
         if rewritten_text is None:
@@ -57,7 +74,8 @@ class AudioRewriter:
                 model=self.model,
                 system_prompt=self.prompts.rewrite_system_prompt(),
                 user_prompt=self.prompts.rewrite_for_audio_prompt(
-                    translated_text=translation.translated_text
+                    translated_text=translation.translated_text,
+                    proficiency_level=normalized_level,
                 ),
                 temperature=0.0,
             )
@@ -94,9 +112,15 @@ class DeterministicBypassRewriter:
     provider_id = "bypass"
     model = "deterministic-pass-through-v1"
 
-    def rewrite(self, translation: TranslationResult) -> RewriteResult:
+    def rewrite(
+        self,
+        translation: TranslationResult,
+        *,
+        proficiency_level: str | None = None,
+    ) -> RewriteResult:
         """Return a deterministic pass-through rewrite result for explicit bypass mode."""
 
+        normalize_proficiency_level(proficiency_level)
         return RewriteResult(
             translation=translation,
             rewritten_text=translation.translated_text,

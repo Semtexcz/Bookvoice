@@ -70,6 +70,31 @@ config = create_build_config(
 manifest = build_audiobook(config)
 ```
 
+## Proficiency-level control
+
+The translator and audio-rewriter interfaces accept an optional keyword-only
+`proficiency_level`. The supported CEFR labels are `A0`, `A1`, `A2`, `B1`, `B2`,
+`C1`, and `C2`; normalization is case-insensitive, so `a2` becomes `A2`. An
+unsupported value raises `ValueError` that lists the accepted labels.
+
+```python
+from bookvoice.llm.audio_rewriter import AudioRewriter
+from bookvoice.llm.translator import OpenAITranslator
+
+translator = OpenAITranslator(api_key=api_key)
+translation = translator.translate(chunk, target_language="cs", proficiency_level="A2")
+
+rewriter = AudioRewriter(api_key=api_key)
+rewrite = rewriter.rewrite(translation, proficiency_level="A2")
+```
+
+When a level is supplied, the prompt asks for vocabulary and sentence complexity
+appropriate to that level while preserving meaning, factual information, names, and
+numbers. Response-cache entries are isolated by the normalized level, so `A2` and
+`C1` never share a cached response, while `a2` and `A2` do. Omitting the argument
+keeps the previous prompt and cache behavior. CLI options and pipeline propagation
+are not part of this library-level interface yet.
+
 Backend workers should construct `BookvoiceConfig` non-interactively and provide
 credentials through `BookvoiceConfig.api_key`, environment variables such as
 `OPENAI_API_KEY`, or the existing runtime configuration mechanisms. The public

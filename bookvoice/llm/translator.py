@@ -12,6 +12,7 @@ from typing import Protocol
 from ..models.datatypes import Chunk, TranslationResult
 from .cache import ResponseCache
 from .openai_client import OpenAIChatClient
+from .proficiency import normalize_proficiency_level
 from .prompts import PromptLibrary
 from .rate_limiter import RateLimiter
 
@@ -19,7 +20,13 @@ from .rate_limiter import RateLimiter
 class Translator(Protocol):
     """Protocol for translation providers."""
 
-    def translate(self, chunk: Chunk, target_language: str) -> TranslationResult:
+    def translate(
+        self,
+        chunk: Chunk,
+        target_language: str,
+        *,
+        proficiency_level: str | None = None,
+    ) -> TranslationResult:
         """Translate one chunk into the target language."""
 
 
@@ -42,17 +49,27 @@ class OpenAITranslator:
         self.client = OpenAIChatClient(api_key=api_key, rate_limiter=rate_limiter)
         self.prompts = PromptLibrary()
 
-    def translate(self, chunk: Chunk, target_language: str) -> TranslationResult:
+    def translate(
+        self,
+        chunk: Chunk,
+        target_language: str,
+        *,
+        proficiency_level: str | None = None,
+    ) -> TranslationResult:
         """Translate one chunk with OpenAI chat-completions and return stage metadata."""
 
+        normalized_level = normalize_proficiency_level(proficiency_level)
+        input_identity: dict[str, object] = {
+            "target_language": target_language,
+            "source_text": chunk.text,
+        }
+        if normalized_level is not None:
+            input_identity["proficiency_level"] = normalized_level
         cache_key = self.cache.make_key(
             provider=self.provider_id,
             model=self.model,
             operation="translate",
-            input_identity={
-                "target_language": target_language,
-                "source_text": chunk.text,
-            },
+            input_identity=input_identity,
         )
         translated_text = self.cache.get(cache_key)
         if translated_text is None:
@@ -62,6 +79,7 @@ class OpenAITranslator:
                 user_prompt=self.prompts.translate_prompt(
                     source_text=chunk.text,
                     target_language=target_language,
+                    proficiency_level=normalized_level,
                 ),
                 temperature=0.0,
             )
