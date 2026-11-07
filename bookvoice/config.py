@@ -14,17 +14,17 @@ Key types:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import os
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Mapping
+from typing import Any, Literal
 
 from .parsing import (
     normalize_optional_string,
     parse_permissive_boolean,
     parse_required_boolean,
 )
-
 
 _DEFAULT_TRANSLATION_MODEL = "gpt-4.1-mini"
 _DEFAULT_REWRITE_MODEL = "gpt-4.1-mini"
@@ -1082,10 +1082,7 @@ class ConfigLoader:
         if lower == "false":
             return False
 
-        if normalized.startswith(("+", "-")):
-            digit_part = normalized[1:]
-        else:
-            digit_part = normalized
+        digit_part = normalized[1:] if normalized.startswith(("+", "-")) else normalized
         if digit_part.isdigit():
             return int(normalized)
 

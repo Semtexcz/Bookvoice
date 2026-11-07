@@ -8,10 +8,9 @@ Responsibilities:
 
 from __future__ import annotations
 
-from pathlib import Path
 import re
-from typing import Mapping
-
+from collections.abc import Mapping
+from pathlib import Path
 
 _READER_EXPORT_FORMAT_ORDER = ("epub", "pdf")
 _READER_EXPORT_FORMATS = frozenset(_READER_EXPORT_FORMAT_ORDER)

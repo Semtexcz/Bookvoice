@@ -3,11 +3,10 @@
 import json
 from pathlib import Path
 
-from tests.fixture_paths import canonical_content_pdf_fixture_path
-
 from typer.testing import CliRunner
 
 from bookvoice.cli import app
+from tests.fixture_paths import canonical_content_pdf_fixture_path
 
 
 def test_chapters_only_command_writes_split_artifacts_only(tmp_path: Path) -> None:

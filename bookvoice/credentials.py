@@ -15,7 +15,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from types import ModuleType
 
-
 _DEFAULT_SERVICE_NAME = "bookvoice"
 _DEFAULT_ACCOUNT_NAME = "openai_api_key"
 

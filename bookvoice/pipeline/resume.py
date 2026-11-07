@@ -8,13 +8,13 @@ Responsibilities:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import json
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..errors import PipelineStageError
-from .artifacts import load_audio_parts, load_chunks, load_rewrites, load_translations
 from ..parsing import normalize_optional_string, parse_permissive_boolean
+from .artifacts import load_audio_parts, load_chunks, load_rewrites, load_translations
 
 
 @dataclass(frozen=True, slots=True)

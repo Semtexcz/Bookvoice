@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 _TRUE_BOOLEAN_TOKENS = frozenset({"1", "true", "yes", "on"})
 _FALSE_BOOLEAN_TOKENS = frozenset({"0", "false", "no", "off"})
 

@@ -184,7 +184,7 @@ def generate_fixture(output_path: Path = OUTPUT_PATH) -> Path:
 
     chapter_start_pages: list[int] = []
     for chapter_number, (chapter_title, chapter_slug) in enumerate(
-        zip(chapter_titles, chapter_slugs),
+        zip(chapter_titles, chapter_slugs, strict=False),
         start=1,
     ):
         chapter_start_pages.append(len(writer.pages))
@@ -192,7 +192,7 @@ def generate_fixture(output_path: Path = OUTPUT_PATH) -> Path:
         for page_lines in _paginate_lines(chapter_lines):
             _add_text_page(writer, page_lines)
 
-    for chapter_start_page, chapter_title in zip(chapter_start_pages, chapter_titles):
+    for chapter_start_page, chapter_title in zip(chapter_start_pages, chapter_titles, strict=False):
         writer.add_outline_item(chapter_title, page_number=chapter_start_page)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

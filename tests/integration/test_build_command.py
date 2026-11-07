@@ -3,15 +3,14 @@
 import json
 from pathlib import Path
 
-from tests.fixture_paths import (
-    canonical_content_epub_fixture_path,
-    canonical_content_pdf_fixture_path,
-)
-
 import pytest
 from typer.testing import CliRunner
 
 from bookvoice.cli import app
+from tests.fixture_paths import (
+    canonical_content_epub_fixture_path,
+    canonical_content_pdf_fixture_path,
+)
 
 
 def _parse_wav_info_tags(wav_bytes: bytes) -> dict[str, str]:

@@ -7,8 +7,8 @@ Responsibilities:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 from typing import Protocol
 
 
@@ -180,9 +180,7 @@ class MergeDropCapInitials:
 
         if previous and self._LIST_MARKER_RE.fullmatch(previous):
             return True
-        if following and re.match(r"^(?:\d+[.)]|[A-Za-z][.)]|[-*])\s+", following):
-            return True
-        return False
+        return bool(following and re.match(r"^(?:\d+[.)]|[A-Za-z][.)]|[-*])\s+", following))
 
 
 @dataclass(frozen=True, slots=True)

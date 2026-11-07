@@ -12,8 +12,8 @@ import wave
 from pathlib import Path
 from typing import Protocol
 
-from ..llm.rate_limiter import RateLimiter
 from ..llm.openai_client import OpenAIProviderError, OpenAISpeechClient
+from ..llm.rate_limiter import RateLimiter
 from ..models.datatypes import AudioPart, RewriteResult
 from ..text.slug import slugify_audio_title
 from .voices import VoiceProfile

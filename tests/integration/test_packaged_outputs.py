@@ -5,14 +5,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tests.fixture_paths import canonical_content_pdf_fixture_path
-
 import pytest
 from typer.testing import CliRunner
 
 from bookvoice.audio.packaging import AudioPackager
 from bookvoice.cli import app
 from bookvoice.models.datatypes import AudioPart
+from tests.fixture_paths import canonical_content_pdf_fixture_path
 
 
 def _fake_encode_chapter(
@@ -33,7 +32,7 @@ def _fake_encode_chapter(
     _ = encoding_bitrate
     _ = encoding_profile
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(f"packaged-{format_id}".encode("utf-8"))
+    output_path.write_bytes(f"packaged-{format_id}".encode())
 
 
 def test_build_creates_deterministic_packaged_outputs_and_manifest_references(

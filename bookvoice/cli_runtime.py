@@ -6,7 +6,8 @@ and secure API-key persistence from the command wiring layer.
 
 from __future__ import annotations
 
-from typing import Callable, Protocol
+from collections.abc import Callable
+from typing import Protocol
 
 import typer
 

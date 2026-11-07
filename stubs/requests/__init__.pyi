@@ -2,7 +2,6 @@
 
 from typing import Any, Protocol
 
-
 class RequestException(Exception): ...
 
 

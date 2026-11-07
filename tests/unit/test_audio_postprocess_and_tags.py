@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import wave
 from array import array
 from pathlib import Path
-import wave
 
 from bookvoice.audio.postprocess import AudioPostProcessor
 from bookvoice.audio.tags import AudioTagContext, MetadataWriter
@@ -134,4 +134,4 @@ def test_metadata_writer_writes_stable_wav_info_tags(tmp_path: Path) -> None:
     assert "scope=1-2" in tags["ISBJ"]
     assert "indices=1,2" in tags["ISBJ"]
     assert "parts=3" in tags["ISBJ"]
-    assert "source=source.pdf#run-abc" == tags["ICMT"]
+    assert tags["ICMT"] == "source=source.pdf#run-abc"

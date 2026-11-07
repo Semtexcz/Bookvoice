@@ -44,7 +44,7 @@ def test_chunker_generates_bounded_chunks_with_stable_offsets() -> None:
     )
 
     assert chunks[0].char_start == 0
-    for previous, current in zip(chunks, chunks[1:]):
+    for previous, current in zip(chunks, chunks[1:], strict=False):
         assert current.char_start == previous.char_end
         assert current.chunk_index == previous.chunk_index + 1
     assert any(

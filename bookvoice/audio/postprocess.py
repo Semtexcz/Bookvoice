@@ -7,10 +7,10 @@ Responsibilities:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import io
-from pathlib import Path
 import wave
+from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True, slots=True)

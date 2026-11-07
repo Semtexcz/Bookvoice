@@ -8,6 +8,8 @@ import pytest
 
 from tests.fixture_paths import (
     canonical_content_epub_fixture_path as resolve_canonical_content_epub_fixture_path,
+)
+from tests.fixture_paths import (
     canonical_content_pdf_fixture_path as resolve_canonical_content_pdf_fixture_path,
 )
 
