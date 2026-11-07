@@ -3,8 +3,6 @@
 import json
 from pathlib import Path
 
-from tests.fixture_paths import canonical_content_pdf_fixture_path
-
 import pytest
 from typer.testing import CliRunner
 
@@ -13,6 +11,7 @@ from bookvoice.config import BookvoiceConfig, ProviderRuntimeConfig
 from bookvoice.io.storage import ArtifactStore
 from bookvoice.models.datatypes import AudioPart, RewriteResult
 from bookvoice.pipeline import BookvoicePipeline
+from tests.fixture_paths import canonical_content_pdf_fixture_path
 
 
 def _schema_shape(value: object) -> object:

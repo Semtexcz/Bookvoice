@@ -1,18 +1,17 @@
 """Translate-only command integration tests for deterministic text artifacts."""
 
 import json
-from pathlib import Path
 import zipfile
-
-from tests.fixture_paths import (
-    canonical_content_epub_fixture_path,
-    canonical_content_pdf_fixture_path,
-)
+from pathlib import Path
 
 from pytest import MonkeyPatch
 from typer.testing import CliRunner
 
 from bookvoice.cli import app
+from tests.fixture_paths import (
+    canonical_content_epub_fixture_path,
+    canonical_content_pdf_fixture_path,
+)
 
 
 def test_translate_only_command_creates_expected_artifacts_without_audio(

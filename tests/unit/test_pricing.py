@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import requests
 import pytest
+import requests
 
 from bookvoice.config import BookvoiceConfig, ProviderRuntimeConfig
 from bookvoice.models.datatypes import Chunk, RewriteResult, TranslationResult

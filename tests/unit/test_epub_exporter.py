@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import zipfile
+from pathlib import Path
 
-from bookvoice.io.epub_exporter import EpubExportRequest, EpubExporter
+from bookvoice.io.epub_exporter import EpubExporter, EpubExportRequest
 from bookvoice.models.datatypes import TranslatedDocument, TranslatedDocumentChapter
 
 

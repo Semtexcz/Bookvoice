@@ -2,13 +2,12 @@
 
 from pathlib import Path
 
-from tests.fixture_paths import canonical_content_pdf_fixture_path
-
 from pytest import MonkeyPatch
 from typer.testing import CliRunner
 
 from bookvoice.cli import app
 from bookvoice.errors import PipelineStageError
+from tests.fixture_paths import canonical_content_pdf_fixture_path
 
 
 def test_build_smoke_creates_manifest_and_audio(tmp_path: Path) -> None:

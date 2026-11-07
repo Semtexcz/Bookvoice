@@ -1,9 +1,8 @@
 """Tests for provider factories and provider runtime configuration resolution."""
 
 import io
-from pathlib import Path
-
 import wave
+from pathlib import Path
 
 import pytest
 

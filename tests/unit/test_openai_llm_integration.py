@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import io
 import json
-from pathlib import Path
 import wave
+from pathlib import Path
 
 import pytest
 
 from bookvoice.config import BookvoiceConfig
 from bookvoice.errors import PipelineStageError
 from bookvoice.io.storage import ArtifactStore
-from bookvoice.llm.audio_rewriter import AudioRewriter
 from bookvoice.llm import openai_client as openai_http
+from bookvoice.llm.audio_rewriter import AudioRewriter
 from bookvoice.llm.openai_client import OpenAIChatClient, OpenAIProviderError, OpenAISpeechClient
 from bookvoice.llm.translator import OpenAITranslator
 from bookvoice.models.datatypes import Chunk, RewriteResult, TranslationResult

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-from bookvoice.io.pdf_exporter import PdfExportRequest, PdfExporter
+from bookvoice.io.pdf_exporter import PdfExporter, PdfExportRequest
 from bookvoice.models.datatypes import TranslatedDocument, TranslatedDocumentChapter
 
 

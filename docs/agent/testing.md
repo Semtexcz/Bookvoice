@@ -22,6 +22,19 @@ poetry run ruff format .
 poetry run mypy --config-file pyproject.toml --explicit-package-bases bookvoice tests
 ```
 
+`make check` (lint, type check, tests) is the canonical local gate.
+
+## Lint Configuration
+
+Ruff is configured explicitly in `pyproject.toml`:
+
+- `[tool.ruff]`: `target-version = "py311"`, `line-length = 120`
+- `[tool.ruff.lint]`: `select = ["E", "F", "I", "B", "UP", "SIM"]`
+
+Do not rely on ruff defaults; they change between releases and would make `make
+check` results depend on the installed ruff version. Add or relax rules only by
+editing `pyproject.toml`, never by suppressing individual violations.
+
 ## Test Strategy
 
 - Prefer unit tests for focused logic.

@@ -8,11 +8,11 @@ Responsibilities:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
 import re
 import shutil
 import subprocess
+from dataclasses import dataclass
+from pathlib import Path
 
 from ..errors import PipelineStageError
 from ..models.datatypes import AudioPart, PackagedAudio

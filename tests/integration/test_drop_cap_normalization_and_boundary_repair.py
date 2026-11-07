@@ -5,13 +5,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tests.fixture_paths import canonical_content_pdf_fixture_path
-
 from pytest import MonkeyPatch
 from typer.testing import CliRunner
 
 from bookvoice.cli import app
 from bookvoice.models.datatypes import Chapter
+from tests.fixture_paths import canonical_content_pdf_fixture_path
 
 
 def _extract_stub(*_: object, **__: object) -> str:

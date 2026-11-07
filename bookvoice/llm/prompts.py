@@ -3,9 +3,22 @@
 Responsibilities:
 - Centralize prompt construction for translation and audio rewrite steps.
 - Keep prompts versioned and deterministic by template key.
+- Apply optional CEFR proficiency guidance without changing legacy prompts.
 """
 
 from __future__ import annotations
+
+from .proficiency import normalize_proficiency_level
+
+
+def _proficiency_guidance(level: str) -> str:
+    """Return the deterministic CEFR guidance block for a normalized level."""
+
+    return (
+        f"Target CEFR proficiency level {level} by adjusting vocabulary and sentence "
+        "complexity for that level. Preserve meaning, factual information, names, and "
+        "numbers. Do not add or remove information."
+    )
 
 
 class PromptLibrary:
@@ -19,14 +32,23 @@ class PromptLibrary:
             "Return only translated text with no commentary."
         )
 
-    def translate_prompt(self, source_text: str, target_language: str) -> str:
+    def translate_prompt(
+        self,
+        source_text: str,
+        target_language: str,
+        *,
+        proficiency_level: str | None = None,
+    ) -> str:
         """Return translation prompt text for provider calls."""
 
-        return (
+        normalized_level = normalize_proficiency_level(proficiency_level)
+        prompt = (
             f"Translate the following text into {target_language} while preserving meaning, "
             "tone, and paragraph structure. Output only the translated text.\n\n"
-            f"{source_text}"
         )
+        if normalized_level is not None:
+            prompt += f"{_proficiency_guidance(normalized_level)}\n\n"
+        return f"{prompt}{source_text}"
 
     def rewrite_system_prompt(self) -> str:
         """Return deterministic system prompt for narration rewrite behavior."""
@@ -37,10 +59,16 @@ class PromptLibrary:
             "Return only rewritten narration text with no commentary."
         )
 
-    def rewrite_for_audio_prompt(self, translated_text: str) -> str:
+    def rewrite_for_audio_prompt(
+        self,
+        translated_text: str,
+        *,
+        proficiency_level: str | None = None,
+    ) -> str:
         """Return rewrite prompt text for natural spoken narration."""
 
-        return (
+        normalized_level = normalize_proficiency_level(proficiency_level)
+        prompt = (
             "Rewrite the following text for audiobook narration.\n"
             "Requirements:\n"
             "- Keep the same language as the input text.\n"
@@ -49,6 +77,7 @@ class PromptLibrary:
             "- Prefer concise spoken phrasing and punctuation that supports pauses.\n"
             "- Keep paragraph structure unless a small split improves clarity.\n"
             "- Do not add new information, analysis, or meta commentary.\n"
-            "Output only the rewritten text.\n\n"
-            f"{translated_text}"
         )
+        if normalized_level is not None:
+            prompt += f"- {_proficiency_guidance(normalized_level)}\n"
+        return f"{prompt}Output only the rewritten text.\n\n{translated_text}"

@@ -8,11 +8,11 @@ Responsibilities:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from hashlib import sha256
 from html import escape
 from pathlib import Path
-import re
 from typing import Final
 from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile, ZipInfo
 

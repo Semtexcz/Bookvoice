@@ -29,7 +29,7 @@ def _fake_encode_chapter(
     _ = encoding_bitrate
     _ = encoding_profile
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(f"encoded-{format_id}".encode("utf-8"))
+    output_path.write_bytes(f"encoded-{format_id}".encode())
 
 
 def _build_part(

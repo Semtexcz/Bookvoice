@@ -7,8 +7,8 @@ Responsibilities:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 
 from ..models.datatypes import Chapter, Chunk
 
@@ -158,9 +158,7 @@ class Chunker:
             return True
         if self._is_decimal_period(text, punctuation_index):
             return False
-        if self._is_abbreviation_period(text, punctuation_index):
-            return False
-        return True
+        return not self._is_abbreviation_period(text, punctuation_index)
 
     def _is_decimal_period(self, text: str, punctuation_index: int) -> bool:
         """Return whether a period is part of a decimal number."""
@@ -386,9 +384,7 @@ class SentenceBoundaryRepairer:
             return True
         if self._is_decimal_period(text, punctuation_index):
             return False
-        if self._is_abbreviation_period(text, punctuation_index):
-            return False
-        return True
+        return not self._is_abbreviation_period(text, punctuation_index)
 
     def _is_decimal_period(self, text: str, punctuation_index: int) -> bool:
         """Return whether period belongs to a decimal number token."""

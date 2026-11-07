@@ -3,13 +3,12 @@
 import json
 from pathlib import Path
 
-from tests.fixture_paths import canonical_content_pdf_fixture_path
-
 import pytest
 from pytest import MonkeyPatch
 from typer.testing import CliRunner
 
 from bookvoice.cli import app
+from tests.fixture_paths import canonical_content_pdf_fixture_path
 
 
 def test_tts_only_command_replays_tts_merge_without_upstream_stages(

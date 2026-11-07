@@ -200,9 +200,7 @@ class _OpenAIBaseClient:
             return error.failure_kind == "unknown"
         if error.status_code >= 500:
             return True
-        if error.status_code in {408, 429} and error.failure_kind != "insufficient_quota":
-            return True
-        return False
+        return bool(error.status_code in {408, 429} and error.failure_kind != "insufficient_quota")
 
     @staticmethod
     def _decode_error_body(exc: requests.HTTPError) -> str:

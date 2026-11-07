@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import zipfile
+from pathlib import Path
 
 from bookvoice.io.epub_text_extractor import EpubTextExtractor
 from bookvoice.pipeline import BookvoicePipeline

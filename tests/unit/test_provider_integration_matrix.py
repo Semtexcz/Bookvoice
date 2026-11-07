@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import io
-from pathlib import Path
 import wave
+from pathlib import Path
 
 import pytest
 

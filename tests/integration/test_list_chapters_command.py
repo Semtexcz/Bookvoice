@@ -2,14 +2,13 @@
 
 from pathlib import Path
 
+from typer.testing import CliRunner
+
+from bookvoice.cli import app
 from tests.fixture_paths import (
     canonical_content_epub_fixture_path,
     canonical_content_pdf_fixture_path,
 )
-
-from typer.testing import CliRunner
-
-from bookvoice.cli import app
 
 
 def test_list_chapters_command_lists_from_artifact(tmp_path: Path) -> None:

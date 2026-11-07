@@ -8,16 +8,15 @@ Responsibilities:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from html.parser import HTMLParser
-from pathlib import Path, PurePosixPath
 import posixpath
 import re
 import xml.etree.ElementTree as ET
 import zipfile
+from dataclasses import dataclass
+from html.parser import HTMLParser
+from pathlib import Path, PurePosixPath
 
 from ..models.datatypes import Chapter
-
 
 _NAMESPACES: dict[str, str] = {
     "container": "urn:oasis:names:tc:opendocument:xmlns:container",

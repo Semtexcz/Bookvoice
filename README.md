@@ -479,6 +479,15 @@ For Inno Setup installer packaging, see `docs/WINDOWS_INNO_SETUP.md`.
 poetry run pytest
 ```
 
+Run the full local gate (lint, type check, tests) with:
+
+```bash
+make check
+```
+
+The gate requires development dependencies; `poetry install` installs them from
+the `dev` dependency group defined in `pyproject.toml`.
+
 ### Template updates
 
 This repository is adopted from
