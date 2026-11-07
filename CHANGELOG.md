@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.23.0] - 2026-11-07
+
+### Added
+
+- Added optional CEFR proficiency-level targeting to the translator and
+  audio-rewriter library interfaces, with case-insensitive normalization,
+  prompt guidance, and proficiency-aware response-cache isolation.
+- Added `ProficiencyAwareTranslator` and `ProficiencyAwareRewriter` protocols
+  while preserving the existing `Translator` and `Rewriter` contracts for
+  legacy providers.
+- Bumped project version to `0.23.0`.
+
 ## [0.22.0] - 2026-06-11
 
 ### Added

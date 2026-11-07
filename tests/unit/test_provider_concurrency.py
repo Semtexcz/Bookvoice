@@ -9,6 +9,17 @@ import pytest
 
 from bookvoice.config import BookvoiceConfig
 from bookvoice.errors import PipelineStageError
+from bookvoice.llm.audio_rewriter import (
+    AudioRewriter,
+    DeterministicBypassRewriter,
+    ProficiencyAwareRewriter,
+    Rewriter,
+)
+from bookvoice.llm.translator import (
+    OpenAITranslator,
+    ProficiencyAwareTranslator,
+    Translator,
+)
 from bookvoice.models.datatypes import AudioPart, Chunk, RewriteResult, TranslationResult
 from bookvoice.pipeline.concurrency import run_ordered_bounded
 from bookvoice.pipeline.orchestrator import BookvoicePipeline
@@ -152,3 +163,53 @@ def test_ordered_bounded_worker_errors_include_stage_and_item_context() -> None:
 
     assert exc_info.value.stage == "translate"
     assert "Provider item 2/3 failed during `translate`" in exc_info.value.detail
+
+
+def _accepts_legacy_translator(translator: Translator) -> None:
+    _ = translator
+
+
+def _accepts_legacy_rewriter(rewriter: Rewriter) -> None:
+    _ = rewriter
+
+
+def _accepts_proficiency_aware_translator(translator: ProficiencyAwareTranslator) -> None:
+    _ = translator
+
+
+def _accepts_proficiency_aware_rewriter(rewriter: ProficiencyAwareRewriter) -> None:
+    _ = rewriter
+
+
+def _call_with_legacy_pipeline_signatures(
+    translator: Translator,
+    rewriter: Rewriter,
+    chunk: Chunk,
+) -> tuple[TranslationResult, RewriteResult]:
+    translation = translator.translate(chunk, target_language="cs")
+    rewrite = rewriter.rewrite(translation)
+    return translation, rewrite
+
+
+def test_legacy_test_doubles_satisfy_original_protocols() -> None:
+    """Existing provider test doubles should remain structurally compatible."""
+
+    _accepts_legacy_translator(SlowTranslator())
+    _accepts_legacy_rewriter(SlowRewriter())
+
+    translation, rewrite = _call_with_legacy_pipeline_signatures(
+        SlowTranslator(),
+        SlowRewriter(),
+        _chunks()[0],
+    )
+
+    assert translation.translated_text == "cs-0"
+    assert rewrite.rewritten_text == "rewrite-0"
+
+
+def test_concrete_adapters_satisfy_extended_proficiency_protocols() -> None:
+    """Proficiency-aware adapters should satisfy the extended protocols."""
+
+    _accepts_proficiency_aware_translator(OpenAITranslator(api_key="key"))
+    _accepts_proficiency_aware_rewriter(AudioRewriter(api_key="key"))
+    _accepts_proficiency_aware_rewriter(DeterministicBypassRewriter())

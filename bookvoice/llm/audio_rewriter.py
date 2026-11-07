@@ -18,7 +18,14 @@ from .rate_limiter import RateLimiter
 
 
 class Rewriter(Protocol):
-    """Protocol for rewrite providers."""
+    """Protocol for rewrite providers that do not accept proficiency levels."""
+
+    def rewrite(self, translation: TranslationResult) -> RewriteResult:
+        """Rewrite translated text for audio delivery."""
+
+
+class ProficiencyAwareRewriter(Protocol):
+    """Protocol for rewrite providers that support CEFR proficiency targeting."""
 
     def rewrite(
         self,
@@ -26,7 +33,7 @@ class Rewriter(Protocol):
         *,
         proficiency_level: str | None = None,
     ) -> RewriteResult:
-        """Rewrite translated text for audio delivery."""
+        """Rewrite translated text, optionally targeting a CEFR proficiency level."""
 
 
 class AudioRewriter:

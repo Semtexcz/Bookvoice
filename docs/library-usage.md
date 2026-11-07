@@ -72,10 +72,15 @@ manifest = build_audiobook(config)
 
 ## Proficiency-level control
 
-The translator and audio-rewriter interfaces accept an optional keyword-only
-`proficiency_level`. The supported CEFR labels are `A0`, `A1`, `A2`, `B1`, `B2`,
-`C1`, and `C2`; normalization is case-insensitive, so `a2` becomes `A2`. An
-unsupported value raises `ValueError` that lists the accepted labels.
+The concrete `OpenAITranslator`, `AudioRewriter`, and `DeterministicBypassRewriter`
+adapters accept an optional keyword-only `proficiency_level`. The supported CEFR
+labels are `A0`, `A1`, `A2`, `B1`, `B2`, `C1`, and `C2`; normalization is
+case-insensitive, so `a2` becomes `A2`. An unsupported, empty, or whitespace-only
+value raises `ValueError` that lists the accepted labels.
+
+Legacy providers keep the original `Translator` and `Rewriter` contracts and do not
+need to accept the keyword. Adapters that support proficiency targeting satisfy the
+extended `ProficiencyAwareTranslator` and `ProficiencyAwareRewriter` protocols.
 
 ```python
 from bookvoice.llm.audio_rewriter import AudioRewriter
@@ -91,9 +96,10 @@ rewrite = rewriter.rewrite(translation, proficiency_level="A2")
 When a level is supplied, the prompt asks for vocabulary and sentence complexity
 appropriate to that level while preserving meaning, factual information, names, and
 numbers. Response-cache entries are isolated by the normalized level, so `A2` and
-`C1` never share a cached response, while `a2` and `A2` do. Omitting the argument
-keeps the previous prompt and cache behavior. CLI options and pipeline propagation
-are not part of this library-level interface yet.
+`C1` never share a cached response, while `a2` and `A2` do. Omitting the argument or
+passing `None` keeps the previous prompt and cache identity, including reuse of a
+legacy cache entry. CLI options and pipeline propagation are not part of this
+library-level interface yet.
 
 Backend workers should construct `BookvoiceConfig` non-interactively and provide
 credentials through `BookvoiceConfig.api_key`, environment variables such as

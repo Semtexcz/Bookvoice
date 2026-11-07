@@ -9,9 +9,10 @@ changing the existing default behavior of the library interfaces.
 
 ### Requirement: Optional proficiency level normalization
 
-The translator and audio-rewriter interfaces SHALL accept an optional keyword-only
-`proficiency_level` and SHALL normalize `A0`, `A1`, `A2`, `B1`, `B2`, `C1`, and
-`C2` case-insensitively to the uppercase label. Omission SHALL yield `None`.
+The proficiency-aware translator and audio-rewriter adapters SHALL accept an
+optional keyword-only `proficiency_level` and SHALL normalize `A0`, `A1`, `A2`,
+`B1`, `B2`, `C1`, and `C2` case-insensitively to the uppercase label. Omission or
+an explicit `None` SHALL yield `None`.
 
 #### Scenario: Lowercase level is normalized
 
@@ -28,10 +29,52 @@ The translator and audio-rewriter interfaces SHALL accept an optional keyword-on
 - **WHEN** a caller omits `proficiency_level`
 - **THEN** the interface behaves as it did before the argument existed
 
+#### Scenario: Explicit None preserves the legacy path
+
+- **WHEN** a caller passes `proficiency_level=None`
+- **THEN** the interface behaves as if the argument were omitted
+
 #### Scenario: Unsupported level is rejected
 
 - **WHEN** a caller passes a value outside the supported CEFR labels
 - **THEN** the interface raises a validation error that names the supported labels
+
+#### Scenario: Empty or whitespace-only level is rejected
+
+- **WHEN** a caller passes an empty or whitespace-only proficiency level
+- **THEN** validation fails before any response-cache or provider access
+
+#### Scenario: Failed validation leaves cache state unchanged
+
+- **WHEN** validation rejects a proficiency level
+- **THEN** the response-cache entries, hits, and misses remain unchanged
+
+### Requirement: Legacy provider protocol compatibility
+
+The existing `Translator` and `Rewriter` protocols SHALL retain their original
+method contracts. Proficiency targeting SHALL be expressed by separate extended
+protocols that the concrete adapters satisfy, so legacy providers are never required
+to accept a new keyword argument.
+
+#### Scenario: Legacy translator remains compatible
+
+- **WHEN** an implementation provides `translate(chunk, target_language)` without a proficiency parameter
+- **THEN** it satisfies `Translator` and remains usable by existing translator call sites
+
+#### Scenario: Legacy rewriter remains compatible
+
+- **WHEN** an implementation provides `rewrite(translation)` without a proficiency parameter
+- **THEN** it satisfies `Rewriter` and remains usable by existing rewriter call sites
+
+#### Scenario: Concrete adapters satisfy extended protocols
+
+- **WHEN** `OpenAITranslator`, `AudioRewriter`, or `DeterministicBypassRewriter` is used
+- **THEN** it satisfies the corresponding proficiency-aware protocol
+
+#### Scenario: Pipeline calls remain level-free
+
+- **WHEN** the existing pipeline calls a translator or rewriter
+- **THEN** it uses the original method contract without a proficiency keyword
 
 ### Requirement: Proficiency guidance in prompts
 
@@ -71,7 +114,17 @@ case variants of the same level share one entry.
 - **WHEN** the same text is processed first at `a2` and then at `A2`
 - **THEN** the second call reuses the first cached response
 
-#### Scenario: No-level cache identity is preserved
+#### Scenario: Omitted level reuses the legacy cache entry
 
-- **WHEN** the same text is processed twice without a proficiency level
-- **THEN** the second call reuses the first cached response
+- **WHEN** a preseeded legacy cache entry exists and a caller omits the level
+- **THEN** the adapter reuses that entry without a provider call
+
+#### Scenario: Explicit None reuses the legacy cache entry
+
+- **WHEN** a preseeded legacy cache entry exists and a caller passes `None`
+- **THEN** the adapter reuses that entry without a provider call
+
+#### Scenario: Leveled request does not reuse the legacy cache entry
+
+- **WHEN** a preseeded legacy cache entry exists and a caller passes `A2`
+- **THEN** the adapter performs a provider call and stores a separate entry

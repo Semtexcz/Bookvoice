@@ -18,7 +18,14 @@ from .rate_limiter import RateLimiter
 
 
 class Translator(Protocol):
-    """Protocol for translation providers."""
+    """Protocol for translation providers that do not accept proficiency levels."""
+
+    def translate(self, chunk: Chunk, target_language: str) -> TranslationResult:
+        """Translate one chunk into the target language."""
+
+
+class ProficiencyAwareTranslator(Protocol):
+    """Protocol for translation providers that support CEFR proficiency targeting."""
 
     def translate(
         self,
@@ -27,7 +34,7 @@ class Translator(Protocol):
         *,
         proficiency_level: str | None = None,
     ) -> TranslationResult:
-        """Translate one chunk into the target language."""
+        """Translate one chunk, optionally targeting a CEFR proficiency level."""
 
 
 class OpenAITranslator:

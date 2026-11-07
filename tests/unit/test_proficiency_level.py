@@ -243,3 +243,88 @@ def test_deterministic_bypass_rejects_invalid_level() -> None:
 
     with pytest.raises(ValueError, match="Unsupported proficiency level"):
         DeterministicBypassRewriter().rewrite(_translation(), proficiency_level="X1")
+
+
+def test_translator_omitted_and_explicit_none_reuse_preseeded_legacy_cache(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Omitted and explicit None should hit the legacy entry; a level should not."""
+
+    calls = _install_recording_chat(monkeypatch)
+    translator = OpenAITranslator(model="gpt-4.1-mini", provider_id="openai", api_key="key")
+    legacy_key = translator.cache.make_key(
+        provider="openai",
+        model="gpt-4.1-mini",
+        operation="translate",
+        input_identity={"target_language": "cs", "source_text": "Hello world."},
+    )
+    translator.cache.set(legacy_key, "legacy-translation")
+
+    omitted = translator.translate(_chunk(), target_language="cs")
+    explicit_none = translator.translate(
+        _chunk(),
+        target_language="cs",
+        proficiency_level=None,
+    )
+    leveled = translator.translate(_chunk(), target_language="cs", proficiency_level="A2")
+
+    assert omitted.translated_text == "legacy-translation"
+    assert explicit_none.translated_text == "legacy-translation"
+    assert leveled.translated_text == "response-1"
+    assert len(calls) == 1
+    assert len(translator.cache.entries) == 2
+    assert translator.cache.entries[legacy_key] == "legacy-translation"
+    assert translator.cache.hits == 2
+    assert translator.cache.misses == 1
+
+
+def test_rewriter_omitted_and_explicit_none_reuse_preseeded_legacy_cache(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Omitted and explicit None should hit the legacy entry; a level should not."""
+
+    calls = _install_recording_chat(monkeypatch)
+    rewriter = AudioRewriter(model="gpt-4.1-mini", provider_id="openai", api_key="key")
+    legacy_key = rewriter.cache.make_key(
+        provider="openai",
+        model="gpt-4.1-mini",
+        operation="rewrite",
+        input_identity={"translated_text": "Ahoj svete."},
+    )
+    rewriter.cache.set(legacy_key, "legacy-rewrite")
+
+    omitted = rewriter.rewrite(_translation())
+    explicit_none = rewriter.rewrite(_translation(), proficiency_level=None)
+    leveled = rewriter.rewrite(_translation(), proficiency_level="A2")
+
+    assert omitted.rewritten_text == "legacy-rewrite"
+    assert explicit_none.rewritten_text == "legacy-rewrite"
+    assert leveled.rewritten_text == "response-1"
+    assert len(calls) == 1
+    assert len(rewriter.cache.entries) == 2
+    assert rewriter.cache.entries[legacy_key] == "legacy-rewrite"
+    assert rewriter.cache.hits == 2
+    assert rewriter.cache.misses == 1
+
+
+@pytest.mark.parametrize("invalid_level", ["D1", "", "   ", "\t\n"])
+def test_audio_rewriter_rejects_invalid_levels_without_touching_cache(
+    monkeypatch: pytest.MonkeyPatch,
+    invalid_level: str,
+) -> None:
+    """Invalid levels should fail before provider access and leave cache state intact."""
+
+    calls = _install_recording_chat(monkeypatch)
+    rewriter = AudioRewriter(model="gpt-4.1-mini", provider_id="openai", api_key="key")
+    rewriter.cache.set("existing", "value")
+    entries_before = dict(rewriter.cache.entries)
+    hits_before = rewriter.cache.hits
+    misses_before = rewriter.cache.misses
+
+    with pytest.raises(ValueError, match="Unsupported proficiency level"):
+        rewriter.rewrite(_translation(), proficiency_level=invalid_level)
+
+    assert calls == []
+    assert rewriter.cache.entries == entries_before
+    assert rewriter.cache.hits == hits_before
+    assert rewriter.cache.misses == misses_before
